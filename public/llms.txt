@@ -1,0 +1,27 @@
+# EV4U — Der Schweizer E-Auto-Marktplatz
+
+> Swiss classifieds marketplace for electric vehicles (private sellers and
+> garages), with an integrated cost engine: every listing is computed against
+> the buyer's official municipal electricity tariff (ElCom), solar setup and
+> annual mileage. Motto: "The Future is electric."
+
+## What makes EV4U distinct
+- Every listing shows real energy cost per 100 km at the visitor's local
+  Swiss electricity tariff (official ElCom data, all ~2'100 municipalities).
+- Listings include a measured battery state of health (SOH), not a claim.
+- Second-hand prices are shown against the Swiss list price when new
+  ("Neupreis-Vergleich"), so buyers see the saving.
+- The Rechenwerk simulation compares petrol vs. electricity cost including
+  charging-card subscriptions (TCS eCharge, MOVE, IONITY) and home solar.
+
+## Key pages
+- /inserate : all open listings, filterable (brand, body, seats, price)
+- /inserat/{slug} : one listing with full specs and the embedded cost engine
+- /rechenwerk : standalone cost calculator (petrol vs. electric, solar, cards)
+- /verkaufen : post a listing (private or garage)
+
+## Data sources
+- Electricity tariffs: ElCom (Swiss federal electricity regulator) via
+  LINDAS open data, category H4, updated yearly.
+- Localities/coordinates: swisstopo official directory (AMTOVZ).
+- Charging-card prices: published provider offers, dated in the UI.

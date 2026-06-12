@@ -1,0 +1,375 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   EV4U — Der Schweizer E-Auto-Marktplatz
+   Two themes, one token system:
+   · dark (default): anthracite instrument panel · Swiss signal red
+   · light:          paper white / cool gray · Swiss federal blue
+   Toggled by the `light` class on <html> (TopBar, persisted).
+   `--c-*` are RGB triplets for Tailwind's <alpha-value>; `--ink`, `--signal`,
+   `--nacht`, `--muted-c` are ready-made colors for inline SVG attributes.
+   ============================================================================ */
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --c-nacht: 10 11 13;
+    --c-panel: 18 19 22;
+    --c-panel2: 25 26 30;
+    --c-ink: 237 235 230;
+    --c-muted: 132 135 142;
+    --c-line: 35 36 41;
+    --c-signal: 255 59 48; /* Swiss signal red */
+    --c-signal-dim: 196 46 37;
+    --c-lume: 52 210 123;
+    --c-warn: 255 178 36;
+
+    --nacht: rgb(var(--c-nacht));
+    --ink: rgb(var(--c-ink));
+    --signal: rgb(var(--c-signal));
+    --muted-c: rgb(var(--c-muted));
+
+    --panel-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+      0 18px 50px -24px rgba(0, 0, 0, 0.8);
+    --grain-opacity: 0.05;
+  }
+
+  html.light {
+    color-scheme: light;
+    --c-nacht: 244 246 250;
+    --c-panel: 255 255 255;
+    --c-panel2: 232 238 246;
+    --c-ink: 14 24 40;
+    --c-muted: 90 102 117;
+    --c-line: 207 216 228;
+    --c-signal: 0 80 216; /* Swiss federal blue */
+    --c-signal-dim: 0 63 168;
+    --c-lume: 13 138 77;
+    --c-warn: 176 108 0;
+
+    --panel-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
+      0 14px 40px -28px rgba(14, 24, 40, 0.25);
+    --grain-opacity: 0.03;
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html,
+  body {
+    background: rgb(var(--c-nacht));
+  }
+
+  ::selection {
+    background: rgb(var(--c-signal) / 0.85);
+    color: #ffffff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgb(var(--c-nacht));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--c-line));
+    border: 2px solid rgb(var(--c-nacht));
+    border-radius: 0;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--c-signal));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-signal) / 0.7);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* --- Variable-width display type (Archivo width axis 62–125) ------------ */
+  .stretch-expand {
+    font-stretch: 125%;
+  }
+  .stretch-wide {
+    font-stretch: 110%;
+  }
+  .stretch-cond {
+    font-stretch: 72%;
+  }
+
+  /* Hollow display type — hero "STATT" + footer wordmark */
+  .text-outline {
+    -webkit-text-stroke: 1.5px rgb(var(--c-ink) / 0.55);
+    color: transparent;
+  }
+  .text-outline-red {
+    -webkit-text-stroke: 1.5px rgb(var(--c-signal) / 0.8);
+    color: transparent;
+  }
+
+  /* --- Surfaces ------------------------------------------------------------ */
+  .panel {
+    background: rgb(var(--c-panel));
+    border: 1px solid rgb(var(--c-ink) / 0.1);
+    box-shadow: var(--panel-shadow);
+  }
+
+  /* Fine engineering grid, used inside panels */
+  .bg-blueprint {
+    background-image:
+      linear-gradient(rgb(var(--c-ink) / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--c-ink) / 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Film-grain overlay (fixed, pointer-transparent) */
+  .grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
+
+  /* --- Mixing-console fader (range input) ---------------------------------- */
+  .fader {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      rgb(var(--c-signal)) 0%,
+      rgb(var(--c-signal)) var(--val, 50%),
+      rgb(var(--c-ink) / 0.14) var(--val, 50%),
+      rgb(var(--c-ink) / 0.14) 100%
+    );
+    outline: none;
+    cursor: ew-resize;
+  }
+  .fader::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 26px;
+    border-radius: 2px;
+    background: rgb(var(--c-panel2));
+    border: 1px solid rgb(var(--c-ink) / 0.35);
+    box-shadow:
+      0 0 0 1px rgb(var(--c-nacht)),
+      0 6px 14px -4px rgba(0, 0, 0, 0.4);
+    background-image: linear-gradient(
+      180deg,
+      transparent 11px,
+      rgb(var(--c-signal)) 11px,
+      rgb(var(--c-signal)) 15px,
+      transparent 15px
+    );
+    transition: transform 0.12s ease;
+  }
+  .fader::-webkit-slider-thumb:hover {
+    transform: scaleY(1.12);
+  }
+  .fader::-moz-range-thumb {
+    width: 14px;
+    height: 26px;
+    border-radius: 2px;
+    background: rgb(var(--c-panel2))
+      linear-gradient(
+        180deg,
+        transparent 11px,
+        rgb(var(--c-signal)) 11px,
+        rgb(var(--c-signal)) 15px,
+        transparent 15px
+      );
+    border: 1px solid rgb(var(--c-ink) / 0.35);
+    box-shadow: 0 0 0 1px rgb(var(--c-nacht));
+    cursor: ew-resize;
+  }
+
+  /* Ruler ticks rendered under each fader */
+  .ruler {
+    height: 7px;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgb(var(--c-ink) / 0.22) 0 1px,
+      transparent 1px 10%
+    );
+  }
+
+  /* Flowing-current divider — dashes drift like DC current in a circuit
+     diagram. Width set per use (w-10 in headers, w-full under the navbar). */
+  .current-line {
+    height: 1px;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgb(var(--c-signal)) 0 6px,
+      transparent 6px 10px
+    );
+    animation: current-flow 1s linear infinite;
+  }
+  @keyframes current-flow {
+    to {
+      background-position: 10px 0;
+    }
+  }
+
+  /* --- Brand treadmill (infinite marquee) ---------------------------------- */
+  .marquee-mask {
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 36s linear infinite;
+  }
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* --- Bento SVG animations ------------------------------------------------- */
+  /* Route dashes flowing like current through a circuit */
+  .dash-route {
+    animation: dash-flow 0.6s linear infinite;
+  }
+  @keyframes dash-flow {
+    to {
+      stroke-dashoffset: -14;
+    }
+  }
+  /* Gauge needle sweeping back and forth */
+  .gauge-sweep {
+    animation: gauge-sweep 2.6s ease-in-out infinite alternate;
+  }
+  @keyframes gauge-sweep {
+    from {
+      transform: rotate(-52deg);
+    }
+    to {
+      transform: rotate(52deg);
+    }
+  }
+  /* Magnifier sweeping the car row (Finden) — pauses over the find */
+  .lens-sweep {
+    animation: lens-sweep 6s ease-in-out infinite;
+  }
+  @keyframes lens-sweep {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    45%,
+    55% {
+      transform: translateX(210px);
+    }
+  }
+  /* The found car flashes up exactly while the lens hovers it */
+  .found-pulse {
+    animation: found-pulse 6s ease-in-out infinite;
+  }
+  @keyframes found-pulse {
+    0%,
+    36%,
+    64%,
+    100% {
+      opacity: 0;
+    }
+    45%,
+    55% {
+      opacity: 1;
+    }
+  }
+  /* Ringing phone (Gabriel): outgoing call waves + receiver shake */
+  .ring-arc {
+    opacity: 0;
+    animation: ring-arc 2.2s ease-out infinite;
+  }
+  @keyframes ring-arc {
+    0% {
+      opacity: 0;
+    }
+    12% {
+      opacity: 0.9;
+    }
+    55%,
+    100% {
+      opacity: 0;
+    }
+  }
+  .ring-shake {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: ring-shake 2.2s ease-in-out infinite;
+  }
+  @keyframes ring-shake {
+    0%,
+    28%,
+    100% {
+      transform: rotate(0deg);
+    }
+    4% {
+      transform: rotate(7deg);
+    }
+    9% {
+      transform: rotate(-6deg);
+    }
+    14% {
+      transform: rotate(5deg);
+    }
+    19% {
+      transform: rotate(-3deg);
+    }
+    24% {
+      transform: rotate(1deg);
+    }
+  }
+
+  /* --- Split-flap board cells ---------------------------------------------- */
+  .flap-cell {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+
+  /* Rubber-stamp tag, e.g. FIXIERT / EMPFOHLEN / GEBUCHT */
+  .stamp {
+    border: 2px solid rgb(var(--c-signal));
+    color: rgb(var(--c-signal));
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 2px 10px;
+    box-shadow: 0 0 0 1px rgb(var(--c-signal) / 0.15) inset;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

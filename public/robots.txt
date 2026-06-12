@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /konto
+
+Sitemap: https://ev4u.ch/sitemap.xml

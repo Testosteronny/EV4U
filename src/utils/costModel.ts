@@ -25,13 +25,17 @@ export const MAINT_ICE_PER_KM = 0.06; // ≈ CHF 900/Jahr @ 15'000 km
 export const MAINT_EV_PER_KM = 0.038; // ≈ CHF 570/Jahr @ 15'000 km
 
 /* ----------------------------------------------------------------------------
-   Cantonal motor vehicle tax (Verkehrssteuer): typical annual CHF for a
-   mid-size petrol car vs. EV, per canton. The LIVE values come from the
-   operator-editable `canton_taxes` table in Supabase (see useCantonTaxes);
-   this map is the offline fallback, seeded identically (Stand 06/2026,
-   TCS/comparis/cantonal sources). Note AR: weight-based — EVs pay MORE.
+   Cantonal motor vehicle tax (Verkehrssteuer): the CURRENT-YEAR annual CHF
+   for a typical mid-size petrol car vs. EV, per canton — no multi-year
+   projection logic; when cantons change their rules, the operator updates
+   the `canton_taxes` table (and its tax_year) in Supabase. This map is the
+   offline fallback, seeded identically (TCS/comparis/cantonal sources).
+   Note AR: weight-based — EVs currently pay MORE.
    ---------------------------------------------------------------------------- */
 export type CantonTax = { ice: number; ev: number };
+
+/** Fallback for the year shown in the UI; live value comes from the table. */
+export const CANTON_TAX_YEAR_FALLBACK = 2026;
 
 export const CANTON_TAXES_FALLBACK: Record<string, CantonTax> = {
   AG: { ice: 390, ev: 250 },
@@ -49,7 +53,7 @@ export const CANTON_TAXES_FALLBACK: Record<string, CantonTax> = {
   NE: { ice: 500, ev: 250 },
   NW: { ice: 300, ev: 100 },
   OW: { ice: 320, ev: 160 },
-  SG: { ice: 400, ev: 100 },
+  SG: { ice: 400, ev: 0 },
   SH: { ice: 250, ev: 190 },
   SO: { ice: 380, ev: 0 },
   SZ: { ice: 420, ev: 420 },

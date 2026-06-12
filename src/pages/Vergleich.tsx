@@ -95,7 +95,7 @@ export default function Vergleich() {
     iceConsumption,
     publicShare,
   } = useCockpit();
-  const cantonTaxes = useCantonTaxes();
+  const { taxes: cantonTaxes, year: taxYear } = useCantonTaxes();
   const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
   const tax = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
 
@@ -233,7 +233,7 @@ export default function Vergleich() {
             * MIT DEINEM KONTEXT: TARIF {tariffLabel.toUpperCase()} (
             {fmtCH(tariff * 100, 1)} RP) · {fmtCH(annualKm)} KM/JAHR ·{" "}
             {100 - publicShare} % HEIMLADUNG · GÜNSTIGSTE LADEKARTE JE AUTO ·
-            ERSPARNIS INKL. WARTUNG (~35 %, TCS/ADAC) & VERKEHRSSTEUER{" "}
+            ERSPARNIS INKL. WARTUNG (~35 %, TCS/ADAC) & VERKEHRSSTEUER {taxYear}{" "}
             {cantonCode ? `KT. ${cantonCode}` : "(CH-MITTEL)"} · ● = BESTWERT
           </div>
         </motion.div>

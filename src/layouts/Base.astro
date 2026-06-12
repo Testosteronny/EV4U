@@ -1,0 +1,60 @@
+---
+import "../index.css";
+import TopBar from "../components/TopBar";
+import CompareTray from "../components/CompareTray";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "EV4U — Der Schweizer E-Auto-Marktplatz",
+  description = "EV4U — Der Schweizer E-Auto-Marktplatz für Private & Garagen. Jedes Inserat durchgerechnet: dein Stromtarif, dein Solardach, deine Kilometer. The Future is electric.",
+} = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<!doctype html>
+<html lang="de-CH">
+  <head>
+    <meta charset="UTF-8" />
+    <script is:inline>
+      // Apply the saved theme before CSS paints — prevents a dark/light flash.
+      try {
+        if (localStorage.getItem("ev4u.theme") === "light")
+          document.documentElement.classList.add("light");
+      } catch (e) {}
+    </script>
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A0B0D" />
+    <meta name="description" content={description} />
+    <meta property="og:site_name" content="EV4U" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="de_CH" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title}</title>
+    <slot name="head" />
+  </head>
+  <body class="bg-nacht text-ink antialiased">
+    <div class="grain relative flex min-h-screen flex-col overflow-x-clip bg-nacht text-ink">
+      <TopBar client:load />
+      <main class="flex-1 pt-16">
+        <slot />
+      </main>
+      <CompareTray client:load />
+      <Footer />
+    </div>
+  </body>
+</html>

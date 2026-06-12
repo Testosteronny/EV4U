@@ -1,8 +1,8 @@
-import { Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { GitCompareArrows, X } from "lucide-react";
-import { useCockpit } from "../context/CockpitContext";
-import { useListings } from "../context/ListingsContext";
+import { useCockpit } from "../hooks/useCockpit";
+import { useListings } from "../hooks/useListings";
+import { href } from "../lib/url";
 
 /* ============================================================================
    CompareTray — fixed bottom bar that appears once listings are picked for
@@ -12,8 +12,10 @@ import { useListings } from "../context/ListingsContext";
 export default function CompareTray() {
   const { compareIds, toggleCompare, clearCompare } = useCockpit();
   const { listings } = useListings();
-  const { pathname } = useLocation();
-  const visible = compareIds.length > 0 && pathname !== "/vergleich";
+  const onVergleich =
+    typeof window !== "undefined" &&
+    window.location.pathname.replace(/\/$/, "") === href("/vergleich");
+  const visible = compareIds.length > 0 && !onVergleich;
 
   const items = compareIds
     .map((id) => listings.find((l) => l.id === id))
@@ -54,8 +56,8 @@ export default function CompareTray() {
               >
                 LEEREN
               </button>
-              <Link
-                to="/vergleich"
+              <a
+                href={href("/vergleich")}
                 className={`border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
                   compareIds.length >= 2
                     ? "border-signal bg-signal text-white hover:bg-signal-dim"
@@ -63,7 +65,7 @@ export default function CompareTray() {
                 }`}
               >
                 Vergleichen →
-              </Link>
+              </a>
             </div>
           </div>
         </motion.div>

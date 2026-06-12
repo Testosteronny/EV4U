@@ -1,10 +1,10 @@
-import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
-import EngineCore from "../components/EngineCore";
-import { SectionHeader } from "../components/ui";
-import { useCockpit } from "../context/CockpitContext";
-import { useListings } from "../context/ListingsContext";
-import { fmtCH } from "../utils/swiss";
+import EngineCore from "../EngineCore";
+import { SectionHeader } from "../ui";
+import { useCockpit } from "../../hooks/useCockpit";
+import { useListings } from "../../hooks/useListings";
+import { href } from "../../lib/url";
+import { fmtCH } from "../../utils/swiss";
 
 /* ============================================================================
    /rechenwerk — the standalone engine, an acquisition tool that always
@@ -24,12 +24,12 @@ export default function RechenwerkPage() {
         title="Rechenwerk"
         claim="Inserat · Strom · Solar · Ladekarte — ein Instrument"
       >
-        <Link
-          to={`/inserat/${listing.id}`}
+        <a
+          href={href(`/inserat/${listing.id}`)}
           className="flex items-center gap-2 border border-line px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted transition-colors hover:border-signal hover:text-signal"
         >
           Zum Inserat <ArrowUpRight size={12} />
-        </Link>
+        </a>
       </SectionHeader>
 
       <div className="mt-10">
@@ -72,12 +72,12 @@ export default function RechenwerkPage() {
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
           Die Zahlen passen? Das Auto gibt es wirklich — als offenes Inserat.
         </p>
-        <Link
-          to={`/inserat/${listing.id}`}
+        <a
+          href={href(`/inserat/${listing.id}`)}
           className="border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim"
         >
           {listing.brand} {listing.model} ansehen →
-        </Link>
+        </a>
       </div>
     </section>
   );

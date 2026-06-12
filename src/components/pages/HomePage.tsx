@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import Hero from "../components/Hero";
-import BrandTreadmill from "../components/BrandTreadmill";
-import BentoHub from "../components/BentoHub";
-import ListingBoard from "../components/ListingBoard";
-import { SectionHeader } from "../components/ui";
-import { useListings } from "../context/ListingsContext";
+import Hero from "../Hero";
+import BrandTreadmill from "../BrandTreadmill";
+import BentoHub from "../BentoHub";
+import ListingBoard from "../ListingBoard";
+import { SectionHeader } from "../ui";
+import { useListings } from "../../hooks/useListings";
+import { href } from "../../lib/url";
 
 /* ============================================================================
    Home — the storefront. The live inventory IS the marketing:
@@ -14,16 +14,16 @@ import { useListings } from "../context/ListingsContext";
    Schaltzentrale bento (doors + Sprechstunde) → freshest listings.
    ============================================================================ */
 
-export default function Home() {
-  const { hash } = useLocation();
+export default function HomePage() {
   const { listings } = useListings();
 
   // Support deep links like /#beratung (booking CTA from detail pages).
   useEffect(() => {
+    const { hash } = window.location;
     if (hash) {
       document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [hash]);
+  }, []);
 
   const freshest = [...listings]
     .sort((a, b) => a.postedDays - b.postedDays)
@@ -43,12 +43,12 @@ export default function Home() {
             title="Frisch auf der Tafel"
             claim="Die neusten Inserate · live"
           >
-            <Link
-              to="/inserate"
+            <a
+              href={href("/inserate")}
               className="border border-line px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted transition-colors hover:border-signal hover:text-signal"
             >
               Alle {listings.length} Inserate →
-            </Link>
+            </a>
           </SectionHeader>
           <motion.div
             initial={{ opacity: 0, y: 24 }}

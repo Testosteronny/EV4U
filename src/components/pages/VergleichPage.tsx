@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import { SectionHeader } from "../components/ui";
-import { useCockpit } from "../context/CockpitContext";
-import { useListings } from "../context/ListingsContext";
-import { CARD_COMBOS, type Listing } from "../data/evData";
-import { useCantonTaxes } from "../hooks/useCantonTaxes";
+import { SectionHeader } from "../ui";
+import { useCockpit } from "../../hooks/useCockpit";
+import { useListings } from "../../hooks/useListings";
+import { CARD_COMBOS, type Listing } from "../../data/evData";
+import { useCantonTaxes } from "../../hooks/useCantonTaxes";
+import { href } from "../../lib/url";
 import {
   FUEL_PRICE,
   MAINT_EV_PER_KM,
@@ -14,8 +14,8 @@ import {
   REF_WEIGHT_KG,
   cantonTaxFor,
   chAverageTax,
-} from "../utils/costModel";
-import { fmtCH } from "../utils/swiss";
+} from "../../utils/costModel";
+import { fmtCH } from "../../utils/swiss";
 
 /* ============================================================================
    /vergleich — listing-level comparison (not model-level): the cars on the
@@ -85,8 +85,7 @@ const ROWS: Row[] = [
   { label: "ANBIETER", value: (l) => `${l.sellerType} · ${l.ort.toUpperCase()}`, num: () => 0 },
 ];
 
-export default function Vergleich() {
-  const [sp] = useSearchParams();
+export default function VergleichPage() {
   const {
     compareIds,
     toggleCompare,
@@ -103,7 +102,11 @@ export default function Vergleich() {
 
   const { listings } = useListings();
   // URL wins (shareable), tray is the fallback.
-  const ids = sp.get("ids")?.split(",") ?? compareIds;
+  const urlIds =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("ids")?.split(",")
+      : undefined;
+  const ids = urlIds ?? compareIds;
   const items = ids
     .map((id) => listings.find((l) => l.id === id && l.status === "AKTIV"))
     .filter((l): l is Listing => Boolean(l))
@@ -157,12 +160,12 @@ export default function Vergleich() {
           <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
             WÄHLE 2–3 OFFENE INSERATE AUF DER MARKT-TAFEL (VS-KNOPF IN DER ZEILE).
           </p>
-          <Link
-            to="/inserate"
+          <a
+            href={href("/inserate")}
             className="mt-6 inline-block border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim"
           >
             Zur Markt-Tafel →
-          </Link>
+          </a>
         </div>
       ) : (
         <motion.div
@@ -180,14 +183,14 @@ export default function Vergleich() {
                 {items.map((l) => (
                   <th key={l.id} className="px-4 py-4 text-left sm:px-6">
                     <div className="flex items-start justify-between gap-2">
-                      <Link
-                        to={`/inserat/${l.id}`}
+                      <a
+                        href={href(`/inserat/${l.id}`)}
                         className="stretch-wide text-sm font-extrabold uppercase text-ink hover:text-signal"
                       >
                         {l.brand}
                         <br />
                         {l.model}
-                      </Link>
+                      </a>
                       <button
                         onClick={() => toggleCompare(l.id)}
                         title="Entfernen"

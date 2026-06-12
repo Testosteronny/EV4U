@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
 import { ArrowUpRight, GitCompareArrows, Heart } from "lucide-react";
-import { useCockpit } from "../context/CockpitContext";
+import { useCockpit } from "../hooks/useCockpit";
+import { href } from "../lib/url";
 import { type Listing } from "../data/evData";
 import { fmtCH } from "../utils/swiss";
 import { FlapText } from "./ui";
@@ -62,9 +62,9 @@ export default function ListingBoard({
         const isFav = favorites.includes(l.id);
         const isNew = l.postedDays <= 3;
         return (
-          <Link
+          <a
             key={l.id}
-            to={`/inserat/${l.id}`}
+            href={href(`/inserat/${l.id}`)}
             className={`group grid ${cols} w-full items-center gap-x-4 border-b border-line/60 px-4 py-4 text-left font-mono transition-colors duration-200 last:border-b-0 hover:bg-panel2/70 sm:px-6 ${
               reserved ? "opacity-60" : ""
             }`}
@@ -152,7 +152,7 @@ export default function ListingBoard({
               size={14}
               className="justify-self-end text-muted transition-colors group-hover:text-signal"
             />
-          </Link>
+          </a>
         );
       })}
 

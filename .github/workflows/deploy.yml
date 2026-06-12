@@ -27,17 +27,15 @@ jobs:
 
       - run: npm ci
 
+      # Astro prerenders every page (incl. /inserat/[slug] from the live
+      # database) and emits 404.html from 404.astro — the client fallback
+      # that serves listings created after this build.
       - name: Build
         env:
-          VITE_BASE: /EV4U/
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          ASTRO_BASE: /EV4U
+          PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
-
-      # SPA fallback: GitHub Pages serves 404.html for unknown paths —
-      # an index.html copy lets React Router handle deep links.
-      - name: SPA 404 fallback
-        run: cp dist/index.html dist/404.html
 
       - uses: actions/configure-pages@v5
         with:

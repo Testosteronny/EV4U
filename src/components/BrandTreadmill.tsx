@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { useListings } from "../context/ListingsContext";
+import { useListings } from "../hooks/useListings";
+import { href } from "../lib/url";
 
 /* ============================================================================
    BrandTreadmill — infinite marquee of the brands currently ON the board,
@@ -30,8 +30,8 @@ export default function BrandTreadmill() {
           >
             {i % 2 === 0 ? "+" : "−"}
           </span>
-          <Link
-            to={`/inserate?marke=${encodeURIComponent(brand)}`}
+          <a
+            href={href(`/inserate?marke=${encodeURIComponent(brand)}`)}
             className="group flex items-baseline gap-2"
           >
             <span className="stretch-expand text-outline whitespace-nowrap text-4xl font-black uppercase tracking-tight transition-all duration-300 group-hover:text-signal group-hover:[-webkit-text-stroke:0px] sm:text-5xl">
@@ -40,7 +40,7 @@ export default function BrandTreadmill() {
             <span className="font-mono text-[10px] tracking-[0.2em] text-muted">
               ×{count}
             </span>
-          </Link>
+          </a>
         </span>
       ))}
     </div>

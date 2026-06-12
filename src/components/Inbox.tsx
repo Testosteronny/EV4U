@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { href } from "../lib/url";
 
 /* ============================================================================
    Inbox — conversations on /konto. RLS already scopes the query to
@@ -107,12 +107,12 @@ export default function Inbox({ userId }: { userId: string }) {
               {open && (
                 <div className="border-t border-dashed border-line p-5">
                   {c.listing && (
-                    <Link
-                      to={`/inserat/${c.listing.slug}`}
+                    <a
+                      href={href(`/inserat/${c.listing.slug}`)}
                       className="font-mono text-[9px] tracking-[0.2em] text-muted hover:text-signal"
                     >
                       → ZUM INSERAT
-                    </Link>
+                    </a>
                   )}
                   <div className="mt-4 space-y-2">
                     {msgs.map((m) => {

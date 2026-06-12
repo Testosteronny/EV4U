@@ -1,14 +1,13 @@
 import { useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BookmarkPlus, Heart } from "lucide-react";
-import ListingBoard from "../components/ListingBoard";
-import { Fader, SectionHeader, Segmented, Stamp } from "../components/ui";
-import { useCockpit } from "../context/CockpitContext";
-import { useListings } from "../context/ListingsContext";
-import { useSession } from "../hooks/useSession";
-import { supabase } from "../lib/supabase";
-import { SEGMENTS, SORTS, type Segment, type SortKey } from "../data/evData";
+import ListingBoard from "../ListingBoard";
+import { Fader, SectionHeader, Segmented, Stamp } from "../ui";
+import { useCockpit } from "../../hooks/useCockpit";
+import { useListings } from "../../hooks/useListings";
+import { useSession } from "../../hooks/useSession";
+import { supabase } from "../../lib/supabase";
+import { SEGMENTS, SORTS, type Segment, type SortKey } from "../../data/evData";
 
 /* ============================================================================
    /inserate — the full classifieds catalogue.
@@ -21,11 +20,20 @@ const ANBIETER = ["ALLE", "PRIVAT", "GARAGE"] as const;
 const SITZE = ["ALLE", "4", "5"] as const;
 const PRICE_MAX = 120000;
 
-export default function Inserate() {
+export default function InseratePage() {
   const { listings } = useListings();
   const { favorites } = useCockpit();
   const { session } = useSession();
-  const [sp, setSp] = useSearchParams();
+  // URL stays the single source of truth (shareable filters) — without a
+  // client router we mirror it in state and write via history.replaceState.
+  const [sp, setSpState] = useState(
+    () => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""),
+  );
+  const setSp = (next: URLSearchParams) => {
+    const q = next.toString();
+    history.replaceState(null, "", q ? `${location.pathname}?${q}` : location.pathname);
+    setSpState(next);
+  };
   const [searchSaved, setSearchSaved] = useState(false);
   // Bumped on every filter change → re-triggers the split-flap scramble.
   const spin = useRef(0);
@@ -49,7 +57,7 @@ export default function Inserate() {
     if (String(value) === String(def)) next.delete(key);
     else next.set(key, String(value));
     spin.current += 1;
-    setSp(next, { replace: true });
+    setSp(next);
   };
 
   const rows = useMemo(() => {

@@ -12,10 +12,25 @@ wired with an electric polarity metaphor: dark mode is the **Pluspol**
 federal blue) — red and blue, like the battery terminals in the car.
 
 ## Stack
-- **Vite + React 18 + TypeScript**
+- **Astro 5 (static) + React 18 islands + TypeScript** — every page is real
+  prerendered HTML (SEO/GEO), interactivity hydrates as islands
+- **nanostores** (`persistent`) — cross-island, cross-page state with the
+  same localStorage key as before (ZIP, simulation inputs, Merkliste, tray)
 - **Tailwind CSS 3** — custom token set (`nacht`, `panel`, `ink`, `signal`, `lume`, `warn`)
 - **Framer Motion** — spring-loaded needles, flap boards, stamps
 - **Archivo (variable width axis)** display + **Spline Sans Mono** data type
+
+### Astro architecture
+- `src/pages/*.astro` are thin shells around React page islands
+  (`src/components/pages/*`); `src/layouts/Base.astro` carries head/meta,
+  the TopBar + CompareTray islands and the static Footer.
+- **`/inserat/[slug]` is prerendered at build time from the live database**
+  — per-listing `<title>`, OG tags and schema.org JSON-LD in the initial
+  HTML (the reason for this migration). Listings created after the last
+  build are served by `404.astro`, which renders the detail island
+  client-side; a rebuild (push or `workflow_dispatch`) promotes them to
+  static pages.
+- Filters on /inserate still live in the URL (`history.replaceState`).
 
 ## Getting started
 

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Camera, HeartPulse, Radio } from "lucide-react";
-import { SectionHeader, Stamp } from "../components/ui";
-import { useSession } from "../hooks/useSession";
-import { supabase } from "../lib/supabase";
+import { SectionHeader, Stamp } from "../ui";
+import { useSession } from "../../hooks/useSession";
+import { supabase } from "../../lib/supabase";
+import { href } from "../../lib/url";
 
 /* ============================================================================
    /verkaufen — the supply side. A marketplace lives on listings: clear
@@ -196,17 +196,17 @@ export default function Verkaufen() {
           ) : !session ? (
             <p className="font-mono text-[9px] tracking-[0.12em] text-muted/70">
               ZUM SPEICHERN ANMELDEN —{" "}
-              <Link to="/konto" className="text-signal hover:underline">
+              <a href={href("/konto")} className="text-signal hover:underline">
                 LOGIN-LINK AUF /KONTO
-              </Link>
+              </a>
               . DEIN ENTWURF BLEIBT PRIVAT, BIS DU IHN PUBLIZIERST.
             </p>
           ) : saved ? (
             <p className="font-mono text-[9px] tracking-[0.12em] text-muted/70">
               GESPEICHERT ALS ENTWURF —{" "}
-              <Link to="/konto" className="text-signal hover:underline">
+              <a href={href("/konto")} className="text-signal hover:underline">
                 AUF /KONTO VERVOLLSTÄNDIGEN & PUBLIZIEREN
-              </Link>
+              </a>
               .
             </p>
           ) : (

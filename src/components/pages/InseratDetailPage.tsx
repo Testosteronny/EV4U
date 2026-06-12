@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -11,15 +10,16 @@ import {
   MapPin,
   PlugZap,
   Users,
-  Zap,
 } from "lucide-react";
-import ContactSeller from "../components/ContactSeller";
-import EngineCore from "../components/EngineCore";
-import { Stamp } from "../components/ui";
-import { useCockpit } from "../context/CockpitContext";
-import { useListings } from "../context/ListingsContext";
-import { photoUrl } from "../lib/supabase";
-import { fmtCH } from "../utils/swiss";
+import ContactSeller from "../ContactSeller";
+import EngineCore from "../EngineCore";
+import { Stamp } from "../ui";
+import { useCockpit } from "../../hooks/useCockpit";
+import { useListings } from "../../hooks/useListings";
+import { photoUrl } from "../../lib/supabase";
+import { href } from "../../lib/url";
+import { fmtCH } from "../../utils/swiss";
+import type { Listing } from "../../data/evData";
 
 /* ============================================================================
    /inserat/:id — one listing, one page, one URL.
@@ -28,49 +28,24 @@ import { fmtCH } from "../utils/swiss";
    Lade-Mix, PV). RESERVIERT listings show their dossier but no simulation.
    ============================================================================ */
 
-export default function InseratDetail() {
-  const { id } = useParams();
+export default function InseratDetailPage({
+  slug,
+  initial,
+}: {
+  slug: string;
+  /** Build-time listing for prerendered pages — JSON-LD/OG live in the
+   *  Astro page head; this island just renders with it immediately. */
+  initial?: Listing;
+}) {
   const { toggleCompare, compareIds, favorites, toggleFavorite } = useCockpit();
-  const { listings } = useListings();
-  const listing = listings.find((l) => l.id === id);
+  const { listings, live } = useListings();
+  const listing = listings.find((l) => l.id === slug) ?? (live ? undefined : initial);
 
-  // schema.org Vehicle/Offer JSON-LD — Google renders JS, so client-side
-  // injection is picked up; social previews need SSR (see README backlog).
+  // Title for the 404-fallback path (prerendered pages already have it).
   useEffect(() => {
-    if (!listing) return;
-    const script = document.createElement("script");
-    script.type = "application/ld+json";
-    script.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Car",
-      name: `${listing.brand} ${listing.model}`,
-      brand: { "@type": "Brand", name: listing.brand },
-      vehicleModelDate: String(listing.year),
-      mileageFromOdometer: { "@type": "QuantitativeValue", value: listing.km, unitCode: "KMT" },
-      fuelType: "Electric",
-      seatingCapacity: listing.seats,
-      offers: {
-        "@type": "Offer",
-        price: listing.price,
-        priceCurrency: "CHF",
-        itemCondition: "https://schema.org/UsedCondition",
-        availability:
-          listing.status === "AKTIV"
-            ? "https://schema.org/InStock"
-            : "https://schema.org/Reserved",
-      },
-    });
-    document.head.appendChild(script);
-    return () => script.remove();
-  }, [listing]);
-
-  useEffect(() => {
-    document.title = listing
-      ? `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`
-      : "Inserat nicht gefunden | EV4U";
-    return () => {
-      document.title = "EV4U — Der Schweizer E-Auto-Marktplatz";
-    };
+    if (listing) {
+      document.title = `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`;
+    }
   }, [listing]);
 
   if (!listing) {
@@ -83,12 +58,12 @@ export default function InseratDetail() {
           <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
             VERKAUFT, ZURÜCKGEZOGEN ODER FALSCHE URL.
           </p>
-          <Link
-            to="/inserate"
+          <a
+            href={href("/inserate")}
             className="mt-6 inline-block border border-line px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink transition-colors hover:border-signal hover:text-signal"
           >
             ← Zur Markt-Tafel
-          </Link>
+          </a>
         </div>
       </section>
     );
@@ -116,12 +91,12 @@ export default function InseratDetail() {
   return (
     <>
       <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-8">
-        <Link
-          to="/inserate"
+        <a
+          href={href("/inserate")}
           className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-signal"
         >
           <ArrowLeft size={12} /> Markt-Tafel
-        </Link>
+        </a>
 
         {/* Dossier header */}
         <motion.div
@@ -244,12 +219,12 @@ export default function InseratDetail() {
                   {listing.sellerType}
                 </div>
               </div>
-              <Link
-                to="/#beratung"
+              <a
+                href={href("/#beratung")}
                 className="flex items-center justify-center gap-2 border border-line bg-nacht px-4 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink transition-colors hover:border-signal hover:text-signal"
               >
                 <CalendarClock size={12} /> Unsicher? Frag Gabriel
-              </Link>
+              </a>
             </div>
           </div>
 

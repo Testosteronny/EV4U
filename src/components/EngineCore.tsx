@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, useSpring, useTransform } from "framer-motion";
 import { Fuel, PlugZap, Sun } from "lucide-react";
-import { useCockpit } from "../context/CockpitContext";
+import { useCockpit } from "../hooks/useCockpit";
 import { CARDS_AS_OF, CARD_COMBOS, type Listing } from "../data/evData";
 import { useCantonTaxes } from "../hooks/useCantonTaxes";
 import {

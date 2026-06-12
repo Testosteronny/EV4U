@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
+import { href } from "../lib/url";
 import type { Listing } from "../data/evData";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
@@ -69,18 +69,18 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
           <Stamp>Gesendet</Stamp>
           <p className="font-mono text-[10px] tracking-[0.15em] text-muted">
             ANTWORTEN LANDEN IN DEINEM{" "}
-            <Link to="/konto" className="text-signal hover:underline">
+            <a href={href("/konto")} className="text-signal hover:underline">
               POSTFACH AUF /KONTO
-            </Link>
+            </a>
             .
           </p>
         </div>
       ) : !session ? (
         <p className="font-mono text-[10px] leading-relaxed tracking-[0.15em] text-muted">
           ZUM SCHREIBEN ANMELDEN —{" "}
-          <Link to="/konto" className="text-signal hover:underline">
+          <a href={href("/konto")} className="text-signal hover:underline">
             LOGIN-LINK AUF /KONTO
-          </Link>
+          </a>
           . DEINE NACHRICHT SIEHT NUR DER ANBIETER.
         </p>
       ) : (

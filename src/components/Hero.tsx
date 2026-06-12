@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crosshair, MapPin } from "lucide-react";
-import { useCockpit } from "../context/CockpitContext";
+import { useCockpit } from "../hooks/useCockpit";
 import { ACTIVE_LISTINGS } from "../data/evData";
 import { CH_AVG_TARIFF, TARIFF_META, fmtCH, lv95, resolveZip } from "../utils/swiss";
 import { Stamp } from "./ui";

@@ -1,0 +1,83 @@
+---
+import { TARIFF_META, fmtCH } from "../utils/swiss";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const year = new Date().getFullYear();
+
+const links = [
+  [`${base}/inserate`, "01 Markt-Tafel"],
+  [`${base}/rechenwerk`, "02 Rechenwerk"],
+  [`${base}/vergleich`, "03 Vergleich"],
+  [`${base}/verkaufen`, "04 Verkaufen"],
+  [`${base}/#beratung`, "05 Mit Gabriel reden"],
+];
+---
+
+<footer class="overflow-hidden border-t border-line bg-nacht">
+  <div class="mx-auto max-w-7xl px-4 pt-16 sm:px-8">
+    <div class="grid gap-10 pb-16 md:grid-cols-[2fr_1fr_1fr]">
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="relative grid h-7 w-7 place-items-center bg-signal">
+            <span class="absolute h-[3px] w-4 bg-white"></span>
+            <span class="absolute h-4 w-[3px] bg-white"></span>
+          </span>
+          <span class="stretch-expand text-xl font-black text-ink">EV4U</span>
+        </div>
+        <p class="mt-4 max-w-sm text-sm leading-relaxed text-muted">
+          Der Schweizer E-Auto-Marktplatz. Unabhängig, datenbasiert, gebaut für
+          Entscheidungen — nicht für Klicks.
+        </p>
+      </div>
+
+      <div>
+        <div class="mb-4 font-mono text-[9px] uppercase tracking-[0.25em] text-muted">
+          Instrumente
+        </div>
+        <ul class="space-y-2 font-mono text-xs">
+          {
+            links.map(([to, label]) => (
+              <li>
+                <a href={to} class="text-muted transition-colors hover:text-signal">
+                  {label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <div>
+        <div class="mb-4 font-mono text-[9px] uppercase tracking-[0.25em] text-muted">
+          Koordinaten
+        </div>
+        <ul class="space-y-2 font-mono text-xs text-muted">
+          <li>EV4U.CH</li>
+          <li>LV95 2'600'421 / 1'199'498</li>
+          <li>{fmtCH(440)} M Ü. M.</li>
+          <li class="pt-2 text-muted/60">HALLO@EV4U.CH</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div
+    class="text-outline stretch-expand pointer-events-none select-none whitespace-nowrap text-center text-[26vw] font-black leading-[0.72] opacity-30"
+    aria-hidden="true"
+  >
+    EV4U
+  </div>
+
+  <div class="border-t border-line">
+    <div
+      class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 font-mono text-[9px] tracking-[0.2em] text-muted/70 sm:px-8"
+    >
+      <span>© {year} EV4U — ENTWICKELT IN DER SCHWEIZ</span>
+      <span>
+        STROMTARIFE: ELCOM {TARIFF_META.period} ({fmtCH(TARIFF_META.plzCount)} PLZ) ·
+        ORTSCHAFTEN: SWISSTOPO
+      </span>
+      <span>THE FUTURE IS ELECTRIC.</span>
+    </div>
+  </div>
+</footer>

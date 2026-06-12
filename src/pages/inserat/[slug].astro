@@ -1,0 +1,61 @@
+---
+import Base from "../../layouts/Base.astro";
+import InseratDetailPage from "../../components/pages/InseratDetailPage";
+import { LISTINGS, type Listing } from "../../data/evData";
+import { fmtCH } from "../../utils/swiss";
+
+/* Prerendered at build time from the live database — every published
+   listing gets real HTML, its own <title>/OG tags and JSON-LD (the SEO/GEO
+   payoff of the Astro migration). Listings created AFTER the last build
+   are served by the 404.astro client fallback until the next deploy. */
+export async function getStaticPaths() {
+  let listings: Listing[] = LISTINGS;
+  const url = import.meta.env.PUBLIC_SUPABASE_URL;
+  const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (url && key) {
+    try {
+      const res = await fetch(
+        `${url}/rest/v1/listings?select=*&status=in.(AKTIV,RESERVIERT)`,
+        { headers: { apikey: key } },
+      );
+      if (res.ok) {
+        const { rowToListing } = await import("../../lib/mappers");
+        listings = (await res.json()).map(rowToListing);
+      }
+    } catch {
+      /* offline build → seed listings */
+    }
+  }
+  return listings.map((l) => ({ params: { slug: l.id }, props: { listing: l } }));
+}
+
+const { listing } = Astro.props as { listing: Listing };
+const title = `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`;
+const description = `${listing.year} · ${fmtCH(listing.km)} km · ${listing.range} km WLTP · SOH ${listing.soh} % — ${listing.note}`;
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Car",
+  name: `${listing.brand} ${listing.model}`,
+  brand: { "@type": "Brand", name: listing.brand },
+  vehicleModelDate: String(listing.year),
+  mileageFromOdometer: { "@type": "QuantitativeValue", value: listing.km, unitCode: "KMT" },
+  fuelType: "Electric",
+  seatingCapacity: listing.seats,
+  offers: {
+    "@type": "Offer",
+    price: listing.price,
+    priceCurrency: "CHF",
+    itemCondition: "https://schema.org/UsedCondition",
+    availability:
+      listing.status === "AKTIV"
+        ? "https://schema.org/InStock"
+        : "https://schema.org/Reserved",
+  },
+});
+---
+
+<Base title={title} description={description}>
+  <script type="application/ld+json" set:html={jsonLd} slot="head" />
+  <InseratDetailPage client:load slug={listing.id} initial={listing} />
+</Base>

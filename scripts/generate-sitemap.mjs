@@ -20,8 +20,8 @@ const env = Object.fromEntries(
 );
 
 const res = await fetch(
-  `${env.VITE_SUPABASE_URL}/rest/v1/listings?select=slug,updated_at&status=in.(AKTIV,RESERVIERT)`,
-  { headers: { apikey: env.VITE_SUPABASE_PUBLISHABLE_KEY } },
+  `${env.PUBLIC_SUPABASE_URL}/rest/v1/listings?select=slug,updated_at&status=in.(AKTIV,RESERVIERT)`,
+  { headers: { apikey: env.PUBLIC_SUPABASE_PUBLISHABLE_KEY } },
 );
 if (!res.ok) throw new Error(`listings fetch failed: ${res.status}`);
 const listings = await res.json();

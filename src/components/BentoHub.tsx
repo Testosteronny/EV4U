@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, PhoneCall, X } from "lucide-react";
 import { GABRIEL } from "../data/evData";
 import { supabase } from "../lib/supabase";
+import { href } from "../lib/url";
 import { SectionHeader, Stamp } from "./ui";
 
 /* ============================================================================
@@ -196,8 +196,8 @@ export default function BentoHub() {
       <div className="mt-10 grid gap-4 lg:grid-cols-3">
         {/* A · FINDEN — 2 columns */}
         <motion.div {...cardMotion(0)} className="lg:col-span-2">
-          <Link
-            to="/inserate"
+          <a
+            href={href("/inserate")}
             className="panel group flex h-full flex-col justify-between p-6 transition-colors duration-300 hover:border-signal/60"
           >
             <div className="flex items-start justify-between gap-6">
@@ -217,13 +217,13 @@ export default function BentoHub() {
               Zur Markt-Tafel
               <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
             </span>
-          </Link>
+          </a>
         </motion.div>
 
         {/* B · RECHNEN — 1 column */}
         <motion.div {...cardMotion(1)}>
-          <Link
-            to="/rechenwerk"
+          <a
+            href={href("/rechenwerk")}
             className="panel group flex h-full flex-col justify-between p-6 transition-colors duration-300 hover:border-signal/60"
           >
             <div className="flex items-start justify-between gap-4">
@@ -242,7 +242,7 @@ export default function BentoHub() {
                 <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
               </span>
             </div>
-          </Link>
+          </a>
         </motion.div>
 
         {/* C · GABRIEL — 1 column, the phone rings */}
@@ -315,8 +315,8 @@ export default function BentoHub() {
 
         {/* D · VERKAUFEN — 2 columns, room for the two-worlds scene */}
         <motion.div {...cardMotion(3)} className="lg:col-span-2">
-          <Link
-            to="/verkaufen"
+          <a
+            href={href("/verkaufen")}
             className="panel group flex h-full flex-col justify-between p-6 transition-colors duration-300 hover:border-signal/60"
           >
             <div className="flex items-start justify-between gap-6">
@@ -336,7 +336,7 @@ export default function BentoHub() {
               Inserat aufgeben
               <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
             </span>
-          </Link>
+          </a>
         </motion.div>
       </div>
     </section>

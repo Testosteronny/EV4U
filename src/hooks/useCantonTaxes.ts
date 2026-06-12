@@ -11,7 +11,7 @@ import {
    Live data comes from the operator-editable `canton_taxes` table (public
    read, writes only via dashboard/SQL) including the tax_year shown in the
    UI — switch the values + year in the backend when cantons change rules.
-   Fetched once per session (module-level cache); bundled fallback first.
+   Fetched once per page load (module-level cache); bundled fallback first.
    ============================================================================ */
 
 export type CantonTaxConfig = {

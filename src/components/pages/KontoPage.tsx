@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Bookmark, LogOut, Mail, Plus, Trash2 } from "lucide-react";
-import Inbox from "../components/Inbox";
-import PhotoManager from "../components/PhotoManager";
-import { SectionHeader, Segmented, Stamp } from "../components/ui";
-import { useListings } from "../context/ListingsContext";
-import { useSession } from "../hooks/useSession";
-import { supabase, type ListingRow } from "../lib/supabase";
-import { fmtCH } from "../utils/swiss";
+import Inbox from "../Inbox";
+import PhotoManager from "../PhotoManager";
+import { SectionHeader, Segmented, Stamp } from "../ui";
+import { useListings } from "../../hooks/useListings";
+import { useSession } from "../../hooks/useSession";
+import { supabase, type ListingRow } from "../../lib/supabase";
+import { href } from "../../lib/url";
+import { fmtCH } from "../../utils/swiss";
 
 /* ============================================================================
    /konto — the seller dashboard, no admin backend needed.
@@ -66,7 +66,7 @@ export default function Konto() {
     setError(null);
     const { error: err } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/konto` },
+      options: { emailRedirectTo: `${window.location.origin}${href("/konto")}` },
     });
     if (err) setError(err.message);
     else setSent(true);
@@ -170,12 +170,12 @@ export default function Konto() {
             <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
               Meine Inserate ({mine.length})
             </span>
-            <Link
-              to="/verkaufen"
+            <a
+              href={href("/verkaufen")}
               className="flex items-center gap-2 border border-signal bg-signal px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim"
             >
               <Plus size={12} /> Neues Inserat
-            </Link>
+            </a>
           </div>
           {mine.length === 0 ? (
             <div className="panel px-6 py-12 text-center">
@@ -193,12 +193,12 @@ export default function Konto() {
                 <div key={l.slug} className="panel p-5">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <Link
-                        to={`/inserat/${l.slug}`}
+                      <a
+                        href={href(`/inserat/${l.slug}`)}
                         className="stretch-wide text-lg font-extrabold uppercase text-ink hover:text-signal"
                       >
                         {l.brand} {l.model}
-                      </Link>
+                      </a>
                       <div className="mt-1 font-mono text-[10px] tracking-[0.15em] text-muted tabular">
                         CHF {fmtCH(l.price)}
                       </div>
@@ -242,13 +242,13 @@ export default function Konto() {
                     key={s.id}
                     className="panel flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
                   >
-                    <Link
-                      to={`/inserate?${s.params}`}
+                    <a
+                      href={href(`/inserate?${s.params}`)}
                       className="flex items-center gap-2 font-mono text-xs tracking-[0.1em] text-ink hover:text-signal"
                     >
                       <Bookmark size={12} className="text-signal" />
                       {s.label}
-                    </Link>
+                    </a>
                     <button
                       onClick={async () => {
                         await supabase?.from("saved_searches").delete().eq("id", s.id);

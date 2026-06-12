@@ -3,6 +3,7 @@ import { motion, useSpring, useTransform } from "framer-motion";
 import { Fuel, PlugZap, Sun } from "lucide-react";
 import { useCockpit } from "../context/CockpitContext";
 import { CARDS_AS_OF, CARD_COMBOS, type Listing } from "../data/evData";
+import { useCantonTaxes } from "../hooks/useCantonTaxes";
 import {
   FUEL_PRICE,
   MAINT_EV_PER_KM,
@@ -10,6 +11,7 @@ import {
   SOLAR_COST,
   SOLAR_COVER_MAX,
   SOLAR_COVER_MIN,
+  chAverageTax,
 } from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
 import { AnimatedNumber, Fader, Segmented, Stamp } from "./ui";
@@ -130,6 +132,7 @@ export default function EngineCore({
   const {
     tariff,
     tariffLabel,
+    gemeinde,
     annualKm,
     setAnnualKm,
     iceConsumption,
@@ -139,6 +142,7 @@ export default function EngineCore({
     pv,
     setPv,
   } = useCockpit();
+  const cantonTaxes = useCantonTaxes();
 
   /** Manual charging-card override; null → cheapest combo auto-selected. */
   const [comboChoice, setComboChoice] = useState<string | null>(null);
@@ -162,9 +166,14 @@ export default function EngineCore({
   const maintIce = annualKm * MAINT_ICE_PER_KM;
   const maintEv = annualKm * MAINT_EV_PER_KM;
   const maintSavings = maintIce - maintEv;
-  // The gauges compare full running costs: energy + maintenance.
-  const fuelTotal = fuelEnergy + maintIce;
-  const evTotal = evEnergy + maintEv;
+  // Cantonal Verkehrssteuer from the fixed PLZ's canton (backend-config);
+  // CH average until a location is fixed. Can be NEGATIVE (e.g. AR).
+  const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
+  const tax = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
+  const taxSavings = tax.ice - tax.ev;
+  // The gauges compare full running costs: energy + maintenance + tax.
+  const fuelTotal = fuelEnergy + maintIce + tax.ice;
+  const evTotal = evEnergy + maintEv + tax.ev;
   const savings = fuelTotal - evTotal;
   const gaugeMax = Math.max(
     500,
@@ -360,6 +369,31 @@ export default function EngineCore({
           </span>
         </div>
 
+        {/* Cantonal Verkehrssteuer — from the fixed PLZ's canton */}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border border-line bg-nacht px-4 py-3 font-mono text-[10px] tracking-[0.12em]">
+          <span className="text-muted">
+            VERKEHRSSTEUER{" "}
+            {cantonCode ? (
+              <span className="text-ink">KT. {cantonCode}</span>
+            ) : (
+              <span className="text-muted/60">CH-MITTEL — PLZ FIXIEREN FÜR DEINEN KANTON</span>
+            )}
+          </span>
+          <span className="flex items-center gap-3 tabular">
+            <span className="text-muted">
+              BENZINER CHF <AnimatedNumber value={tax.ice} />
+            </span>
+            <span className="text-muted">→</span>
+            <span className="text-ink">
+              E-AUTO CHF <AnimatedNumber value={tax.ev} />
+            </span>
+            <span className={taxSavings >= 0 ? "text-lume" : "text-warn"}>
+              {taxSavings >= 0 ? "−" : "+"}CHF{" "}
+              <AnimatedNumber value={Math.abs(taxSavings)} />
+            </span>
+          </span>
+        </div>
+
         {/* Charging-card mini-matrix — cheapest stamped, click to override */}
         <div className="mt-4">
           <div className="mb-2 flex items-baseline justify-between">
@@ -447,13 +481,18 @@ export default function EngineCore({
                 </span>
               </div>
               <div className="mt-1">
-                DAVON ENERGIE:{" "}
+                ENERGIE:{" "}
                 <span className="text-ink tabular">
                   CHF <AnimatedNumber value={fuelEnergy - evEnergy} />
                 </span>{" "}
                 · WARTUNG:{" "}
                 <span className="text-ink tabular">
                   CHF <AnimatedNumber value={maintSavings} />
+                </span>{" "}
+                · STEUER:{" "}
+                <span className={`tabular ${taxSavings >= 0 ? "text-ink" : "text-warn"}`}>
+                  {taxSavings < 0 && "−"}CHF{" "}
+                  <AnimatedNumber value={Math.abs(taxSavings)} />
                 </span>
               </div>
               {showSolar && (
@@ -471,10 +510,10 @@ export default function EngineCore({
         </div>
 
         <p className="mt-4 font-mono text-[9px] tracking-[0.12em] text-muted/70">
-          ENERGIE + WARTUNG/SERVICE FÜR {listing.brand} {listing.model} (
-          {listing.consumption.toFixed(1)} KWH/100KM). WARTUNGSVORTEIL NACH
-          TCS/ADAC: E-AUTOS ~35 % GÜNSTIGER IM UNTERHALT.
-          MOTORFAHRZEUGSTEUER UND VERSICHERUNG NICHT EINGERECHNET.
+          ENERGIE + WARTUNG + VERKEHRSSTEUER FÜR {listing.brand} {listing.model}{" "}
+          ({listing.consumption.toFixed(1)} KWH/100KM). WARTUNG NACH TCS/ADAC
+          (~35 % GÜNSTIGER); STEUER: TYPISCHE MITTELKLASSE JE KANTON, STAND
+          06/2026. VERSICHERUNG NICHT EINGERECHNET.
         </p>
       </motion.div>
     </div>

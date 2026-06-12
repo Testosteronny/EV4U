@@ -6,7 +6,13 @@ import { SectionHeader } from "../components/ui";
 import { useCockpit } from "../context/CockpitContext";
 import { useListings } from "../context/ListingsContext";
 import { CARD_COMBOS, type Listing } from "../data/evData";
-import { FUEL_PRICE, MAINT_EV_PER_KM, MAINT_ICE_PER_KM } from "../utils/costModel";
+import { useCantonTaxes } from "../hooks/useCantonTaxes";
+import {
+  FUEL_PRICE,
+  MAINT_EV_PER_KM,
+  MAINT_ICE_PER_KM,
+  chAverageTax,
+} from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
 
 /* ============================================================================
@@ -79,8 +85,19 @@ const ROWS: Row[] = [
 
 export default function Vergleich() {
   const [sp] = useSearchParams();
-  const { compareIds, toggleCompare, tariff, tariffLabel, annualKm, iceConsumption, publicShare } =
-    useCockpit();
+  const {
+    compareIds,
+    toggleCompare,
+    gemeinde,
+    tariff,
+    tariffLabel,
+    annualKm,
+    iceConsumption,
+    publicShare,
+  } = useCockpit();
+  const cantonTaxes = useCantonTaxes();
+  const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
+  const tax = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
 
   const { listings } = useListings();
   // URL wins (shareable), tray is the fallback.
@@ -102,8 +119,9 @@ export default function Vergleich() {
           ),
         );
         const energyYear = homeCost + publicCost;
-        // Same model as the EngineCore: energy + maintenance advantage.
+        // Same model as the EngineCore: energy + maintenance + cantonal tax.
         const maintSavings = annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
+        const taxSavings = tax.ice - tax.ev;
         return [
           l.id,
           {
@@ -112,12 +130,13 @@ export default function Vergleich() {
             savings:
               (annualKm / 100) * iceConsumption * FUEL_PRICE -
               energyYear +
-              maintSavings,
+              maintSavings +
+              taxSavings,
           } satisfies Calc,
         ];
       }),
     );
-  }, [items, annualKm, publicShare, tariff, iceConsumption]);
+  }, [items, annualKm, publicShare, tariff, iceConsumption, tax]);
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
@@ -214,7 +233,8 @@ export default function Vergleich() {
             * MIT DEINEM KONTEXT: TARIF {tariffLabel.toUpperCase()} (
             {fmtCH(tariff * 100, 1)} RP) · {fmtCH(annualKm)} KM/JAHR ·{" "}
             {100 - publicShare} % HEIMLADUNG · GÜNSTIGSTE LADEKARTE JE AUTO ·
-            ERSPARNIS INKL. WARTUNGSVORTEIL (~35 %, TCS/ADAC) · ● = BESTWERT
+            ERSPARNIS INKL. WARTUNG (~35 %, TCS/ADAC) & VERKEHRSSTEUER{" "}
+            {cantonCode ? `KT. ${cantonCode}` : "(CH-MITTEL)"} · ● = BESTWERT
           </div>
         </motion.div>
       )}

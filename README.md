@@ -78,6 +78,7 @@ Security** in the database:
 | `listings` | published rows public; ENTWURF visible to owner only; insert/update/delete restricted to `owner = auth.uid()` |
 | `profiles` | public read; users manage their own row; auto-created on signup by trigger |
 | `bookings` | **write-only**: validated anonymous insert, no select policy — requests can't be read from the client |
+| `canton_taxes` | **operator config**: typical ICE vs EV Verkehrssteuer per canton (Stand 06/2026, TCS/comparis-based estimates). Public read, NO client write — edit via dashboard/SQL. The engine resolves it from the fixed PLZ's canton; bundled fallback when offline |
 | `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; buyers can only open conversations on published, user-owned listings; senders can't be spoofed |
 | storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder |
 

@@ -168,7 +168,8 @@ export default function EngineCore({
   const maintSavings = maintIce - maintEv;
   // Cantonal Verkehrssteuer from the fixed PLZ's canton: CURRENT-YEAR values
   // from the backend config (no projection — the operator switches the
-  // config when rules change). Can be NEGATIVE (e.g. AR).
+  // config when rules change). Basis: same-weight comparison, so the delta
+  // isolates the EV privilege (≥ 0 by convention; UI tolerates negatives).
   const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
   const tax = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
   const taxSavings = tax.ice - tax.ev;
@@ -382,7 +383,7 @@ export default function EngineCore({
           </span>
           <span className="flex items-center gap-3 tabular">
             <span className="text-muted">
-              BENZINER CHF <AnimatedNumber value={tax.ice} />
+              BENZINER (GLEICHES GEWICHT) CHF <AnimatedNumber value={tax.ice} />
             </span>
             <span className="text-muted">→</span>
             <span className="text-ink">
@@ -516,8 +517,9 @@ export default function EngineCore({
         <p className="mt-4 font-mono text-[9px] tracking-[0.12em] text-muted/70">
           ENERGIE + WARTUNG + VERKEHRSSTEUER FÜR {listing.brand} {listing.model}{" "}
           ({listing.consumption.toFixed(1)} KWH/100KM). WARTUNG NACH TCS/ADAC
-          (~35 % GÜNSTIGER); STEUER: AKTUELLE {taxYear}ER-WERTE, TYPISCHE
-          MITTELKLASSE JE KANTON. VERSICHERUNG NICHT EINGERECHNET.
+          (~35 % GÜNSTIGER); STEUER: AKTUELLE {taxYear}ER-WERTE, VERGLICHEN MIT
+          GLEICH SCHWEREM BENZINER (REGULÄRTARIF). VERSICHERUNG NICHT
+          EINGERECHNET.
         </p>
       </motion.div>
     </div>

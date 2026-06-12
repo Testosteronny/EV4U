@@ -25,12 +25,14 @@ export const MAINT_ICE_PER_KM = 0.06; // ≈ CHF 900/Jahr @ 15'000 km
 export const MAINT_EV_PER_KM = 0.038; // ≈ CHF 570/Jahr @ 15'000 km
 
 /* ----------------------------------------------------------------------------
-   Cantonal motor vehicle tax (Verkehrssteuer): the CURRENT-YEAR annual CHF
-   for a typical mid-size petrol car vs. EV, per canton — no multi-year
-   projection logic; when cantons change their rules, the operator updates
-   the `canton_taxes` table (and its tax_year) in Supabase. This map is the
-   offline fallback, seeded identically (TCS/comparis/cantonal sources).
-   Note AR: weight-based — EVs currently pay MORE.
+   Cantonal motor vehicle tax (Verkehrssteuer), CURRENT-YEAR values:
+   · ice = regular tariff for a car of the SAME WEIGHT class as the EV
+   · ev  = what the EV actually pays under this year's rules
+   The saving therefore isolates the EV PRIVILEGE — in weight-based cantons
+   without a bonus it is exactly 0, never negative just because EVs are
+   heavier. No multi-year projection; the operator updates the
+   `canton_taxes` table (values + tax_year) in Supabase when rules change.
+   This map is the offline fallback, seeded identically.
    ---------------------------------------------------------------------------- */
 export type CantonTax = { ice: number; ev: number };
 
@@ -40,7 +42,7 @@ export const CANTON_TAX_YEAR_FALLBACK = 2026;
 export const CANTON_TAXES_FALLBACK: Record<string, CantonTax> = {
   AG: { ice: 390, ev: 250 },
   AI: { ice: 380, ev: 380 },
-  AR: { ice: 420, ev: 530 },
+  AR: { ice: 684, ev: 684 },
   BE: { ice: 480, ev: 240 },
   BL: { ice: 450, ev: 0 },
   BS: { ice: 400, ev: 200 },

@@ -36,11 +36,14 @@ function ScrollToTop() {
   return null;
 }
 
+// Router basename follows Vite's base — "/" locally, "/EV4U" on GitHub Pages.
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function App() {
   return (
     <ListingsProvider>
       <CockpitProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={BASENAME}>
           <ScrollToTop />
           <div className="grain relative flex min-h-screen flex-col overflow-x-clip bg-nacht text-ink">
             <TopBar />

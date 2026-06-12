@@ -25,53 +25,72 @@ export const MAINT_ICE_PER_KM = 0.06; // ≈ CHF 900/Jahr @ 15'000 km
 export const MAINT_EV_PER_KM = 0.038; // ≈ CHF 570/Jahr @ 15'000 km
 
 /* ----------------------------------------------------------------------------
-   Cantonal motor vehicle tax (Verkehrssteuer), CURRENT-YEAR values:
-   · ice = regular tariff for a car of the SAME WEIGHT class as the EV
-   · ev  = what the EV actually pays under this year's rules
-   The saving therefore isolates the EV PRIVILEGE — in weight-based cantons
-   without a bonus it is exactly 0, never negative just because EVs are
-   heavier. No multi-year projection; the operator updates the
-   `canton_taxes` table (values + tax_year) in Supabase when rules change.
-   This map is the offline fallback, seeded identically.
+   Cantonal motor vehicle tax (Verkehrssteuer) — WEIGHT-BASED model:
+
+     ice_same_weight = weight_kg / 100 × rate          (linearized tariff)
+     ev_tax          = ice_same_weight × (1 − pct/100)
+     saving          = ice_same_weight × pct/100
+
+   · rate (CHF per 100 kg): the canton's regular tariff, linearized and
+     calibrated on mid-size anchors (AR: researched ID.3 value). Hubraum-/kW-
+     cantons are mapped via a weight equivalent — a declared approximation.
+   · discountPct: the HARD researched part — the canton's current EV
+     privilege (100 = exempt, 50 = half, 0 = no bonus). Never negative.
+   Live values come from the operator-editable `canton_taxes` table; this
+   map is the offline fallback. Listing weights come from the vehicle-model
+   API once selected (see README) — until then `REF_WEIGHT_KG` fills gaps.
    ---------------------------------------------------------------------------- */
-export type CantonTax = { ice: number; ev: number };
+export type CantonTax = { rate: number; discountPct: number };
 
 /** Fallback for the year shown in the UI; live value comes from the table. */
 export const CANTON_TAX_YEAR_FALLBACK = 2026;
 
+/** Mid-size EV reference weight, used when a listing has no weight yet. */
+export const REF_WEIGHT_KG = 1900;
+
 export const CANTON_TAXES_FALLBACK: Record<string, CantonTax> = {
-  AG: { ice: 390, ev: 250 },
-  AI: { ice: 380, ev: 380 },
-  AR: { ice: 684, ev: 684 },
-  BE: { ice: 480, ev: 240 },
-  BL: { ice: 450, ev: 0 },
-  BS: { ice: 400, ev: 200 },
-  FR: { ice: 430, ev: 0 },
-  GE: { ice: 550, ev: 150 },
-  GL: { ice: 360, ev: 0 },
-  GR: { ice: 450, ev: 220 },
-  JU: { ice: 470, ev: 470 },
-  LU: { ice: 380, ev: 380 },
-  NE: { ice: 500, ev: 250 },
-  NW: { ice: 300, ev: 100 },
-  OW: { ice: 320, ev: 160 },
-  SG: { ice: 400, ev: 0 },
-  SH: { ice: 250, ev: 190 },
-  SO: { ice: 380, ev: 0 },
-  SZ: { ice: 420, ev: 420 },
-  TG: { ice: 380, ev: 190 },
-  TI: { ice: 450, ev: 0 },
-  UR: { ice: 350, ev: 175 },
-  VD: { ice: 480, ev: 150 },
-  VS: { ice: 420, ev: 0 },
-  ZG: { ice: 300, ev: 150 },
-  ZH: { ice: 350, ev: 0 },
+  AG: { rate: 20.5, discountPct: 35 },
+  AI: { rate: 20.0, discountPct: 0 },
+  AR: { rate: 36.0, discountPct: 0 },
+  BE: { rate: 25.3, discountPct: 50 },
+  BL: { rate: 23.7, discountPct: 100 },
+  BS: { rate: 21.1, discountPct: 50 },
+  FR: { rate: 22.6, discountPct: 100 },
+  GE: { rate: 28.9, discountPct: 75 },
+  GL: { rate: 18.9, discountPct: 100 },
+  GR: { rate: 23.7, discountPct: 50 },
+  JU: { rate: 24.7, discountPct: 0 },
+  LU: { rate: 20.0, discountPct: 0 },
+  NE: { rate: 26.3, discountPct: 50 },
+  NW: { rate: 15.8, discountPct: 65 },
+  OW: { rate: 16.8, discountPct: 50 },
+  SG: { rate: 21.1, discountPct: 100 },
+  SH: { rate: 13.2, discountPct: 25 },
+  SO: { rate: 20.0, discountPct: 100 },
+  SZ: { rate: 22.1, discountPct: 0 },
+  TG: { rate: 20.0, discountPct: 50 },
+  TI: { rate: 23.7, discountPct: 100 },
+  UR: { rate: 18.4, discountPct: 50 },
+  VD: { rate: 25.3, discountPct: 70 },
+  VS: { rate: 22.1, discountPct: 100 },
+  ZG: { rate: 15.8, discountPct: 50 },
+  ZH: { rate: 18.4, discountPct: 100 },
 };
 
 /** CH average — used until a PLZ (and thus a canton) is fixed. */
 export function chAverageTax(map: Record<string, CantonTax>): CantonTax {
   const all = Object.values(map);
   const avg = (sel: (t: CantonTax) => number) =>
-    Math.round(all.reduce((s, t) => s + sel(t), 0) / all.length);
-  return { ice: avg((t) => t.ice), ev: avg((t) => t.ev) };
+    all.reduce((s, t) => s + sel(t), 0) / all.length;
+  return {
+    rate: Math.round(avg((t) => t.rate) * 10) / 10,
+    discountPct: Math.round(avg((t) => t.discountPct)),
+  };
+}
+
+/** The weight-based tax computation, shared by engine and compare page. */
+export function cantonTaxFor(weightKg: number, tax: CantonTax) {
+  const ice = (weightKg / 100) * tax.rate;
+  const ev = ice * (1 - tax.discountPct / 100);
+  return { ice, ev, saving: ice - ev };
 }

@@ -11,6 +11,8 @@ import {
   FUEL_PRICE,
   MAINT_EV_PER_KM,
   MAINT_ICE_PER_KM,
+  REF_WEIGHT_KG,
+  cantonTaxFor,
   chAverageTax,
 } from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
@@ -97,7 +99,7 @@ export default function Vergleich() {
   } = useCockpit();
   const { taxes: cantonTaxes, year: taxYear } = useCantonTaxes();
   const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
-  const tax = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
+  const taxCfg = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
 
   const { listings } = useListings();
   // URL wins (shareable), tray is the fallback.
@@ -119,9 +121,10 @@ export default function Vergleich() {
           ),
         );
         const energyYear = homeCost + publicCost;
-        // Same model as the EngineCore: energy + maintenance + cantonal tax.
+        // Same model as the EngineCore: energy + maintenance + cantonal tax
+        // (weight-based — heavier cars carry a bigger tax privilege).
         const maintSavings = annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
-        const taxSavings = tax.ice - tax.ev;
+        const taxSavings = cantonTaxFor(l.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
         return [
           l.id,
           {
@@ -136,7 +139,7 @@ export default function Vergleich() {
         ];
       }),
     );
-  }, [items, annualKm, publicShare, tariff, iceConsumption, tax]);
+  }, [items, annualKm, publicShare, tariff, iceConsumption, taxCfg]);
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
@@ -234,7 +237,8 @@ export default function Vergleich() {
             {fmtCH(tariff * 100, 1)} RP) · {fmtCH(annualKm)} KM/JAHR ·{" "}
             {100 - publicShare} % HEIMLADUNG · GÜNSTIGSTE LADEKARTE JE AUTO ·
             ERSPARNIS INKL. WARTUNG (~35 %, TCS/ADAC) & VERKEHRSSTEUER {taxYear}{" "}
-            {cantonCode ? `KT. ${cantonCode}` : "(CH-MITTEL)"} · ● = BESTWERT
+            {cantonCode ? `KT. ${cantonCode}` : "(CH-MITTEL)"} (GEWICHTSBASIERT,
+            JE AUTO) · ● = BESTWERT
           </div>
         </motion.div>
       )}

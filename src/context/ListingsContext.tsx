@@ -48,6 +48,7 @@ function rowToListing(r: ListingRow): Listing {
     owner: r.owner,
     photos: r.photos ?? [],
     priceNew: r.price_new ?? undefined,
+    weightKg: r.weight_kg ?? undefined,
   };
 }
 

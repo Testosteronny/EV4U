@@ -78,7 +78,7 @@ Security** in the database:
 | `listings` | published rows public; ENTWURF visible to owner only; insert/update/delete restricted to `owner = auth.uid()` |
 | `profiles` | public read; users manage their own row; auto-created on signup by trigger |
 | `bookings` | **write-only**: validated anonymous insert, no select policy — requests can't be read from the client |
-| `canton_taxes` | **operator config**: typical ICE vs EV Verkehrssteuer per canton (Stand 06/2026, TCS/comparis-based estimates). Public read, NO client write — edit via dashboard/SQL. The engine resolves it from the fixed PLZ's canton; bundled fallback when offline |
+| `canton_taxes` | **operator config**, weight-based: `rate_per_100kg` (linearized regular tariff per canton, mid-size calibrated) + `ev_discount_pct` (the researched EV privilege: 100/50/…/0) + `tax_year`. Tax = listing weight × rate; saving = tax × discount — never negative by construction. Public read, NO client write — edit via dashboard/SQL; bundled fallback when offline |
 | `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; buyers can only open conversations on published, user-owned listings; senders can't be spoofed |
 | storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder |
 
@@ -135,6 +135,32 @@ Security** in the database:
 - Known limitation: the site is a client-rendered SPA, so WhatsApp/Slack
   link previews show only the site-wide OG card, not per-listing data —
   fixing that needs SSR/prerendering (see backlog).
+
+## Vehicle-model API — DECISION PENDING
+
+The schema is **prepared** for a vehicle spec database (`listings.weight_kg`
+drives the cantonal tax model; range/consumption/battery/`price_new` would
+come from the same source, and /verkaufen would gain a model picker that
+prefills everything). **No API is connected yet** — options, ranked:
+
+1. **Chargetrip Vehicle Database** *(recommended start)* — 1'800+ EV models
+   via GraphQL incl. weights, batteries, efficiency, pricing; **free
+   developer tier**, no contract. Bake into a `models` table (same pattern
+   as the ElCom tariffs), monthly refresh.
+2. **EV Database (ev-database.org) licensing** — the quality benchmark:
+   real-world range and charge curves, EU-market focused. Paid,
+   contact-based; the upgrade once data quality becomes a selling point.
+3. **Open EV Data JSON (frozen)** — the old open dataset on GitHub; free
+   bootstrap seed, but unmaintained (now part of the paid Chargeprice API).
+   Good enough to launch the model picker at zero cost.
+4. **Vehicle Databases / One Auto API** — per-request EV spec APIs, but
+   US/Canada-centric trims; weak fit for the Swiss market.
+5. **Eurotax (Autovista) / auto-i-dat** — the Swiss Typenschein-level
+   industry data **plus market valuations**; expensive B2B. Relevant later
+   for the Preis-Check backlog item rather than for specs alone.
+
+Until the decision: new listings get `weight_kg = 1900` (mid-size EV
+reference, `REF_WEIGHT_KG`), seeds carry real curb weights.
 
 ## Backlog (deliberately not built yet)
 

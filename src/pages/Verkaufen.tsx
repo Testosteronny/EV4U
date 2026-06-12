@@ -61,6 +61,8 @@ export default function Verkaufen() {
       charge_min: 30,
       dc_kw: 150,
       battery_kwh: 60,
+      // Placeholder until the vehicle-model API fills real curb weights.
+      weight_kg: 1900,
       soh: 95,
       seats: 5,
       seller_name: session.user.email?.split("@")[0] ?? "Privat",

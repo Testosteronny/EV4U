@@ -37,6 +37,7 @@ export type ListingRow = {
   charge_min: number;
   dc_kw: number;
   battery_kwh: number;
+  weight_kg: number | null;
   soh: number;
   bidi: boolean;
   seats: number;

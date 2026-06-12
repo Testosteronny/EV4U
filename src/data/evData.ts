@@ -32,6 +32,9 @@ export type Listing = {
   dcKw: number;
   /** Usable battery, kWh */
   battery: number;
+  /** Curb weight, kg — drives the cantonal tax model. Filled by the
+   *  vehicle-model API once selected (see README); fallback REF_WEIGHT_KG. */
+  weightKg?: number;
   /** Battery state of health, % — measured, not claimed */
   soh: number;
   /** Bidirectional (V2H/V2L/V2G) capable */
@@ -73,6 +76,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 4,
     postedDays: 6,
+    weightKg: 1045,
     seller: "R. Steiner",
     sellerType: "PRIVAT",
     ort: "4600 Olten",
@@ -96,6 +100,7 @@ export const LISTINGS: Listing[] = [
     bidi: true,
     seats: 5,
     postedDays: 1,
+    weightKg: 1450,
     seller: "Garage Brunner AG",
     sellerType: "GARAGE",
     ort: "4600 Olten",
@@ -119,6 +124,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 5,
     postedDays: 3,
+    weightKg: 1765,
     seller: "M. Odermatt",
     sellerType: "PRIVAT",
     ort: "8400 Winterthur",
@@ -142,6 +148,7 @@ export const LISTINGS: Listing[] = [
     bidi: true,
     seats: 5,
     postedDays: 9,
+    weightKg: 2055,
     seller: "EV-Center Zürich",
     sellerType: "GARAGE",
     ort: "8050 Zürich",
@@ -165,6 +172,7 @@ export const LISTINGS: Listing[] = [
     bidi: true,
     seats: 5,
     postedDays: 12,
+    weightKg: 1985,
     seller: "C. Aebischer",
     sellerType: "PRIVAT",
     ort: "3011 Bern",
@@ -188,6 +196,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 4,
     postedDays: 15,
+    weightKg: 2295,
     seller: "Sportwagen Keller GmbH",
     sellerType: "GARAGE",
     ort: "6300 Zug",
@@ -211,6 +220,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 5,
     postedDays: 2,
+    weightKg: 2180,
     seller: "Auto Wyss AG",
     sellerType: "GARAGE",
     ort: "4500 Solothurn",
@@ -234,6 +244,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 5,
     postedDays: 20,
+    weightKg: 2145,
     seller: "L. Bernasconi",
     sellerType: "PRIVAT",
     ort: "6900 Lugano",
@@ -257,6 +268,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 5,
     postedDays: 4,
+    weightKg: 2265,
     seller: "Premium Motors Basel",
     sellerType: "GARAGE",
     ort: "4051 Basel",
@@ -280,6 +292,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 5,
     postedDays: 7,
+    weightKg: 2020,
     seller: "T. Gantenbein",
     sellerType: "PRIVAT",
     ort: "9000 St. Gallen",
@@ -303,6 +316,7 @@ export const LISTINGS: Listing[] = [
     bidi: true,
     seats: 5,
     postedDays: 11,
+    weightKg: 2090,
     seller: "S. Favre",
     sellerType: "PRIVAT",
     ort: "1003 Lausanne",
@@ -326,6 +340,7 @@ export const LISTINGS: Listing[] = [
     bidi: false,
     seats: 5,
     postedDays: 18,
+    weightKg: 2350,
     seller: "Audi Zentrum Chur",
     sellerType: "GARAGE",
     ort: "7000 Chur",

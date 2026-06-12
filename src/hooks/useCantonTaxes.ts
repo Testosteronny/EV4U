@@ -31,13 +31,16 @@ async function fetchConfig(): Promise<CantonTaxConfig> {
   if (!supabase) return FALLBACK;
   const { data, error } = await supabase
     .from("canton_taxes")
-    .select("canton,ice_tax,ev_tax,tax_year");
+    .select("canton,rate_per_100kg,ev_discount_pct,tax_year");
   if (error || !data?.length) return FALLBACK;
   return {
     taxes: Object.fromEntries(
       data.map((r) => [
         r.canton as string,
-        { ice: r.ice_tax as number, ev: r.ev_tax as number },
+        {
+          rate: Number(r.rate_per_100kg),
+          discountPct: r.ev_discount_pct as number,
+        },
       ]),
     ),
     year: (data[0].tax_year as number) ?? CANTON_TAX_YEAR_FALLBACK,

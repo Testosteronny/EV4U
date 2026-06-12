@@ -8,9 +8,11 @@ import {
   FUEL_PRICE,
   MAINT_EV_PER_KM,
   MAINT_ICE_PER_KM,
+  REF_WEIGHT_KG,
   SOLAR_COST,
   SOLAR_COVER_MAX,
   SOLAR_COVER_MIN,
+  cantonTaxFor,
   chAverageTax,
 } from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
@@ -166,13 +168,14 @@ export default function EngineCore({
   const maintIce = annualKm * MAINT_ICE_PER_KM;
   const maintEv = annualKm * MAINT_EV_PER_KM;
   const maintSavings = maintIce - maintEv;
-  // Cantonal Verkehrssteuer from the fixed PLZ's canton: CURRENT-YEAR values
-  // from the backend config (no projection — the operator switches the
-  // config when rules change). Basis: same-weight comparison, so the delta
-  // isolates the EV privilege (≥ 0 by convention; UI tolerates negatives).
+  // Cantonal Verkehrssteuer, weight-based: this car's weight × the canton's
+  // linearized rate = regular tariff for a SAME-WEIGHT car; the EV pays it
+  // minus the canton's current privilege (backend config, no projection).
+  const weightKg = listing.weightKg ?? REF_WEIGHT_KG;
   const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
-  const tax = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
-  const taxSavings = tax.ice - tax.ev;
+  const taxCfg = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
+  const tax = cantonTaxFor(weightKg, taxCfg);
+  const taxSavings = tax.saving;
   // The gauges compare full running costs: energy + maintenance + tax.
   const fuelTotal = fuelEnergy + maintIce + tax.ice;
   const evTotal = evEnergy + maintEv + tax.ev;
@@ -379,19 +382,21 @@ export default function EngineCore({
               <span className="text-ink">KT. {cantonCode}</span>
             ) : (
               <span className="text-muted/60">CH-MITTEL — PLZ FIXIEREN FÜR DEINEN KANTON</span>
-            )}
+            )}{" "}
+            <span className="text-muted/60">
+              · {fmtCH(weightKg)} KG · E-RABATT {taxCfg.discountPct} %
+            </span>
           </span>
           <span className="flex items-center gap-3 tabular">
             <span className="text-muted">
-              BENZINER (GLEICHES GEWICHT) CHF <AnimatedNumber value={tax.ice} />
+              BENZINER GLEICHEN GEWICHTS CHF <AnimatedNumber value={tax.ice} />
             </span>
             <span className="text-muted">→</span>
             <span className="text-ink">
               E-AUTO CHF <AnimatedNumber value={tax.ev} />
             </span>
-            <span className={taxSavings >= 0 ? "text-lume" : "text-warn"}>
-              {taxSavings >= 0 ? "−" : "+"}CHF{" "}
-              <AnimatedNumber value={Math.abs(taxSavings)} />
+            <span className="text-lume">
+              −CHF <AnimatedNumber value={taxSavings} />
             </span>
           </span>
         </div>
@@ -495,9 +500,8 @@ export default function EngineCore({
                   CHF <AnimatedNumber value={maintSavings} />
                 </span>{" "}
                 · STEUER {taxYear}:{" "}
-                <span className={`tabular ${taxSavings >= 0 ? "text-ink" : "text-warn"}`}>
-                  {taxSavings < 0 && "−"}CHF{" "}
-                  <AnimatedNumber value={Math.abs(taxSavings)} />
+                <span className="text-ink tabular">
+                  CHF <AnimatedNumber value={taxSavings} />
                 </span>
               </div>
               {showSolar && (
@@ -516,10 +520,10 @@ export default function EngineCore({
 
         <p className="mt-4 font-mono text-[9px] tracking-[0.12em] text-muted/70">
           ENERGIE + WARTUNG + VERKEHRSSTEUER FÜR {listing.brand} {listing.model}{" "}
-          ({listing.consumption.toFixed(1)} KWH/100KM). WARTUNG NACH TCS/ADAC
-          (~35 % GÜNSTIGER); STEUER: AKTUELLE {taxYear}ER-WERTE, VERGLICHEN MIT
-          GLEICH SCHWEREM BENZINER (REGULÄRTARIF). VERSICHERUNG NICHT
-          EINGERECHNET.
+          ({listing.consumption.toFixed(1)} KWH/100KM, {fmtCH(weightKg)} KG).
+          WARTUNG NACH TCS/ADAC (~35 % GÜNSTIGER); STEUER: LINEARES
+          GEWICHTSMODELL (CHF/100 KG JE KANTON, {taxYear}), HUBRAUM-KANTONE VIA
+          GEWICHTS-ÄQUIVALENT. VERSICHERUNG NICHT EINGERECHNET.
         </p>
       </motion.div>
     </div>

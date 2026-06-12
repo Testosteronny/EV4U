@@ -6,16 +6,15 @@ import { SectionHeader } from "../components/ui";
 import { useCockpit } from "../context/CockpitContext";
 import { useListings } from "../context/ListingsContext";
 import { CARD_COMBOS, type Listing } from "../data/evData";
+import { FUEL_PRICE, MAINT_EV_PER_KM, MAINT_ICE_PER_KM } from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
 
 /* ============================================================================
    /vergleich — listing-level comparison (not model-level): the cars on the
-   tray side by side, including the computed energy cost per year at the
-   visitor's tariff and Lade-Mix. Shareable via ?ids=a,b,c. The best value
-   per row is marked in lume.
+   tray side by side, including the computed running cost per year (energy +
+   maintenance) at the visitor's tariff and Lade-Mix. Shareable via
+   ?ids=a,b,c. The best value per row is marked in lume.
    ============================================================================ */
-
-const FUEL_PRICE = 1.78;
 
 type Row = {
   label: string;
@@ -103,12 +102,17 @@ export default function Vergleich() {
           ),
         );
         const energyYear = homeCost + publicCost;
+        // Same model as the EngineCore: energy + maintenance advantage.
+        const maintSavings = annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
         return [
           l.id,
           {
             strom100: l.consumption * tariff,
             energyYear,
-            savings: (annualKm / 100) * iceConsumption * FUEL_PRICE - energyYear,
+            savings:
+              (annualKm / 100) * iceConsumption * FUEL_PRICE -
+              energyYear +
+              maintSavings,
           } satisfies Calc,
         ];
       }),
@@ -210,7 +214,7 @@ export default function Vergleich() {
             * MIT DEINEM KONTEXT: TARIF {tariffLabel.toUpperCase()} (
             {fmtCH(tariff * 100, 1)} RP) · {fmtCH(annualKm)} KM/JAHR ·{" "}
             {100 - publicShare} % HEIMLADUNG · GÜNSTIGSTE LADEKARTE JE AUTO ·
-            ● = BESTWERT
+            ERSPARNIS INKL. WARTUNGSVORTEIL (~35 %, TCS/ADAC) · ● = BESTWERT
           </div>
         </motion.div>
       )}

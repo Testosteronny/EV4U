@@ -3,6 +3,14 @@ import { motion, useSpring, useTransform } from "framer-motion";
 import { Fuel, PlugZap, Sun } from "lucide-react";
 import { useCockpit } from "../context/CockpitContext";
 import { CARDS_AS_OF, CARD_COMBOS, type Listing } from "../data/evData";
+import {
+  FUEL_PRICE,
+  MAINT_EV_PER_KM,
+  MAINT_ICE_PER_KM,
+  SOLAR_COST,
+  SOLAR_COVER_MAX,
+  SOLAR_COVER_MIN,
+} from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
 import { AnimatedNumber, Fader, Segmented, Stamp } from "./ui";
 
@@ -15,13 +23,6 @@ import { AnimatedNumber, Fader, Segmented, Stamp } from "./ui";
    are persisted — tune them once, every engine on the site agrees.
    Model: see README "The cost model".
    ============================================================================ */
-
-const FUEL_PRICE = 1.78; // CHF/L, CH average
-/** Opportunity cost of self-consumed solar: forgone feed-in remuneration. */
-const SOLAR_COST = 0.08;
-/** Realistic solar coverage of home charging (small PV → surplus charging). */
-const SOLAR_COVER_MIN = 0.2;
-const SOLAR_COVER_MAX = 0.7;
 
 const RAD = Math.PI / 180;
 
@@ -155,12 +156,19 @@ export default function EngineCore({
   const cheapest = combos.reduce((a, b) => (b.publicCost < a.publicCost ? b : a));
   const chosen = combos.find((c) => c.id === comboChoice) ?? cheapest;
 
-  const evYear = homeCost + chosen.publicCost;
-  const fuelYear = (annualKm / 100) * iceConsumption * FUEL_PRICE;
-  const savings = fuelYear - evYear;
+  const evEnergy = homeCost + chosen.publicCost;
+  const fuelEnergy = (annualKm / 100) * iceConsumption * FUEL_PRICE;
+  // Maintenance & wear: EVs run ~30–35 % cheaper (TCS/ADAC) — scales with km.
+  const maintIce = annualKm * MAINT_ICE_PER_KM;
+  const maintEv = annualKm * MAINT_EV_PER_KM;
+  const maintSavings = maintIce - maintEv;
+  // The gauges compare full running costs: energy + maintenance.
+  const fuelTotal = fuelEnergy + maintIce;
+  const evTotal = evEnergy + maintEv;
+  const savings = fuelTotal - evTotal;
   const gaugeMax = Math.max(
     500,
-    Math.ceil((Math.max(fuelYear, evYear) * 1.25) / 500) * 500,
+    Math.ceil((Math.max(fuelTotal, evTotal) * 1.25) / 500) * 500,
   );
 
   const solarRate = Math.max(0, tariff - SOLAR_COST);
@@ -295,17 +303,17 @@ export default function EngineCore({
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Gauge
-            frac={fuelYear / gaugeMax}
+            frac={fuelTotal / gaugeMax}
             max={gaugeMax}
-            label="Benzin / Jahr"
-            value={fuelYear}
+            label="Benziner / Jahr"
+            value={fuelTotal}
             icon={<Fuel size={12} />}
           />
           <Gauge
-            frac={evYear / gaugeMax}
+            frac={evTotal / gaugeMax}
             max={gaugeMax}
-            label="Strom / Jahr"
-            value={evYear}
+            label="E-Auto / Jahr"
+            value={evTotal}
             red
             icon={<PlugZap size={12} />}
           />
@@ -330,6 +338,26 @@ export default function EngineCore({
               <AnimatedNumber value={chosen.publicCost} />
             </span>
           </div>
+        </div>
+
+        {/* Maintenance & wear — the quiet EV advantage (TCS/ADAC: ~−35 %) */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border border-line bg-nacht px-4 py-3 font-mono text-[10px] tracking-[0.12em]">
+          <span className="text-muted">
+            WARTUNG & SERVICE{" "}
+            <span className="text-muted/60">(KEIN ÖL, KEINE ZÜNDKERZEN, REKU SCHONT BREMSEN)</span>
+          </span>
+          <span className="flex items-center gap-3 tabular">
+            <span className="text-muted">
+              BENZINER CHF <AnimatedNumber value={maintIce} />
+            </span>
+            <span className="text-muted">→</span>
+            <span className="text-ink">
+              E-AUTO CHF <AnimatedNumber value={maintEv} />
+            </span>
+            <span className="text-lume">
+              −CHF <AnimatedNumber value={maintSavings} />
+            </span>
+          </span>
         </div>
 
         {/* Charging-card mini-matrix — cheapest stamped, click to override */}
@@ -418,6 +446,16 @@ export default function EngineCore({
                   CHF <AnimatedNumber value={Math.abs(savings) * 10} />
                 </span>
               </div>
+              <div className="mt-1">
+                DAVON ENERGIE:{" "}
+                <span className="text-ink tabular">
+                  CHF <AnimatedNumber value={fuelEnergy - evEnergy} />
+                </span>{" "}
+                · WARTUNG:{" "}
+                <span className="text-ink tabular">
+                  CHF <AnimatedNumber value={maintSavings} />
+                </span>
+              </div>
               {showSolar && (
                 <div className="mt-1 text-warn">
                   MIT SOLAR ZUSÄTZLICH: +{" "}
@@ -433,9 +471,10 @@ export default function EngineCore({
         </div>
 
         <p className="mt-4 font-mono text-[9px] tracking-[0.12em] text-muted/70">
-          REINE ENERGIEKOSTEN FÜR {listing.brand} {listing.model} (
-          {listing.consumption.toFixed(1)} KWH/100KM). SERVICE-ERSPARNIS UND
-          MOTORFAHRZEUGSTEUER NICHT EINGERECHNET.
+          ENERGIE + WARTUNG/SERVICE FÜR {listing.brand} {listing.model} (
+          {listing.consumption.toFixed(1)} KWH/100KM). WARTUNGSVORTEIL NACH
+          TCS/ADAC: E-AUTOS ~35 % GÜNSTIGER IM UNTERHALT.
+          MOTORFAHRZEUGSTEUER UND VERSICHERUNG NICHT EINGERECHNET.
         </p>
       </motion.div>
     </div>

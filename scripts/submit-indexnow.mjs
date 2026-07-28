@@ -14,8 +14,15 @@ const SITE = (process.env.SITE_URL ?? "https://ev4u.ch").replace(/\/$/, "");
 const res = await fetch(`${SITE}/sitemap.xml`);
 if (!res.ok) throw new Error(`sitemap fetch failed: ${res.status}`);
 const xml = await res.text();
-const urlList = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-if (urlList.length === 0) throw new Error("sitemap contained no URLs");
+// IndexNow rejects (422) any URL on a different host — a stale fallback
+// sitemap (e.g. ev4u.ch URLs while serving from GitHub Pages) must not
+// poison the whole submission.
+const host = new URL(SITE).host;
+const urlList = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)]
+  .map((m) => m[1])
+  .filter((u) => new URL(u).host === host);
+if (urlList.length === 0)
+  throw new Error(`sitemap has no URLs on ${host} — stale fallback sitemap?`);
 
 const submit = await fetch("https://api.indexnow.org/indexnow", {
   method: "POST",

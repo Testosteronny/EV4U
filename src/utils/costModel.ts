@@ -3,8 +3,54 @@
    every number on the site agrees.
    ============================================================================ */
 
-/** Petrol price, CHF/L — Swiss average. */
-export const FUEL_PRICE = 1.78;
+import fuelPrices from "../data/fuelPrices.json";
+
+/* ----------------------------------------------------------------------------
+   The comparison car — "was fährst du heute?". The engine compares every
+   listing against the visitor's ACTUAL car: petrol, diesel, or already
+   electric. Consumption defaults are Swiss-fleet typical values and double
+   as the fallback when the user never touches the setting.
+   · BENZIN/DIESEL: official BFS monthly national average (LIK
+     Durchschnittspreise, baked by scripts/fetch-fuel-prices.mjs — one rate
+     for all of Switzerland, refreshed by CI). Hardcoded numbers are the
+     offline fallback only.
+   · ELEKTRO: no fixed price — energy is costed at the visitor's home
+     tariff (the same one the simulated car uses).
+   ---------------------------------------------------------------------------- */
+export type FuelType = "BENZIN" | "DIESEL" | "ELEKTRO";
+
+/** "06/2026" — shown wherever a pump price is used. */
+export const FUEL_PRICES_ASOF = `${fuelPrices.meta.month.slice(5)}/${fuelPrices.meta.month.slice(0, 4)}`;
+
+const BENZIN_PRICE = Number(fuelPrices.benzin95) || 1.78;
+const DIESEL_PRICE = Number(fuelPrices.diesel) || 1.86;
+
+export const FUELS: Record<
+  FuelType,
+  {
+    label: string;
+    unit: string;
+    /** CHF per unit; null → priced at the local electricity tariff. */
+    price: number | null;
+    defaultCons: number;
+    min: number;
+    max: number;
+  }
+> = {
+  BENZIN: { label: "Benziner", unit: "L/100km", price: BENZIN_PRICE, defaultCons: 7.2, min: 4, max: 12 },
+  DIESEL: { label: "Diesel", unit: "L/100km", price: DIESEL_PRICE, defaultCons: 6.4, min: 3.5, max: 11 },
+  ELEKTRO: { label: "E-Auto", unit: "kWh/100km", price: null, defaultCons: 16.8, min: 10, max: 30 },
+};
+
+/** Energy cost per year of the visitor's current car. */
+export function currentCarEnergy(
+  fuel: FuelType,
+  cons: number,
+  annualKm: number,
+  tariff: number,
+): number {
+  return (annualKm / 100) * cons * (FUELS[fuel].price ?? tariff);
+}
 
 /** Opportunity cost of self-consumed solar: the feed-in remuneration you
  *  forgo by charging the car instead of selling to the grid. CHF/kWh. */

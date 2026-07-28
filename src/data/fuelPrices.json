@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "source": "BFS LIK — Durchschnittspreise Treibstoffe (su-d-05.02.91)",
+    "url": "https://www.bfs.admin.ch/asset/de/su-d-05.02.91",
+    "month": "2026-06",
+    "fetched": "2026-07-07"
+  },
+  "benzin95": 1.88,
+  "diesel": 2.1
+}

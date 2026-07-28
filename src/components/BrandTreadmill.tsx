@@ -3,10 +3,10 @@ import { useListings } from "../hooks/useListings";
 import { href } from "../lib/url";
 
 /* ============================================================================
-   BrandTreadmill — infinite marquee of the brands currently ON the board,
-   derived live from the open listings (counts included). Clicking a brand
-   jumps straight into the filtered catalogue. Hover pauses the belt.
-   The separators alternate + / − — the polarity runs through everything.
+   Brand index — the brands currently on the board, derived live from the
+   open listings. One click jumps into the filtered catalogue. A static,
+   scannable row (was an infinite marquee — motion cost more clarity than
+   it bought).
    ============================================================================ */
 
 export default function BrandTreadmill() {
@@ -20,39 +20,30 @@ export default function BrandTreadmill() {
 
   if (brands.length === 0) return null;
 
-  // Track is rendered twice → translateX(-50%) loops seamlessly.
-  const lap = (key: string) => (
-    <div key={key} className="flex items-center" aria-hidden={key === "b"}>
-      {brands.map(([brand, count], i) => (
-        <span key={brand} className="flex items-center">
-          <span
-            className={`mx-6 font-mono text-lg ${i % 2 === 0 ? "text-signal" : "text-muted/50"}`}
-          >
-            {i % 2 === 0 ? "+" : "−"}
-          </span>
+  return (
+    <section className="border-y border-line" aria-label="Marken auf der Tafel">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-2 px-4 py-5 sm:px-8">
+        <span className="mr-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+          Marken
+        </span>
+        {brands.map(([brand, count]) => (
           <a
+            key={brand}
             href={href(`/inserate?marke=${encodeURIComponent(brand)}`)}
-            className="group flex items-baseline gap-2"
+            className="group flex items-baseline gap-1.5 border border-line bg-panel px-3 py-1.5 transition-colors hover:border-signal/60 hover:text-signal"
           >
-            <span className="stretch-expand text-outline whitespace-nowrap text-4xl font-black uppercase tracking-tight transition-all duration-300 group-hover:text-signal group-hover:[-webkit-text-stroke:0px] sm:text-5xl">
+            <span className="text-sm font-bold uppercase tracking-wide text-ink transition-colors group-hover:text-signal">
               {brand}
             </span>
-            <span className="font-mono text-[10px] tracking-[0.2em] text-muted">
-              ×{count}
-            </span>
+            <span className="font-mono text-[10px] text-muted">{count}</span>
           </a>
-        </span>
-      ))}
-    </div>
-  );
-
-  return (
-    <section className="border-y border-line py-6" aria-label="Marken auf der Tafel">
-      <div className="marquee-mask overflow-hidden">
-        <div className="marquee-track">
-          {lap("a")}
-          {lap("b")}
-        </div>
+        ))}
+        <a
+          href={href("/inserate")}
+          className="ml-auto font-mono text-[10px] uppercase tracking-[0.15em] text-muted transition-colors hover:text-signal"
+        >
+          Alle Inserate →
+        </a>
       </div>
     </section>
   );

@@ -3,19 +3,20 @@ import { motion } from "framer-motion";
 import Hero from "../Hero";
 import BrandTreadmill from "../BrandTreadmill";
 import BentoHub from "../BentoHub";
-import ListingBoard from "../ListingBoard";
+import ListingShowcase from "../ListingShowcase";
 import { SectionHeader } from "../ui";
 import { useListings } from "../../hooks/useListings";
 import { href } from "../../lib/url";
+import type { Listing } from "../../data/evData";
 
 /* ============================================================================
-   Home — the storefront. The live inventory IS the marketing:
-   Hero (Standort-Fixierung) → brand treadmill (live from the board) →
-   Schaltzentrale bento (doors + Sprechstunde) → freshest listings.
+   Home — the storefront. The live inventory IS the marketing, so the cars
+   come first: Hero (value prop + tariff widget) → brand index → freshest
+   listings as photo cards → the four action cards (incl. Sprechstunde).
    ============================================================================ */
 
-export default function HomePage() {
-  const { listings } = useListings();
+export default function HomePage({ initial }: { initial?: Listing[] }) {
+  const { listings } = useListings(initial);
 
   // Support deep links like /#beratung (booking CTA from detail pages).
   useEffect(() => {
@@ -33,19 +34,17 @@ export default function HomePage() {
     <>
       <Hero />
       <BrandTreadmill />
-      <BentoHub />
 
-      {/* Freshest listings teaser */}
+      {/* Freshest listings — the goods come before the concept */}
       <section className="border-t border-line bg-panel/40">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
           <SectionHeader
-            index="02"
-            title="Frisch auf der Tafel"
-            claim="Die neusten Inserate · live"
+            title="Frische Inserate"
+            claim="Die neusten Angebote zuerst — live aus der Datenbank."
           >
             <a
               href={href("/inserate")}
-              className="border border-line px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted transition-colors hover:border-signal hover:text-signal"
+              className="border border-signal bg-signal px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-[0.15em] text-nacht transition-colors hover:bg-signal-dim"
             >
               Alle {listings.length} Inserate →
             </a>
@@ -57,10 +56,12 @@ export default function HomePage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="mt-10"
           >
-            <ListingBoard listings={freshest} compact />
+            <ListingShowcase listings={freshest} />
           </motion.div>
         </div>
       </section>
+
+      <BentoHub />
     </>
   );
 }

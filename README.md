@@ -41,12 +41,23 @@ npm run build          # type-check + production bundle
 npm run fetch:tariffs  # refresh official tariff data (yearly, see below)
 ```
 
-## Site structure (React Router)
+## Site structure
+
+**Navigation is five entries** — INSERATE (buy side), VERKAUFEN (sell side),
+RECHENWERK and VERGLEICH (the tools), KONTO (account). **One destination =
+one name**: every CTA, page title and backlink uses the nav label ("Zu den
+Inseraten", H1 "Inserate"); flavor names like "Markt-Tafel" live only in
+eyebrows/claims, never as the primary label of a link or page. The tools are
+*also* embedded where they are needed (the engine in every listing detail
+page plus its door on the home Bento, the compare view through the bottom
+tray once cars are picked), but they stay in the TopBar and the footer
+sitemap so everything on the site is findable from anywhere. VERGLEICH
+carries a live badge with the number of picked cars.
 
 | Route | Job |
 |-------|-----|
-| `/` | **Storefront** — hero + Standort-Fixierung, three intent doors (Finden / Verkaufen / Rechnen), the freshest Inserate as a teaser board, Sprechstunde booking (`/#beratung`) |
-| `/inserate` | **Markt-Tafel** — the full catalogue as a split-flap board. Filters (Karosserie, Marke, Anbieter, Sitze, Preis) and sort live **in the URL** (`?seg=SUV&sitze=5`): shareable, bookmarkable, reload-safe |
+| `/` | **Storefront** — hero + Standort-Fixierung, three intent doors (Finden / Verkaufen / Rechnen), the freshest Inserate as photo cards (seller photo or blueprint line drawing), Sprechstunde booking (`/#beratung`) |
+| `/inserate` | **Markt-Tafel** — the full catalogue as a dense data table. Filters (Karosserie, Marke, Anbieter, Sitze, Preis) and sort live **in the URL** (`?seg=SUV&sitze=5`): shareable, bookmarkable, reload-safe |
 | `/inserat/:id` | **One listing, one URL** — full dossier (specs, measured SOH, seller) plus the **embedded Rechenwerk** computing exactly this car against your persisted context. Dynamic `document.title` for sharing/SEO. RESERVIERT ads show the dossier but no simulation |
 | `/rechenwerk` | **Standalone engine** — pick any open listing, tune km / ICE comparison / Lade-Mix / PV; always funnels back to the actual ad |
 | `/vergleich` | **Listing-level compare** (max 3, only open ads) — specs *and* computed energy cost/savings per year at your tariff; best value per row marked. Shareable via `?ids=a,b,c` |
@@ -63,6 +74,17 @@ standalone engine and every embedded detail-page engine always agree.
 > nginx `try_files`). `vite dev`/`preview` handle this automatically.
 
 ### The cost model (Rechenwerk)
+The comparison side is the visitor's ACTUAL car — "Dein Auto heute":
+Benzin · Diesel (both at the **official BFS monthly national average**, see
+below) · Elektro (costed at the home tariff). One national pump price for
+all of Switzerland — deliberately not canton-specific: the fuel-tax
+component is federal and canton averages differ by only a few Rappen;
+station-level competition dominates. Fuel type switches the model honestly:
+against an existing
+EV there is no maintenance advantage and no tax privilege. Defaults
+(Benzin, 7.2 L/100km) apply until the visitor tunes it; logged in, the
+setting is stored on the profile (`car_fuel`/`car_consumption`) — adopted
+on login, written back on change (PlzGate sync, debounced).
 ```
 kWh/year   = km / 100 × consumption(listing)
 Lade-Mix   = one fader, 5 % steps: left = 100 % home, right = 100 % public
@@ -95,6 +117,9 @@ Security** in the database:
 | `bookings` | **write-only**: validated anonymous insert, no select policy — requests can't be read from the client |
 | `canton_taxes` | **operator config**, weight-based: `rate_per_100kg` (linearized regular tariff per canton, mid-size calibrated) + `ev_discount_pct` (the researched EV privilege: 100/50/…/0) + `tax_year`. Tax = listing weight × rate; saving = tax × discount — never negative by construction. Public read, NO client write — edit via dashboard/SQL; bundled fallback when offline |
 | `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; buyers can only open conversations on published, user-owned listings; senders can't be spoofed |
+| `vehicle_models` | **the Swiss EV catalog** — 279 models / 78 brands (261 NEU + 18 AUSLAUF/Occasion), imported from the EV4U master list (Excel, Stand 07/2026). Public read, operator-managed. Drives the /verkaufen picker & prefill |
+| `vehicle_variants` | variant/trim-level specs (battery, DC curve, power, 0-100, top speed, drive, weight, towing, V2L/V2H/V2G, heat pump, price…) — schema ready, enrichment via vehicle API/manual research is the next data step. `listings.model_id`/`variant_id` reference the catalog |
+| `user_roles` | **admin flag** — users read only their own row, no client writes (grant via SQL: `insert into user_roles values ('<uuid>', 'ADMIN')`). `is_admin()` (security definer) backs the admin RLS policies on `listings` (read all incl. drafts, status override, delete). The UI only decides what to show |
 | storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder |
 
 - **Messaging**: "Nachricht an Verkäufer" on every user-owned listing detail
@@ -106,8 +131,15 @@ Security** in the database:
   server-side, resolves the other participant and mails them via Resend.
   Set `RESEND_API_KEY` + `SITE_URL` as Edge Function secrets to activate —
   without the key it logs and exits cleanly.
-- **Merkliste**: heart on rows + detail pages (persisted locally, no login
-  needed), filterable on /inserate via `?fav=1`.
+- **Merkliste**: heart on rows + detail pages, filterable on /inserate via
+  `?fav=1`. **Account-backed** (`favorites` table, owner-only RLS) — logged
+  out, a heart click offers the login instead; the list follows the user
+  across devices.
+- **Standort lifecycle** (`PlzGate`, mounted on every page): first visit
+  without a fix → a dismissable PLZ popup right away (skipped on /konto and
+  for the rest of the session after "Später"). Logged in, the fix is adopted
+  from `profiles.plz` (Heim-PLZ) and every new fix — popup, hero, profile
+  panel — is saved back to it.
 - **Saved searches**: the filter URL is stored as-is in `saved_searches`
   (owner-only RLS); managed on /konto. E-mail alerts on new matches: backlog.
 - **Neupreis-Vergleich**: `price_new` per listing → "DU SPARST 29 %" badge
@@ -123,6 +155,16 @@ Security** in the database:
 - **Auth**: passwordless magic links (`signInWithOtp`) — first login creates
   the seller profile. `/konto` is the seller dashboard (status control,
   delete); `/verkaufen` inserts drafts.
+- **Roles — one dashboard, three shapes**: `/konto` adapts to who is logged
+  in. PRIVAT: name, my listings, Merkliste, searches, inbox. GARAGE
+  (`profiles.type`, chosen in the ProfilePanel): + Firma/UID/Website; new
+  drafts carry the GARAGE label automatically. ADMIN (`user_roles` row):
+  + moderation panel over all listings. Every capability is an RLS policy —
+  hiding a button is never the security boundary.
+- **Model picker**: /verkaufen erfasst Marke → Modell aus dem Katalog
+  (AUSLAUF markiert, "ANDERE MARKE" für Exoten) und befüllt Reichweite,
+  Verbrauch, Sitze, Segment (gemappt auf die 4 Tafel-Segmente) und Neupreis
+  vor — Basis für den "DU SPARST"-Badge ab dem ersten Tag.
 - **Client**: `src/lib/supabase.ts` with `VITE_SUPABASE_URL` +
   `VITE_SUPABASE_PUBLISHABLE_KEY` from `.env` (see `.env.example`). The
   publishable key is safe in the client; RLS does the guarding. Without env
@@ -151,12 +193,14 @@ Security** in the database:
   link previews show only the site-wide OG card, not per-listing data —
   fixing that needs SSR/prerendering (see backlog).
 
-## Vehicle-model API — DECISION PENDING
+## Vehicle-model data — catalog live, variant enrichment pending
 
-The schema is **prepared** for a vehicle spec database (`listings.weight_kg`
-drives the cantonal tax model; range/consumption/battery/`price_new` would
-come from the same source, and /verkaufen would gain a model picker that
-prefills everything). **No API is connected yet** — options, ranked:
+The **model level is done**: `vehicle_models` holds all 279 Swiss-market EVs
+(see Backend table) and /verkaufen picks & prefills from it. What's missing
+is **variant depth** — `vehicle_variants` (battery, DC curve, power, top
+speed, weight, V2X, features per trim) is schema-ready but empty: ~280
+models × 2–8 trims ≈ 1'000+ rows × ~25 fields, which needs a data source,
+not typing. Options for the enrichment, ranked:
 
 1. **Chargetrip Vehicle Database** *(recommended start)* — 1'800+ EV models
    via GraphQL incl. weights, batteries, efficiency, pricing; **free
@@ -213,6 +257,21 @@ The ZIP → electricity-tariff lookup uses **official open data**, baked into
 Swiss household tariffs are set **once per year** per grid operator, so a
 yearly `npm run fetch:tariffs` after the ElCom autumn publication *is* the
 accurate refresh cadence.
+
+### Real fuel prices (BFS, automated)
+
+Pump prices come from the **BFS Landesindex der Konsumentenpreise,
+"Durchschnittspreise für Energie und Treibstoffe"** (stable order number
+`su-d-05.02.91` on the BFS DAM hub; surveyed twice monthly, published as one
+national monthly average). [`scripts/fetch-fuel-prices.mjs`](scripts/fetch-fuel-prices.mjs)
+(Node 18+, zero deps) resolves the newest edition, parses the XLSX and bakes
+`src/data/fuelPrices.json` (Bleifrei 95 + Diesel, CHF/L, with month + source);
+a sanity gate rejects implausible parses so a format drift can never poison
+the cost model. **Automation:** the deploy workflow runs `npm run fetch:fuel`
+before every build (non-fatal — the committed JSON is the fallback) and a
+monthly `schedule` trigger (5th, 06:10 UTC) redeploys the site right after
+the BFS publication, so prices stay current without any manual step. The
+engine footnote shows the price and its month ("BFS-DURCHSCHNITT 06/2026").
 
 ### PLZ resolution (three tiers)
 1. **Exact** — all 3'172 Swiss address PLZ. PLZ spanning several
@@ -301,4 +360,14 @@ dashes drift like DC current; the hero corners read like a circuit sheet
 
 ## Mobile
 Grids stack to one column, the board collapses to Inserat · Preis · Status,
-touch targets stay ≥ 44 px, nav collapses to clock + wordmark.
+touch targets stay ≥ 44 px. Below `md` the nav collapses to a hamburger that
+opens a full-screen Schaltplan menu (numbered destinations, compare/unread
+badges, the tariff fix) — rendered outside the `<header>` because its
+backdrop-filter would otherwise clip the fixed overlay.
+
+## Placeholders & Bilder
+Every listing row and compare column shows a visual: the seller's first photo
+when uploaded, otherwise a technical side-elevation line drawing of the
+segment (`CarGraphic.tsx`, KOMPAKT/LIMOUSINE/KOMBI/SUV) in blueprint style.
+Detail pages without photos get a full "Fotos folgen" Typenskizze panel
+instead of nothing.

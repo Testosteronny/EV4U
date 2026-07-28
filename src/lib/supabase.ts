@@ -15,9 +15,12 @@ export const supabase: SupabaseClient | null =
   url && key ? createClient(url, key) : null;
 
 /** Public URL for a photo stored in the listing-photos bucket. We store
- *  bucket paths in the DB and derive URLs here. */
+ *  bucket paths in the DB and derive URLs here; segments are encoded so a
+ *  stray character in a path can never alter the URL structure. */
 export function photoUrl(path: string): string {
-  return `${url}/storage/v1/object/public/listing-photos/${path}`;
+  if (!url) return "";
+  const safe = path.split("/").map(encodeURIComponent).join("/");
+  return `${url}/storage/v1/object/public/listing-photos/${safe}`;
 }
 
 /** Database row shape of public.listings (snake_case). */

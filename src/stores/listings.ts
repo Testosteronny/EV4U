@@ -13,6 +13,17 @@ export const $listings = atom<Listing[]>(SEED_LISTINGS);
 export const $listingsLive = atom(false);
 
 let started = false;
+let seeded = false;
+
+/** Adopt the build-time snapshot (passed down from an .astro page) as the
+ *  first paint. Runs during prerendering too — that's what puts the real
+ *  inventory into the static HTML — and again on hydration, so the page
+ *  never flashes the bundled seed before the live fetch lands. */
+export function seedListings(rows: Listing[]): void {
+  if (seeded || $listingsLive.get()) return;
+  seeded = true;
+  $listings.set(rows);
+}
 
 export async function refreshListings(): Promise<void> {
   if (!supabase) return;

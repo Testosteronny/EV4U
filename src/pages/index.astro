@@ -1,8 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
 import HomePage from "../components/pages/HomePage";
+import { fetchBuildListings } from "../lib/buildListings";
+
+// Build-time snapshot → the "Frische Inserate" section prerenders with the
+// real inventory instead of the bundled seed.
+const listings = await fetchBuildListings();
 ---
 
 <Base>
-  <HomePage client:load />
+  <HomePage client:load initial={listings} />
 </Base>

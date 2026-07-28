@@ -76,7 +76,7 @@ export default function PhotoManager({
             <button
               onClick={() => void remove(p)}
               title="Foto entfernen"
-              className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 place-items-center bg-signal text-white group-hover:grid"
+              className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 place-items-center bg-signal text-nacht group-hover:grid"
             >
               <X size={10} />
             </button>

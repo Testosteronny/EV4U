@@ -11,10 +11,12 @@ import {
   PlugZap,
   Users,
 } from "lucide-react";
+import CarGraphic from "../CarGraphic";
 import ContactSeller from "../ContactSeller";
 import EngineCore from "../EngineCore";
 import { Stamp } from "../ui";
 import { useCockpit } from "../../hooks/useCockpit";
+import { useFavorites } from "../../hooks/useFavorites";
 import { useListings } from "../../hooks/useListings";
 import { photoUrl } from "../../lib/supabase";
 import { href } from "../../lib/url";
@@ -37,7 +39,8 @@ export default function InseratDetailPage({
    *  Astro page head; this island just renders with it immediately. */
   initial?: Listing;
 }) {
-  const { toggleCompare, compareIds, favorites, toggleFavorite } = useCockpit();
+  const { toggleCompare, compareIds, tariff, tariffLabel } = useCockpit();
+  const { favorites, toggleFavorite, canFavorite } = useFavorites();
   const { listings, live } = useListings();
   const listing = listings.find((l) => l.id === slug) ?? (live ? undefined : initial);
 
@@ -62,7 +65,7 @@ export default function InseratDetailPage({
             href={href("/inserate")}
             className="mt-6 inline-block border border-line px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink transition-colors hover:border-signal hover:text-signal"
           >
-            ← Zur Markt-Tafel
+            ← Zu den Inseraten
           </a>
         </div>
       </section>
@@ -95,7 +98,7 @@ export default function InseratDetailPage({
           href={href("/inserate")}
           className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-signal"
         >
-          <ArrowLeft size={12} /> Markt-Tafel
+          <ArrowLeft size={12} /> Alle Inserate
         </a>
 
         {/* Dossier header */}
@@ -136,13 +139,29 @@ export default function InseratDetailPage({
                   {newDiscount} %
                 </div>
               )}
+              {/* Signpost to the page's payoff: YOUR running costs, below */}
+              {!reserved && (
+                <a
+                  href="#rechenwerk"
+                  className="flex items-center gap-2 border border-signal/40 bg-signal/[0.06] px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-signal transition-colors hover:border-signal"
+                >
+                  STROM: CHF {(listing.consumption * tariff).toFixed(2)}/100 KM
+                  MIT TARIF {tariffLabel.toUpperCase()} — DEINE RECHNUNG ↓
+                </a>
+              )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleFavorite(listing.id)}
-                  title={isFav ? "Von Merkliste entfernen" : "Auf die Merkliste"}
+                  title={
+                    !canFavorite
+                      ? "Merkliste — Login nötig"
+                      : isFav
+                        ? "Von Merkliste entfernen"
+                        : "Auf die Merkliste"
+                  }
                   className={`flex items-center gap-2 border px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
                     isFav
-                      ? "border-signal bg-signal text-white"
+                      ? "border-signal bg-signal text-nacht"
                       : "border-line text-ink hover:border-signal hover:text-signal"
                   }`}
                 >
@@ -156,7 +175,7 @@ export default function InseratDetailPage({
                   reserved
                     ? "cursor-not-allowed border-line text-muted"
                     : inCompare
-                      ? "border-signal bg-signal text-white"
+                      ? "border-signal bg-signal text-nacht"
                       : "border-line text-ink hover:border-signal hover:text-signal"
                 }`}
               >
@@ -167,18 +186,40 @@ export default function InseratDetailPage({
             </div>
           </div>
 
-          {/* Photo gallery — only when the seller uploaded images */}
-          {listing.photos && listing.photos.length > 0 && (
+          {/* Photo gallery — or the technical drawing while photos are pending */}
+          {listing.photos && listing.photos.length > 0 ? (
             <div className="mt-8 flex gap-3 overflow-x-auto pb-2">
-              {listing.photos.map((p) => (
+              {listing.photos.map((p, i) => (
                 <img
                   key={p}
                   src={photoUrl(p)}
-                  alt={`${listing.brand} ${listing.model}`}
-                  loading="lazy"
+                  alt={`${listing.brand} ${listing.model} — Foto ${i + 1} von ${listing.photos!.length}`}
+                  loading={i === 0 ? "eager" : "lazy"}
+                  decoding="async"
                   className="h-48 w-auto shrink-0 border border-line object-cover sm:h-64"
                 />
               ))}
+            </div>
+          ) : (
+            <div className="panel bg-blueprint relative mt-8 overflow-hidden px-6 py-8 sm:px-10">
+              <div className="flex flex-wrap items-center justify-between gap-6">
+                <CarGraphic
+                  segment={listing.segment}
+                  detailed
+                  className="h-36 w-auto max-w-full text-ink sm:h-48"
+                />
+                <div className="max-w-xs">
+                  <Stamp className="!border-line !text-muted">Fotos folgen</Stamp>
+                  <p className="mt-3 font-mono text-[9px] leading-relaxed tracking-[0.15em] text-muted">
+                    TYPENSKIZZE {listing.segment} — DER ANBIETER HAT NOCH KEINE
+                    FOTOS HOCHGELADEN. DIE SPEZIFIKATIONEN UNTEN GELTEN
+                    UNABHÄNGIG DAVON.
+                  </p>
+                </div>
+              </div>
+              <span className="pointer-events-none absolute bottom-3 right-4 font-mono text-[8px] tracking-[0.3em] text-muted/50">
+                ANSICHT SEITE · SCHEMATISCH
+              </span>
             </div>
           )}
 
@@ -234,7 +275,7 @@ export default function InseratDetailPage({
       </section>
 
       {/* Embedded engine — THIS car, YOUR context */}
-      <section className="mt-16 border-t border-line bg-panel/40">
+      <section id="rechenwerk" className="mt-16 scroll-mt-20 border-t border-line bg-panel/40">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
           <div className="mb-8 flex items-center gap-3">
             <span className="font-mono text-xs tracking-[0.25em] text-signal">02</span>
@@ -249,8 +290,8 @@ export default function InseratDetailPage({
                 Reserviert — Simulation pausiert.
               </p>
               <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
-                NUR OFFENE INSERATE LAUFEN IM RECHENWERK. ÄHNLICHE FAHRZEUGE AUF
-                DER MARKT-TAFEL.
+                NUR OFFENE INSERATE LAUFEN IM RECHENWERK. ÄHNLICHE FAHRZEUGE
+                UNTER /INSERATE.
               </p>
             </div>
           ) : (

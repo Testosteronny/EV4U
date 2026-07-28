@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Bookmark, LogOut, Mail, Plus, Trash2 } from "lucide-react";
+import AdminPanel from "../AdminPanel";
 import Inbox from "../Inbox";
 import PhotoManager from "../PhotoManager";
+import ProfilePanel from "../ProfilePanel";
 import { SectionHeader, Segmented, Stamp } from "../ui";
 import { useListings } from "../../hooks/useListings";
+import { useProfile } from "../../hooks/useProfile";
 import { useSession } from "../../hooks/useSession";
 import { supabase, type ListingRow } from "../../lib/supabase";
 import { href } from "../../lib/url";
@@ -29,6 +32,7 @@ const STATI = ["ENTWURF", "AKTIV", "RESERVIERT", "VERKAUFT"] as const;
 
 export default function Konto() {
   const { session, ready } = useSession();
+  const { profile, isAdmin, update } = useProfile(session?.user.id);
   const { refresh } = useListings();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -152,7 +156,7 @@ export default function Konto() {
               <button
                 onClick={() => void sendLink()}
                 disabled={!/.+@.+\..+/.test(email)}
-                className="mt-4 w-full border border-signal bg-signal px-4 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
+                className="mt-4 w-full border border-signal bg-signal px-4 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
               >
                 Login-Link senden
               </button>
@@ -164,15 +168,22 @@ export default function Konto() {
           )}
         </motion.div>
       ) : (
-        /* ---- Dashboard: my listings -------------------------------------- */
+        /* ---- Dashboard: profile, my listings, searches, inbox ------------ */
         <div className="mt-10">
+          {/* Who is selling here — PRIVAT or GARAGE (adapts the dashboard) */}
+          {profile && (
+            <div className="mb-8">
+              <ProfilePanel profile={profile} onSave={update} />
+            </div>
+          )}
+
           <div className="mb-4 flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
               Meine Inserate ({mine.length})
             </span>
             <a
               href={href("/verkaufen")}
-              className="flex items-center gap-2 border border-signal bg-signal px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim"
+              className="flex items-center gap-2 border border-signal bg-signal px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim"
             >
               <Plus size={12} /> Neues Inserat
             </a>
@@ -270,6 +281,9 @@ export default function Konto() {
 
           {/* Buyer ↔ seller conversations */}
           <Inbox userId={session.user.id} />
+
+          {/* Moderation — only for user_roles ADMIN, enforced by RLS */}
+          {isAdmin && <AdminPanel userId={session.user.id} />}
         </div>
       )}
     </section>

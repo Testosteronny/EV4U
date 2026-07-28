@@ -149,7 +149,7 @@ export default function Inbox({ userId }: { userId: string }) {
                     <button
                       onClick={() => void sendReply()}
                       disabled={busy || !reply.trim()}
-                      className="border border-signal bg-signal px-5 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
+                      className="border border-signal bg-signal px-5 font-mono text-[10px] uppercase tracking-[0.2em] text-nacht transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
                     >
                       Senden
                     </button>

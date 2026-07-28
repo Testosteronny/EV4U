@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import { ListingThumb } from "../CarGraphic";
 import { SectionHeader } from "../ui";
 import { useCockpit } from "../../hooks/useCockpit";
 import { useListings } from "../../hooks/useListings";
@@ -8,12 +9,13 @@ import { CARD_COMBOS, type Listing } from "../../data/evData";
 import { useCantonTaxes } from "../../hooks/useCantonTaxes";
 import { href } from "../../lib/url";
 import {
-  FUEL_PRICE,
+  FUELS,
   MAINT_EV_PER_KM,
   MAINT_ICE_PER_KM,
   REF_WEIGHT_KG,
   cantonTaxFor,
   chAverageTax,
+  currentCarEnergy,
 } from "../../utils/costModel";
 import { fmtCH } from "../../utils/swiss";
 
@@ -22,6 +24,8 @@ import { fmtCH } from "../../utils/swiss";
    tray side by side, including the computed running cost per year (energy +
    maintenance) at the visitor's tariff and Lade-Mix. Shareable via
    ?ids=a,b,c. The best value per row is marked in lume.
+   Not in the top nav — entered via the CompareTray (appears once cars are
+   picked on the Markt-Tafel) or a shared ?ids= URL.
    ============================================================================ */
 
 type Row = {
@@ -77,7 +81,7 @@ const ROWS: Row[] = [
     best: "min",
   },
   {
-    label: "ERSPARNIS VS. BENZIN *",
+    label: "ERSPARNIS VS. DEIN AUTO *",
     value: (_, c) => `CHF ${fmtCH(c.savings)}`,
     num: (_, c) => c.savings,
     best: "max",
@@ -93,7 +97,8 @@ export default function VergleichPage() {
     tariff,
     tariffLabel,
     annualKm,
-    iceConsumption,
+    currentFuel,
+    currentCons,
     publicShare,
   } = useCockpit();
   const { taxes: cantonTaxes, year: taxYear } = useCantonTaxes();
@@ -125,16 +130,22 @@ export default function VergleichPage() {
         );
         const energyYear = homeCost + publicCost;
         // Same model as the EngineCore: energy + maintenance + cantonal tax
-        // (weight-based — heavier cars carry a bigger tax privilege).
-        const maintSavings = annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
-        const taxSavings = cantonTaxFor(l.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
+        // vs. the visitor's CURRENT car — an existing EV carries neither a
+        // maintenance nor a tax advantage.
+        const isCurrentEv = currentFuel === "ELEKTRO";
+        const maintSavings = isCurrentEv
+          ? 0
+          : annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
+        const taxSavings = isCurrentEv
+          ? 0
+          : cantonTaxFor(l.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
         return [
           l.id,
           {
             strom100: l.consumption * tariff,
             energyYear,
             savings:
-              (annualKm / 100) * iceConsumption * FUEL_PRICE -
+              currentCarEnergy(currentFuel, currentCons, annualKm, tariff) -
               energyYear +
               maintSavings +
               taxSavings,
@@ -142,7 +153,7 @@ export default function VergleichPage() {
         ];
       }),
     );
-  }, [items, annualKm, publicShare, tariff, iceConsumption, taxCfg]);
+  }, [items, annualKm, publicShare, tariff, currentFuel, currentCons, taxCfg]);
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
@@ -158,13 +169,14 @@ export default function VergleichPage() {
             {items.length === 0 ? "Der Vergleich ist leer." : "Eines ist keines."}
           </p>
           <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
-            WÄHLE 2–3 OFFENE INSERATE AUF DER MARKT-TAFEL (VS-KNOPF IN DER ZEILE).
+            WÄHLE 2–3 OFFENE INSERATE (VS-KNOPF IN DER ZEILE) — DER VERGLEICH
+            RECHNET SIE MIT DEINEM TARIF DURCH.
           </p>
           <a
             href={href("/inserate")}
-            className="mt-6 inline-block border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim"
+            className="mt-6 inline-block border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim"
           >
-            Zur Markt-Tafel →
+            Zu den Inseraten →
           </a>
         </div>
       ) : (
@@ -187,6 +199,7 @@ export default function VergleichPage() {
                         href={href(`/inserat/${l.id}`)}
                         className="stretch-wide text-sm font-extrabold uppercase text-ink hover:text-signal"
                       >
+                        <ListingThumb listing={l} className="mb-2 h-12 w-20" />
                         {l.brand}
                         <br />
                         {l.model}
@@ -239,7 +252,9 @@ export default function VergleichPage() {
             * MIT DEINEM KONTEXT: TARIF {tariffLabel.toUpperCase()} (
             {fmtCH(tariff * 100, 1)} RP) · {fmtCH(annualKm)} KM/JAHR ·{" "}
             {100 - publicShare} % HEIMLADUNG · GÜNSTIGSTE LADEKARTE JE AUTO ·
-            ERSPARNIS INKL. WARTUNG (~35 %, TCS/ADAC) & VERKEHRSSTEUER {taxYear}{" "}
+            ERSPARNIS VS. DEIN {FUELS[currentFuel].label.toUpperCase()} (
+            {currentCons.toFixed(1)} {FUELS[currentFuel].unit.toUpperCase()})
+            INKL. WARTUNG & VERKEHRSSTEUER {taxYear}{" "}
             {cantonCode ? `KT. ${cantonCode}` : "(CH-MITTEL)"} (GEWICHTSBASIERT,
             JE AUTO) · ● = BESTWERT
           </div>

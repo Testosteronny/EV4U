@@ -5,7 +5,8 @@ import { useCockpit } from "../hooks/useCockpit";
 import { CARDS_AS_OF, CARD_COMBOS, type Listing } from "../data/evData";
 import { useCantonTaxes } from "../hooks/useCantonTaxes";
 import {
-  FUEL_PRICE,
+  FUELS,
+  FUEL_PRICES_ASOF,
   MAINT_EV_PER_KM,
   MAINT_ICE_PER_KM,
   REF_WEIGHT_KG,
@@ -14,6 +15,7 @@ import {
   SOLAR_COVER_MIN,
   cantonTaxFor,
   chAverageTax,
+  currentCarEnergy,
 } from "../utils/costModel";
 import { fmtCH } from "../utils/swiss";
 import { AnimatedNumber, Fader, Segmented, Stamp } from "./ui";
@@ -137,8 +139,10 @@ export default function EngineCore({
     gemeinde,
     annualKm,
     setAnnualKm,
-    iceConsumption,
-    setIceConsumption,
+    currentFuel,
+    setCurrentFuel,
+    currentCons,
+    setCurrentCons,
     publicShare,
     setPublicShare,
     pv,
@@ -163,9 +167,14 @@ export default function EngineCore({
   const chosen = combos.find((c) => c.id === comboChoice) ?? cheapest;
 
   const evEnergy = homeCost + chosen.publicCost;
-  const fuelEnergy = (annualKm / 100) * iceConsumption * FUEL_PRICE;
-  // Maintenance & wear: EVs run ~30–35 % cheaper (TCS/ADAC) — scales with km.
-  const maintIce = annualKm * MAINT_ICE_PER_KM;
+  // The comparison car: the visitor's ACTUAL car — petrol/diesel at the
+  // pump price, an existing EV at the same home tariff.
+  const isCurrentEv = currentFuel === "ELEKTRO";
+  const fuelCfg = FUELS[currentFuel];
+  const fuelEnergy = currentCarEnergy(currentFuel, currentCons, annualKm, tariff);
+  // Maintenance & wear: EVs run ~30–35 % cheaper (TCS/ADAC) — scales with
+  // km. Against an existing EV there is no maintenance advantage.
+  const maintIce = annualKm * (isCurrentEv ? MAINT_EV_PER_KM : MAINT_ICE_PER_KM);
   const maintEv = annualKm * MAINT_EV_PER_KM;
   const maintSavings = maintIce - maintEv;
   // Cantonal Verkehrssteuer, weight-based: this car's weight × the canton's
@@ -175,9 +184,11 @@ export default function EngineCore({
   const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
   const taxCfg = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
   const tax = cantonTaxFor(weightKg, taxCfg);
-  const taxSavings = tax.saving;
+  // An existing EV already enjoys the canton's privilege — no tax delta.
+  const taxCurrent = isCurrentEv ? tax.ev : tax.ice;
+  const taxSavings = taxCurrent - tax.ev;
   // The gauges compare full running costs: energy + maintenance + tax.
-  const fuelTotal = fuelEnergy + maintIce + tax.ice;
+  const fuelTotal = fuelEnergy + maintIce + taxCurrent;
   const evTotal = evEnergy + maintEv + tax.ev;
   const savings = fuelTotal - evTotal;
   const gaugeMax = Math.max(
@@ -211,16 +222,32 @@ export default function EngineCore({
           unit="km"
           onChange={setAnnualKm}
         />
-        <Fader
-          label="Dein Verbrenner heute"
-          value={iceConsumption}
-          min={4}
-          max={12}
-          step={0.1}
-          unit="L/100km"
-          format={(v) => v.toFixed(1)}
-          onChange={setIceConsumption}
-        />
+        {/* The comparison car — was fährst du heute? */}
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+              Dein Auto heute
+            </span>
+            <Segmented
+              options={(Object.keys(FUELS) as (keyof typeof FUELS)[]).map((f) => ({
+                key: f,
+                label: f,
+              }))}
+              value={currentFuel}
+              onChange={setCurrentFuel}
+            />
+          </div>
+          <Fader
+            label={`Verbrauch ${fuelCfg.label}`}
+            value={currentCons}
+            min={fuelCfg.min}
+            max={fuelCfg.max}
+            step={0.1}
+            unit={fuelCfg.unit}
+            format={(v) => v.toFixed(1)}
+            onChange={setCurrentCons}
+          />
+        </div>
 
         {/* Lade-Mix fader: left = all home, right = all public */}
         <div>
@@ -319,14 +346,14 @@ export default function EngineCore({
           <Gauge
             frac={fuelTotal / gaugeMax}
             max={gaugeMax}
-            label="Benziner / Jahr"
+            label={`Dein ${fuelCfg.label} / Jahr`}
             value={fuelTotal}
-            icon={<Fuel size={12} />}
+            icon={isCurrentEv ? <PlugZap size={12} /> : <Fuel size={12} />}
           />
           <Gauge
             frac={evTotal / gaugeMax}
             max={gaugeMax}
-            label="E-Auto / Jahr"
+            label="Dieses Inserat / Jahr"
             value={evTotal}
             red
             icon={<PlugZap size={12} />}
@@ -358,11 +385,15 @@ export default function EngineCore({
         <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border border-line bg-nacht px-4 py-3 font-mono text-[10px] tracking-[0.12em]">
           <span className="text-muted">
             WARTUNG & SERVICE{" "}
-            <span className="text-muted/60">(KEIN ÖL, KEINE ZÜNDKERZEN, REKU SCHONT BREMSEN)</span>
+            <span className="text-muted/60">
+              {isCurrentEv
+                ? "(BEIDE ELEKTRISCH — KEIN WARTUNGSVORTEIL)"
+                : "(KEIN ÖL, KEINE ZÜNDKERZEN, REKU SCHONT BREMSEN)"}
+            </span>
           </span>
           <span className="flex items-center gap-3 tabular">
             <span className="text-muted">
-              BENZINER CHF <AnimatedNumber value={maintIce} />
+              {fuelCfg.label.toUpperCase()} CHF <AnimatedNumber value={maintIce} />
             </span>
             <span className="text-muted">→</span>
             <span className="text-ink">
@@ -389,7 +420,11 @@ export default function EngineCore({
           </span>
           <span className="flex items-center gap-3 tabular">
             <span className="text-muted">
-              BENZINER GLEICHEN GEWICHTS CHF <AnimatedNumber value={tax.ice} />
+              {isCurrentEv ? (
+                <>DEIN E-AUTO — GLEICHES PRIVILEG CHF <AnimatedNumber value={taxCurrent} /></>
+              ) : (
+                <>VERBRENNER GLEICHEN GEWICHTS CHF <AnimatedNumber value={taxCurrent} /></>
+              )}
             </span>
             <span className="text-muted">→</span>
             <span className="text-ink">
@@ -520,8 +555,13 @@ export default function EngineCore({
 
         <p className="mt-4 font-mono text-[9px] tracking-[0.12em] text-muted/70">
           ENERGIE + WARTUNG + VERKEHRSSTEUER FÜR {listing.brand} {listing.model}{" "}
-          ({listing.consumption.toFixed(1)} KWH/100KM, {fmtCH(weightKg)} KG).
-          WARTUNG NACH TCS/ADAC (~35 % GÜNSTIGER); STEUER: LINEARES
+          ({listing.consumption.toFixed(1)} KWH/100KM, {fmtCH(weightKg)} KG) VS.
+          DEIN {fuelCfg.label.toUpperCase()} ({currentCons.toFixed(1)}{" "}
+          {fuelCfg.unit.toUpperCase()}
+          {isCurrentEv
+            ? ", GERECHNET MIT DEINEM HEIMTARIF"
+            : `, ${(FUELS[currentFuel].price ?? 0).toFixed(2)} CHF/L — BFS-DURCHSCHNITT ${FUEL_PRICES_ASOF}`}
+          ). WARTUNG NACH TCS/ADAC (~35 % GÜNSTIGER); STEUER: LINEARES
           GEWICHTSMODELL (CHF/100 KG JE KANTON, {taxYear}), HUBRAUM-KANTONE VIA
           GEWICHTS-ÄQUIVALENT. VERSICHERUNG NICHT EINGERECHNET.
         </p>

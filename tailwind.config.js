@@ -4,11 +4,11 @@ export default {
   theme: {
     extend: {
       /* ======================================================================
-         EV4U — Schweizer Instrument design tokens
-         Anthracite instrument panel · Swiss signal red · warm "lume" ink
+         EV4U — Schweizer Instrument design tokens · green-energy identity
+         Forest-charcoal panel · electric green signal · teal "lume" · amber warn
          ====================================================================== */
-      // All colors are CSS variables (see index.css): dark = anthracite +
-      // Swiss signal red, light = paper white + Swiss federal blue.
+      // All colors are CSS variables (see index.css): dark = forest-charcoal +
+      // electric spring green, light = green-paper white + deep emerald.
       colors: {
         nacht: "rgb(var(--c-nacht) / <alpha-value>)", // page background
         panel: "rgb(var(--c-panel) / <alpha-value>)", // instrument panel
@@ -30,7 +30,7 @@ export default {
       },
       boxShadow: {
         panel: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 18px 50px -24px rgba(0,0,0,0.8)",
-        signal: "0 0 0 1px rgba(255,59,48,0.4), 0 8px 32px -8px rgba(255,59,48,0.35)",
+        signal: "0 0 0 1px rgba(38,208,124,0.4), 0 8px 32px -8px rgba(38,208,124,0.35)",
       },
       animation: {
         blink: "blink 1.1s steps(2, start) infinite",

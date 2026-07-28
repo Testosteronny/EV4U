@@ -74,7 +74,7 @@ export default function RechenwerkPage() {
         </p>
         <a
           href={href(`/inserat/${listing.id}`)}
-          className="border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim"
+          className="border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim"
         >
           {listing.brand} {listing.model} ansehen →
         </a>

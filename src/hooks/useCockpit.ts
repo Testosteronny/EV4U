@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@nanostores/react";
-import { $cockpit, patchCockpit } from "../stores/cockpit";
+import { $cockpit, COCKPIT_DEFAULTS, patchCockpit } from "../stores/cockpit";
 import { useListings } from "./useListings";
+import { FUELS, type FuelType } from "../utils/costModel";
 import { CH_AVG_TARIFF, resolveZip, type GemeindeInfo } from "../utils/swiss";
 import type { Listing } from "../data/evData";
 
@@ -12,6 +13,9 @@ import type { Listing } from "../data/evData";
    ============================================================================ */
 
 type CockpitState = {
+  /** False during SSR and the very first client render; true once the
+   *  persisted localStorage state has been adopted. */
+  hydrated: boolean;
   gemeinde: GemeindeInfo | null;
   setGemeinde: (g: GemeindeInfo | null) => void;
   tariff: number;
@@ -20,8 +24,12 @@ type CockpitState = {
   setListingId: (id: string) => void;
   annualKm: number;
   setAnnualKm: (v: number) => void;
-  iceConsumption: number;
-  setIceConsumption: (v: number) => void;
+  /** The visitor's current car — drives every "vs. dein Auto" comparison. */
+  currentFuel: FuelType;
+  /** Switching fuel resets the consumption to that fuel's typical value. */
+  setCurrentFuel: (f: FuelType) => void;
+  currentCons: number;
+  setCurrentCons: (v: number) => void;
   publicShare: number;
   setPublicShare: (v: number) => void;
   pv: "ja" | "nein";
@@ -29,13 +37,20 @@ type CockpitState = {
   compareIds: string[];
   toggleCompare: (id: string) => void;
   clearCompare: () => void;
-  favorites: string[];
-  toggleFavorite: (id: string) => void;
 };
 
 export function useCockpit(): CockpitState {
-  const data = useStore($cockpit);
+  const raw = useStore($cockpit);
   const { active } = useListings();
+
+  // The prerendered HTML is computed with COCKPIT_DEFAULTS (no localStorage
+  // on the server), but the persisted atom hydrates synchronously on the
+  // client — the first client render would disagree with the server HTML
+  // (hydration mismatch on every tariff-dependent number). Serve the
+  // defaults until after mount, then let the personalised values sweep in.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const data = hydrated ? raw : COCKPIT_DEFAULTS;
 
   const gemeinde = useMemo(
     () => (data.zip ? resolveZip(data.zip) : null),
@@ -46,6 +61,7 @@ export function useCockpit(): CockpitState {
     const cheapest = [...active].sort((a, b) => a.price - b.price)[0];
     const listing = active.find((l) => l.id === data.listingId) ?? cheapest;
     return {
+      hydrated,
       gemeinde,
       setGemeinde: (g) => patchCockpit({ zip: g?.zip ?? null }),
       tariff: gemeinde?.tariff ?? CH_AVG_TARIFF,
@@ -54,8 +70,10 @@ export function useCockpit(): CockpitState {
       setListingId: (id) => patchCockpit({ listingId: id }),
       annualKm: data.annualKm,
       setAnnualKm: (v) => patchCockpit({ annualKm: v }),
-      iceConsumption: data.ice,
-      setIceConsumption: (v) => patchCockpit({ ice: v }),
+      currentFuel: data.fuel,
+      setCurrentFuel: (f) => patchCockpit({ fuel: f, ice: FUELS[f].defaultCons }),
+      currentCons: data.ice,
+      setCurrentCons: (v) => patchCockpit({ ice: v }),
       publicShare: data.publicShare,
       setPublicShare: (v) => patchCockpit({ publicShare: v }),
       pv: data.pv,
@@ -70,13 +88,6 @@ export function useCockpit(): CockpitState {
               : [...data.compareIds, id],
         }),
       clearCompare: () => patchCockpit({ compareIds: [] }),
-      favorites: data.favorites,
-      toggleFavorite: (id) =>
-        patchCockpit({
-          favorites: data.favorites.includes(id)
-            ? data.favorites.filter((x) => x !== id)
-            : [...data.favorites, id],
-        }),
     };
-  }, [data, gemeinde, active]);
+  }, [data, gemeinde, active, hydrated]);
 }

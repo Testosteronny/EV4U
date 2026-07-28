@@ -9,6 +9,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "fetch:tariffs": "node scripts/fetch-tariffs.mjs",
+    "fetch:fuel": "node scripts/fetch-fuel-prices.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs"
   },
   "dependencies": {

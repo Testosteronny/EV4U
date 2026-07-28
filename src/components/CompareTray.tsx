@@ -60,11 +60,11 @@ export default function CompareTray() {
                 href={href("/vergleich")}
                 className={`border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
                   compareIds.length >= 2
-                    ? "border-signal bg-signal text-white hover:bg-signal-dim"
+                    ? "border-signal bg-signal text-nacht hover:bg-signal-dim"
                     : "pointer-events-none border-line text-muted"
                 }`}
               >
-                Vergleichen →
+                {compareIds.length >= 2 ? "Vergleichen →" : "Noch 1 Inserat wählen"}
               </a>
             </div>
           </div>

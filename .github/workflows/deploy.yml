@@ -4,6 +4,16 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Fired by the Supabase trigger when a listing is published/changed
+  # (docs/listing-rebuild-webhook.md) — new listings get their prerendered
+  # page, sitemap entry and IndexNow ping within minutes.
+  repository_dispatch:
+    types: [listings-changed]
+  schedule:
+    # Monthly rebuild on the 5th, 06:10 UTC: picks up the fresh BFS fuel
+    # prices (published at the start of the month) and re-prerenders the
+    # listing pages from the live database.
+    - cron: "10 6 5 * *"
 
 permissions:
   contents: read
@@ -27,6 +37,24 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Refresh the BFS national average fuel prices (monthly open data)
+      # before building. Non-fatal: if the BFS API is unreachable, the
+      # committed src/data/fuelPrices.json is the fallback.
+      - name: Fetch fuel prices (BFS)
+        run: npm run fetch:fuel
+        continue-on-error: true
+
+      # Regenerate the sitemap from the live database so every prerendered
+      # /inserat/[slug] page is listed. Non-fatal: the committed sitemap.xml
+      # is the fallback.
+      - name: Generate sitemap (live listings)
+        env:
+          SITE_URL: https://testosteronny.github.io/EV4U
+          PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run sitemap
+        continue-on-error: true
 
       # Astro prerenders every page (incl. /inserat/[slug] from the live
       # database) and emits 404.html from 404.astro — the client fallback
@@ -55,3 +83,12 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      # Tell Bing & friends (and thus ChatGPT search) about every URL right
+      # after each deploy — the fast lane for new listings into LLM answers.
+      - uses: actions/checkout@v4
+      - name: Submit URLs to IndexNow
+        env:
+          SITE_URL: https://testosteronny.github.io/EV4U
+        run: node scripts/submit-indexnow.mjs
+        continue-on-error: true

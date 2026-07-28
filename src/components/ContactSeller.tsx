@@ -105,7 +105,7 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
             <button
               onClick={() => void send()}
               disabled={busy || !body.trim()}
-              className="border border-signal bg-signal px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-white transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
+              className="border border-signal bg-signal px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
             >
               {busy ? "Sendet…" : "Senden"}
             </button>

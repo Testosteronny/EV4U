@@ -1,5 +1,7 @@
+# Sitemap URL must match the serving host — currently GitHub Pages,
+# switch back to https://ev4u.ch/sitemap.xml when the domain goes live.
 User-agent: *
 Allow: /
 Disallow: /konto
 
-Sitemap: https://ev4u.ch/sitemap.xml
+Sitemap: https://testosteronny.github.io/EV4U/sitemap.xml

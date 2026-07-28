@@ -1,49 +1,47 @@
 ---
 import Base from "../../layouts/Base.astro";
 import InseratDetailPage from "../../components/pages/InseratDetailPage";
-import { LISTINGS, type Listing } from "../../data/evData";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { photoUrl } from "../../lib/supabase";
 import { fmtCH } from "../../utils/swiss";
+import type { Listing } from "../../data/evData";
 
 /* Prerendered at build time from the live database — every published
    listing gets real HTML, its own <title>/OG tags and JSON-LD (the SEO/GEO
    payoff of the Astro migration). Listings created AFTER the last build
-   are served by the 404.astro client fallback until the next deploy. */
+   are served by the 404.astro client fallback until the rebuild webhook
+   redeploys (see docs/listing-rebuild-webhook.md). */
 export async function getStaticPaths() {
-  let listings: Listing[] = LISTINGS;
-  const url = import.meta.env.PUBLIC_SUPABASE_URL;
-  const key = import.meta.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (url && key) {
-    try {
-      const res = await fetch(
-        `${url}/rest/v1/listings?select=*&status=in.(AKTIV,RESERVIERT)`,
-        { headers: { apikey: key } },
-      );
-      if (res.ok) {
-        const { rowToListing } = await import("../../lib/mappers");
-        listings = (await res.json()).map(rowToListing);
-      }
-    } catch {
-      /* offline build → seed listings */
-    }
-  }
+  const listings = await fetchBuildListings();
   return listings.map((l) => ({ params: { slug: l.id }, props: { listing: l } }));
 }
 
 const { listing } = Astro.props as { listing: Listing };
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const canonical = new URL(`${base}/inserat/${listing.id}`, Astro.site).href;
 const title = `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`;
 const description = `${listing.year} · ${fmtCH(listing.km)} km · ${listing.range} km WLTP · SOH ${listing.soh} % — ${listing.note}`;
+const images = (listing.photos ?? []).map(photoUrl).filter(Boolean);
 
 const jsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Car",
   name: `${listing.brand} ${listing.model}`,
+  url: canonical,
+  description,
+  ...(images.length > 0 && { image: images }),
   brand: { "@type": "Brand", name: listing.brand },
+  model: listing.model,
   vehicleModelDate: String(listing.year),
   mileageFromOdometer: { "@type": "QuantitativeValue", value: listing.km, unitCode: "KMT" },
   fuelType: "Electric",
   seatingCapacity: listing.seats,
+  ...(listing.weightKg && {
+    weight: { "@type": "QuantitativeValue", value: listing.weightKg, unitCode: "KGM" },
+  }),
   offers: {
     "@type": "Offer",
+    url: canonical,
     price: listing.price,
     priceCurrency: "CHF",
     itemCondition: "https://schema.org/UsedCondition",
@@ -51,11 +49,34 @@ const jsonLd = JSON.stringify({
       listing.status === "AKTIV"
         ? "https://schema.org/InStock"
         : "https://schema.org/Reserved",
+    seller: {
+      "@type": listing.sellerType === "GARAGE" ? "AutoDealer" : "Person",
+      name: listing.seller,
+      ...(listing.ort && {
+        address: { "@type": "PostalAddress", addressLocality: listing.ort, addressCountry: "CH" },
+      }),
+    },
   },
+});
+
+const breadcrumbLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "EV4U", item: new URL(`${base}/`, Astro.site).href },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Inserate",
+      item: new URL(`${base}/inserate`, Astro.site).href,
+    },
+    { "@type": "ListItem", position: 3, name: `${listing.brand} ${listing.model}`, item: canonical },
+  ],
 });
 ---
 
-<Base title={title} description={description}>
+<Base title={title} description={description} image={images[0]}>
   <script type="application/ld+json" set:html={jsonLd} slot="head" />
+  <script type="application/ld+json" set:html={breadcrumbLd} slot="head" />
   <InseratDetailPage client:load slug={listing.id} initial={listing} />
 </Base>

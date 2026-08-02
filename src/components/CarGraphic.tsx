@@ -54,7 +54,7 @@ export function ListingThumb({
   const photo = listing.photos?.[0];
   return (
     <span
-      className={`bg-blueprint grid shrink-0 place-items-center overflow-hidden border border-line bg-panel2/60 ${className}`}
+      className={`grid shrink-0 place-items-center overflow-hidden rounded-chip border border-line bg-surface2 ${className}`}
       aria-hidden={photo ? undefined : true}
     >
       {photo ? (
@@ -66,7 +66,7 @@ export function ListingThumb({
           className="h-full w-full object-cover"
         />
       ) : (
-        <CarGraphic segment={listing.segment} className="h-full w-full p-1 text-muted" />
+        <CarGraphic segment={listing.segment} className="h-full w-full p-1 text-fg3" />
       )}
     </span>
   );

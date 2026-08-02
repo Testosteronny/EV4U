@@ -17,6 +17,11 @@ export async function getStaticPaths() {
 }
 
 const { listing } = Astro.props as { listing: Listing };
+// Derselbe (gecachte) Build-Snapshot wie auf / und /inserate. Die Insel muss
+// ihn bekommen, sonst rendert der Server aus dem Snapshot und der Client im
+// ersten Durchgang aus dem gebündelten Seed — die beiden weichen ab (dem Seed
+// fehlen z. B. die Neupreise), und React verwirft die Hydration.
+const allListings = await fetchBuildListings();
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const canonical = new URL(`${base}/inserat/${listing.id}`, Astro.site).href;
 const title = `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`;
@@ -78,5 +83,10 @@ const breadcrumbLd = JSON.stringify({
 <Base title={title} description={description} image={images[0]}>
   <script type="application/ld+json" set:html={jsonLd} slot="head" />
   <script type="application/ld+json" set:html={breadcrumbLd} slot="head" />
-  <InseratDetailPage client:load slug={listing.id} initial={listing} />
+  <InseratDetailPage
+    client:load
+    slug={listing.id}
+    initial={listing}
+    all={allListings}
+  />
 </Base>

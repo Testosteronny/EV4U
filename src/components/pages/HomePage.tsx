@@ -1,67 +1,54 @@
 import { useEffect } from "react";
-import { motion } from "framer-motion";
 import Hero from "../Hero";
-import BrandTreadmill from "../BrandTreadmill";
-import BentoHub from "../BentoHub";
-import ListingShowcase from "../ListingShowcase";
-import { SectionHeader } from "../ui";
+import BrandIndex from "../BrandIndex";
+import ConsultStrip from "../ConsultStrip";
+import HowItWorks from "../HowItWorks";
+import ListingCard from "../ListingCard";
+import { LinkButton, SectionHeader } from "../ui";
 import { useListings } from "../../hooks/useListings";
 import { href } from "../../lib/url";
 import type { Listing } from "../../data/evData";
 
 /* ============================================================================
-   Home — the storefront. The live inventory IS the marketing, so the cars
-   come first: Hero (value prop + tariff widget) → brand index → freshest
-   listings as photo cards → the four action cards (incl. Sprechstunde).
+   Startseite — der Bestand ist die Werbung, also kommt er zuerst:
+   Hero mit Suche → frische Inserate → wie gerechnet wird → Marken →
+   Beratung. Keine Abschnitts-Choreografie; die Seite blendet einmal ein.
    ============================================================================ */
 
 export default function HomePage({ initial }: { initial?: Listing[] }) {
-  const { listings } = useListings(initial);
+  const { listings, active } = useListings(initial);
 
-  // Support deep links like /#beratung (booking CTA from detail pages).
+  // Deep-Links wie /#beratung (Verweis aus den Detailseiten).
   useEffect(() => {
     const { hash } = window.location;
-    if (hash) {
-      document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
-    }
+    if (hash) document.querySelector(hash)?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  const freshest = [...listings]
-    .sort((a, b) => a.postedDays - b.postedDays)
-    .slice(0, 6);
+  const freshest = [...active].sort((a, b) => a.postedDays - b.postedDays).slice(0, 8);
 
   return (
-    <>
+    <div className="animate-fade-in">
       <Hero />
-      <BrandTreadmill />
 
-      {/* Freshest listings — the goods come before the concept */}
-      <section className="border-t border-line bg-panel/40">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
-          <SectionHeader
-            title="Frische Inserate"
-            claim="Die neusten Angebote zuerst — live aus der Datenbank."
-          >
-            <a
-              href={href("/inserate")}
-              className="border border-signal bg-signal px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-[0.15em] text-nacht transition-colors hover:bg-signal-dim"
-            >
-              Alle {listings.length} Inserate →
-            </a>
-          </SectionHeader>
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="mt-10"
-          >
-            <ListingShowcase listings={freshest} />
-          </motion.div>
+      <section className="mx-auto max-w-[88rem] border-t border-line px-4 py-10 sm:px-6">
+        <SectionHeader
+          title="Neu auf EV4U"
+          lead="Die zuletzt eingestellten Angebote — live aus der Datenbank."
+        >
+          <LinkButton href={href("/inserate")} variant="secondary" size="sm">
+            Alle {listings.length} Inserate →
+          </LinkButton>
+        </SectionHeader>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {freshest.map((l) => (
+            <ListingCard key={l.id} listing={l} />
+          ))}
         </div>
       </section>
 
-      <BentoHub />
-    </>
+      <HowItWorks />
+      <BrandIndex />
+      <ConsultStrip />
+    </div>
   );
 }

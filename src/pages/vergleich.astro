@@ -1,11 +1,16 @@
 ---
 import Base from "../layouts/Base.astro";
 import VergleichPage from "../components/pages/VergleichPage";
+import { fetchBuildListings } from "../lib/buildListings";
+
+// Siehe /rechenwerk: der Snapshot muss in die Insel, sonst weicht der erste
+// Client-Render vom vorgerenderten HTML ab.
+const listings = await fetchBuildListings();
 ---
 
 <Base
   title="Vergleich — EV4U"
   description="Bis zu drei Inserate Seite an Seite — inklusive Energiekosten und Ersparnis pro Jahr in deiner Gemeinde."
 >
-  <VergleichPage client:load />
+  <VergleichPage client:load initial={listings} />
 </Base>

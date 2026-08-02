@@ -1,12 +1,12 @@
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { ListingThumb } from "../CarGraphic";
-import { SectionHeader } from "../ui";
+import { EmptyState, LinkButton, PageHeader } from "../ui";
 import { useCockpit } from "../../hooks/useCockpit";
 import { useListings } from "../../hooks/useListings";
-import { CARD_COMBOS, type Listing } from "../../data/evData";
 import { useCantonTaxes } from "../../hooks/useCantonTaxes";
+import { openContextSheet } from "../../stores/ui";
+import { CARD_COMBOS, type Listing } from "../../data/evData";
 import { href } from "../../lib/url";
 import {
   FUELS,
@@ -20,76 +20,76 @@ import {
 import { fmtCH } from "../../utils/swiss";
 
 /* ============================================================================
-   /vergleich — listing-level comparison (not model-level): the cars on the
-   tray side by side, including the computed running cost per year (energy +
-   maintenance) at the visitor's tariff and Lade-Mix. Shareable via
-   ?ids=a,b,c. The best value per row is marked in lume.
-   Not in the top nav — entered via the CompareTray (appears once cars are
-   picked on the Markt-Tafel) or a shared ?ids= URL.
+   /vergleich — die Autos aus der Leiste nebeneinander, inklusive der
+   gerechneten Jahreskosten. Teilbar über ?ids=a,b,c. Kein Navigationsziel
+   mehr — man kommt über die Vergleichsleiste oder einen geteilten Link.
    ============================================================================ */
-
-type Row = {
-  label: string;
-  value: (l: Listing, calc: Calc) => string;
-  num: (l: Listing, calc: Calc) => number;
-  /** Which direction wins this row; undefined → no winner highlight. */
-  best?: "min" | "max";
-};
 
 type Calc = { strom100: number; energyYear: number; savings: number };
 
+type Row = {
+  label: string;
+  value: (l: Listing, c: Calc) => string;
+  num: (l: Listing, c: Calc) => number;
+  best?: "min" | "max";
+};
+
 const ROWS: Row[] = [
-  { label: "PREIS CHF", value: (l) => fmtCH(l.price), num: (l) => l.price, best: "min" },
+  { label: "Preis", value: (l) => `CHF ${fmtCH(l.price)}`, num: (l) => l.price, best: "min" },
   {
-    label: "VS. NEUPREIS",
+    label: "Gegenüber Neupreis",
     value: (l) =>
       l.priceNew && l.priceNew > l.price
-        ? `−${Math.round((1 - l.price / l.priceNew) * 100)} % (NEU ${fmtCH(l.priceNew)})`
+        ? `−${Math.round((1 - l.price / l.priceNew) * 100)} % (neu ${fmtCH(l.priceNew)})`
         : "—",
     num: (l) => (l.priceNew ? 1 - l.price / l.priceNew : 0),
     best: "max",
   },
-  { label: "JAHRGANG", value: (l) => `${l.year}`, num: (l) => l.year, best: "max" },
-  { label: "KM-STAND", value: (l) => fmtCH(l.km), num: (l) => l.km, best: "min" },
-  { label: "SOH BATTERIE", value: (l) => `${l.soh} %`, num: (l) => l.soh, best: "max" },
-  { label: "WLTP-REICHWEITE", value: (l) => `${l.range} KM`, num: (l) => l.range, best: "max" },
+  { label: "Jahrgang", value: (l) => String(l.year), num: (l) => l.year, best: "max" },
+  { label: "Kilometerstand", value: (l) => `${fmtCH(l.km)} km`, num: (l) => l.km, best: "min" },
+  { label: "Batterie-SOH", value: (l) => `${l.soh} %`, num: (l) => l.soh, best: "max" },
+  { label: "WLTP-Reichweite", value: (l) => `${l.range} km`, num: (l) => l.range, best: "max" },
   {
-    label: "VERBRAUCH /100KM",
-    value: (l) => `${l.consumption.toFixed(1)} KWH`,
+    label: "Verbrauch",
+    value: (l) => `${l.consumption.toFixed(1)} kWh/100 km`,
     num: (l) => l.consumption,
     best: "min",
   },
   {
-    label: "LADEZEIT 10–80 %",
-    value: (l) => `${l.chargeMin} MIN`,
+    label: "Laden 10–80 %",
+    value: (l) => `${l.chargeMin} min`,
     num: (l) => l.chargeMin,
     best: "min",
   },
-  { label: "BATTERIE", value: (l) => `${l.battery} KWH`, num: (l) => l.battery },
-  { label: "SITZE", value: (l) => `${l.seats}`, num: (l) => l.seats },
-  { label: "V2X", value: (l) => (l.bidi ? "JA" : "—"), num: (l) => (l.bidi ? 1 : 0) },
+  { label: "Batterie", value: (l) => `${l.battery} kWh`, num: (l) => l.battery },
+  { label: "Sitze", value: (l) => String(l.seats), num: (l) => l.seats },
+  { label: "Bidirektional", value: (l) => (l.bidi ? "ja" : "—"), num: (l) => (l.bidi ? 1 : 0) },
   {
-    label: "STROM /100KM *",
+    label: "Strom pro 100 km",
     value: (_, c) => `CHF ${c.strom100.toFixed(2)}`,
     num: (_, c) => c.strom100,
     best: "min",
   },
   {
-    label: "ENERGIE /JAHR *",
+    label: "Energie pro Jahr",
     value: (_, c) => `CHF ${fmtCH(c.energyYear)}`,
     num: (_, c) => c.energyYear,
     best: "min",
   },
   {
-    label: "ERSPARNIS VS. DEIN AUTO *",
+    label: "Ersparnis gegenüber deinem Auto",
     value: (_, c) => `CHF ${fmtCH(c.savings)}`,
     num: (_, c) => c.savings,
     best: "max",
   },
-  { label: "ANBIETER", value: (l) => `${l.sellerType} · ${l.ort.toUpperCase()}`, num: () => 0 },
+  {
+    label: "Anbieter",
+    value: (l) => `${l.sellerType === "GARAGE" ? "Garage" : "Privat"} · ${l.ort}`,
+    num: () => 0,
+  },
 ];
 
-export default function VergleichPage() {
+export default function VergleichPage({ initial }: { initial?: Listing[] }) {
   const {
     compareIds,
     toggleCompare,
@@ -105,161 +105,161 @@ export default function VergleichPage() {
   const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
   const taxCfg = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
 
-  const { listings } = useListings();
-  // URL wins (shareable), tray is the fallback.
-  const urlIds =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("ids")?.split(",")
-      : undefined;
+  const { listings } = useListings(initial);
+  // Wie auf /inserate: die geteilte ?ids=-URL erst nach dem Mount lesen,
+  // sonst weicht der erste Client-Render vom vorgerenderten HTML ab.
+  const [urlIds, setUrlIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("ids");
+    if (raw) setUrlIds(raw.split(","));
+  }, []);
   const ids = urlIds ?? compareIds;
   const items = ids
     .map((id) => listings.find((l) => l.id === id && l.status === "AKTIV"))
     .filter((l): l is Listing => Boolean(l))
     .slice(0, 3);
 
-  const calcs = useMemo(() => {
-    return new Map(
-      items.map((l) => {
-        const kwhYear = (annualKm / 100) * l.consumption;
-        const publicKwh = kwhYear * (publicShare / 100);
-        const homeCost = (kwhYear - publicKwh) * tariff;
-        const publicCost = Math.min(
-          ...CARD_COMBOS.map(
-            (c) => c.monthly * 12 + Math.max(0, publicKwh - c.inclKwh) * c.perKwh,
-          ),
-        );
-        const energyYear = homeCost + publicCost;
-        // Same model as the EngineCore: energy + maintenance + cantonal tax
-        // vs. the visitor's CURRENT car — an existing EV carries neither a
-        // maintenance nor a tax advantage.
-        const isCurrentEv = currentFuel === "ELEKTRO";
-        const maintSavings = isCurrentEv
-          ? 0
-          : annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
-        const taxSavings = isCurrentEv
-          ? 0
-          : cantonTaxFor(l.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
-        return [
-          l.id,
-          {
-            strom100: l.consumption * tariff,
-            energyYear,
-            savings:
-              currentCarEnergy(currentFuel, currentCons, annualKm, tariff) -
-              energyYear +
-              maintSavings +
-              taxSavings,
-          } satisfies Calc,
-        ];
-      }),
-    );
-  }, [items, annualKm, publicShare, tariff, currentFuel, currentCons, taxCfg]);
+  const calcs = useMemo(
+    () =>
+      new Map(
+        items.map((l) => {
+          const kwhYear = (annualKm / 100) * l.consumption;
+          const publicKwh = kwhYear * (publicShare / 100);
+          const publicCost = Math.min(
+            ...CARD_COMBOS.map(
+              (c) => c.monthly * 12 + Math.max(0, publicKwh - c.inclKwh) * c.perKwh,
+            ),
+          );
+          const energyYear = (kwhYear - publicKwh) * tariff + publicCost;
+          const isCurrentEv = currentFuel === "ELEKTRO";
+          const maintSavings = isCurrentEv
+            ? 0
+            : annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
+          const taxSavings = isCurrentEv
+            ? 0
+            : cantonTaxFor(l.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
+          return [
+            l.id,
+            {
+              strom100: l.consumption * tariff,
+              energyYear,
+              savings:
+                currentCarEnergy(currentFuel, currentCons, annualKm, tariff) -
+                energyYear +
+                maintSavings +
+                taxSavings,
+            } satisfies Calc,
+          ];
+        }),
+      ),
+    [items, annualKm, publicShare, tariff, currentFuel, currentCons, taxCfg],
+  );
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
-      <SectionHeader
-        index="01"
+    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
+      <PageHeader
         title="Vergleich"
-        claim={`${items.length} Inserate · Seite an Seite`}
+        lead={
+          items.length > 0
+            ? `${items.length} Inserate nebeneinander, gerechnet mit deinen Werten.`
+            : undefined
+        }
       />
 
       {items.length < 2 ? (
-        <div className="panel mt-10 px-6 py-16 text-center">
-          <p className="stretch-wide text-xl font-extrabold uppercase text-ink">
-            {items.length === 0 ? "Der Vergleich ist leer." : "Eines ist keines."}
-          </p>
-          <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
-            WÄHLE 2–3 OFFENE INSERATE (VS-KNOPF IN DER ZEILE) — DER VERGLEICH
-            RECHNET SIE MIT DEINEM TARIF DURCH.
-          </p>
-          <a
-            href={href("/inserate")}
-            className="mt-6 inline-block border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim"
+        <div className="mt-8">
+          <EmptyState
+            title={
+              items.length === 0
+                ? "Im Vergleich liegt noch nichts."
+                : "Ein Auto vergleicht sich schlecht."
+            }
+            hint="Wähle zwei oder drei offene Inserate über das Vergleichs-Symbol auf der Karte — hier stehen sie danach Zeile für Zeile nebeneinander."
           >
-            Zu den Inseraten →
-          </a>
+            <LinkButton href={href("/inserate")} variant="primary" size="sm">
+              Zu den Inseraten
+            </LinkButton>
+          </EmptyState>
         </div>
       ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="panel mt-10 overflow-x-auto"
-        >
-          <table className="w-full min-w-[640px] border-collapse font-mono">
-            <thead>
-              <tr className="border-b border-line bg-nacht">
-                <th className="px-4 py-4 text-left text-[9px] uppercase tracking-[0.2em] text-muted sm:px-6">
-                  Kriterium
-                </th>
-                {items.map((l) => (
-                  <th key={l.id} className="px-4 py-4 text-left sm:px-6">
-                    <div className="flex items-start justify-between gap-2">
-                      <a
-                        href={href(`/inserat/${l.id}`)}
-                        className="stretch-wide text-sm font-extrabold uppercase text-ink hover:text-signal"
-                      >
-                        <ListingThumb listing={l} className="mb-2 h-12 w-20" />
-                        {l.brand}
-                        <br />
-                        {l.model}
-                      </a>
-                      <button
-                        onClick={() => toggleCompare(l.id)}
-                        title="Entfernen"
-                        className="text-muted hover:text-signal"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
+        <>
+          <div className="card-flush mt-6 overflow-x-auto">
+            <table className="w-full min-w-[640px] border-collapse">
+              <thead>
+                <tr className="border-b border-line">
+                  <th className="px-4 py-3 text-left text-small font-medium text-fg3 sm:px-5">
+                    Kriterium
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROWS.map((row) => {
-                const nums = items.map((l) => row.num(l, calcs.get(l.id)!));
-                const target = row.best
-                  ? row.best === "min"
-                    ? Math.min(...nums)
-                    : Math.max(...nums)
-                  : null;
-                return (
-                  <tr key={row.label} className="border-b border-line/60 last:border-b-0">
-                    <td className="px-4 py-3 text-[9px] uppercase tracking-[0.2em] text-muted sm:px-6">
-                      {row.label}
-                    </td>
-                    {items.map((l, i) => {
-                      const isBest = target !== null && nums[i] === target;
-                      return (
-                        <td
-                          key={l.id}
-                          className={`px-4 py-3 text-sm tabular sm:px-6 ${
-                            isBest ? "font-bold text-lume" : "text-ink"
-                          }`}
+                  {items.map((l) => (
+                    <th key={l.id} className="px-4 py-3 text-left sm:px-5">
+                      <div className="flex items-start justify-between gap-2">
+                        <a href={href(`/inserat/${l.id}`)} className="group">
+                          <ListingThumb listing={l} className="mb-2 h-14 w-24" />
+                          <span className="block text-body font-semibold text-fg group-hover:text-accent">
+                            {l.brand}
+                          </span>
+                          <span className="block text-small text-fg2">{l.model}</span>
+                        </a>
+                        <button
+                          onClick={() => toggleCompare(l.id)}
+                          title="Aus dem Vergleich entfernen"
+                          className="grid h-7 w-7 place-items-center rounded-chip text-fg3 transition-colors hover:bg-surface2 hover:text-fg"
                         >
-                          {row.value(l, calcs.get(l.id)!)}
-                          {isBest && <span className="ml-1.5 text-[9px]">●</span>}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="bg-nacht px-4 py-3 font-mono text-[9px] tracking-[0.15em] text-muted sm:px-6">
-            * MIT DEINEM KONTEXT: TARIF {tariffLabel.toUpperCase()} (
-            {fmtCH(tariff * 100, 1)} RP) · {fmtCH(annualKm)} KM/JAHR ·{" "}
-            {100 - publicShare} % HEIMLADUNG · GÜNSTIGSTE LADEKARTE JE AUTO ·
-            ERSPARNIS VS. DEIN {FUELS[currentFuel].label.toUpperCase()} (
-            {currentCons.toFixed(1)} {FUELS[currentFuel].unit.toUpperCase()})
-            INKL. WARTUNG & VERKEHRSSTEUER {taxYear}{" "}
-            {cantonCode ? `KT. ${cantonCode}` : "(CH-MITTEL)"} (GEWICHTSBASIERT,
-            JE AUTO) · ● = BESTWERT
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ROWS.map((row) => {
+                  const nums = items.map((l) => row.num(l, calcs.get(l.id)!));
+                  const target = row.best
+                    ? row.best === "min"
+                      ? Math.min(...nums)
+                      : Math.max(...nums)
+                    : null;
+                  return (
+                    <tr key={row.label} className="border-b border-line last:border-b-0">
+                      <td className="px-4 py-2.5 text-small text-fg2 sm:px-5">{row.label}</td>
+                      {items.map((l, i) => {
+                        const isBest = target !== null && nums[i] === target;
+                        return (
+                          <td
+                            key={l.id}
+                            className={`px-4 py-2.5 text-body tabular sm:px-5 ${
+                              isBest ? "font-semibold text-accent" : "text-fg"
+                            }`}
+                          >
+                            {row.value(l, calcs.get(l.id)!)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </motion.div>
+
+          <p className="mt-4 max-w-prose text-small text-fg3">
+            Gerechnet mit {tariffLabel} ({fmtCH(tariff * 100, 1)} Rp./kWh),{" "}
+            {fmtCH(annualKm)} km pro Jahr, {100 - publicShare} % Heimladung und der
+            je Auto günstigsten Ladekarte. Ersparnis gegenüber deinem{" "}
+            {FUELS[currentFuel].label} ({currentCons.toFixed(1)}{" "}
+            {FUELS[currentFuel].unit}) inklusive Wartung und Verkehrssteuer{" "}
+            {taxYear} {cantonCode ? `Kanton ${cantonCode}` : "(CH-Mittel)"}.
+            Grün markiert den Bestwert je Zeile.{" "}
+            <button
+              onClick={openContextSheet}
+              className="text-accent underline-offset-2 hover:underline"
+            >
+              Werte anpassen
+            </button>
+          </p>
+        </>
       )}
-    </section>
+    </div>
   );
 }

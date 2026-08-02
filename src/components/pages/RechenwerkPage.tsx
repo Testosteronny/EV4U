@@ -1,84 +1,62 @@
-import { ArrowUpRight } from "lucide-react";
 import EngineCore from "../EngineCore";
-import { SectionHeader } from "../ui";
+import { Field, LinkButton, PageHeader } from "../ui";
 import { useCockpit } from "../../hooks/useCockpit";
 import { useListings } from "../../hooks/useListings";
 import { href } from "../../lib/url";
 import { fmtCH } from "../../utils/swiss";
+import type { Listing } from "../../data/evData";
 
 /* ============================================================================
-   /rechenwerk — the standalone engine, an acquisition tool that always
-   funnels back into inventory: pick any OPEN listing, tune your context,
-   then jump to the ad. Settings persist; the embedded engines on the
-   detail pages share them.
+   /rechenwerk — «Was kostet mich ein E-Auto?»
+
+   Kein Navigationsziel mehr (die Rechnung sitzt an jedem Inserat), aber die
+   URL bleibt: als Einstiegsseite für genau diese Frage, mit Trichter zurück
+   in den Bestand. Die Eingabespalte ist entfallen — die Werte stehen in der
+   Kontextleiste über der Seite.
    ============================================================================ */
 
-export default function RechenwerkPage() {
+export default function RechenwerkPage({ initial }: { initial?: Listing[] }) {
   const { listing, setListingId } = useCockpit();
-  const { active } = useListings();
+  const { active } = useListings(initial);
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-20 sm:px-8">
-      <SectionHeader
-        index="01"
-        title="Rechenwerk"
-        claim="Inserat · Strom · Solar · Ladekarte — ein Instrument"
-      >
-        <a
-          href={href(`/inserat/${listing.id}`)}
-          className="flex items-center gap-2 border border-line px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted transition-colors hover:border-signal hover:text-signal"
-        >
-          Zum Inserat <ArrowUpRight size={12} />
-        </a>
-      </SectionHeader>
+    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
+      <PageHeader
+        title="Was kostet mich ein E-Auto?"
+        lead="Wähle ein Auto aus dem Bestand — EV4U rechnet es gegen dein heutiges Auto durch, mit dem Stromtarif deiner Gemeinde."
+      />
 
-      <div className="mt-10">
-        <EngineCore listing={listing}>
-          {/* Inserat picker — open listings only, injected into the engine */}
-          <div>
-            <label className="mb-2 block font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
-              Inserat in Simulation
-            </label>
-            <select
-              value={listing.id}
-              onChange={(e) => setListingId(e.target.value)}
-              className="w-full cursor-pointer border border-line bg-nacht px-3 py-3 font-mono text-xs tracking-[0.08em] text-ink focus:border-signal focus:outline-none"
-            >
-              {active.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.brand} {l.model} — CHF {fmtCH(l.price)}
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 grid grid-cols-2 gap-px bg-line font-mono text-[10px]">
-              {[
-                ["JAHRGANG", `${listing.year}`],
-                ["KM-STAND", fmtCH(listing.km)],
-                ["VERBRAUCH", `${listing.consumption.toFixed(1)} KWH`],
-                ["ANBIETER", listing.sellerType],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between bg-panel px-3 py-2">
-                  <span className="text-muted">{k}</span>
-                  <span className="text-ink tabular">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </EngineCore>
+      <div className="mt-6 max-w-md">
+        <Field
+          label="Auto in der Rechnung"
+          hint="Alle offenen Inserate. Die Rechnung darunter gilt für dieses Auto."
+        >
+          <select
+            value={listing.id}
+            onChange={(e) => setListingId(e.target.value)}
+            className="field"
+          >
+            {active.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.brand} {l.model} — CHF {fmtCH(l.price)}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
 
-      {/* Funnel back into inventory */}
-      <div className="panel mt-6 flex flex-wrap items-center justify-between gap-4 px-6 py-5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
-          Die Zahlen passen? Das Auto gibt es wirklich — als offenes Inserat.
+      <div className="mt-6">
+        <EngineCore listing={listing} />
+      </div>
+
+      <div className="card mt-6 flex flex-wrap items-center justify-between gap-4 p-5">
+        <p className="max-w-prose text-body text-fg2">
+          Die Zahlen passen? Dieses Auto steht wirklich zum Verkauf.
         </p>
-        <a
-          href={href(`/inserat/${listing.id}`)}
-          className="border border-signal bg-signal px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim"
-        >
+        <LinkButton href={href(`/inserat/${listing.id}`)} variant="primary">
           {listing.brand} {listing.model} ansehen →
-        </a>
+        </LinkButton>
       </div>
-    </section>
+    </div>
   );
 }

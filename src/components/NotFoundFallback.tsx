@@ -1,11 +1,13 @@
 import InseratDetailPage from "./pages/InseratDetailPage";
+import { EmptyState, LinkButton } from "./ui";
 import { href } from "../lib/url";
 
 /* ============================================================================
-   404 fallback — GitHub Pages serves this for paths that weren't
-   prerendered. Listings created AFTER the last build still work: we parse
-   the slug from the URL and render the detail island, which loads the
-   listing live from Supabase. Everything else gets an honest not-found.
+   404-Fallback — GitHub Pages liefert diese Seite für alles, was nicht
+   vorgerendert wurde. Inserate, die NACH dem letzten Build entstanden sind,
+   funktionieren trotzdem: wir lesen den Slug aus der URL und rendern die
+   Detail-Insel, die live aus Supabase lädt. Alles andere bekommt eine
+   ehrliche Fehlseite.
    ============================================================================ */
 
 export default function NotFoundFallback() {
@@ -20,21 +22,18 @@ export default function NotFoundFallback() {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-      <div className="panel px-6 py-16 text-center">
-        <p className="stretch-wide text-2xl font-extrabold uppercase text-ink">
-          Seite nicht gefunden.
-        </p>
-        <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
-          FALSCHE URL ODER ABGESCHALTETER STROMKREIS.
-        </p>
-        <a
-          href={href("/")}
-          className="mt-6 inline-block border border-line px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink transition-colors hover:border-signal hover:text-signal"
-        >
-          ← Zur Startseite
-        </a>
-      </div>
-    </section>
+    <div className="mx-auto max-w-[88rem] px-4 py-16 sm:px-6">
+      <EmptyState
+        title="Diese Seite gibt es nicht."
+        hint="Die URL stimmt nicht, oder die Seite wurde verschoben."
+      >
+        <LinkButton href={href("/")} variant="primary" size="sm">
+          Zur Startseite
+        </LinkButton>
+        <LinkButton href={href("/inserate")} variant="secondary" size="sm">
+          Zu den Inseraten
+        </LinkButton>
+      </EmptyState>
+    </div>
   );
 }

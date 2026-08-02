@@ -1,304 +1,372 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   BatteryCharging,
-  CalendarClock,
   GitCompareArrows,
   Heart,
   HeartPulse,
-  MapPin,
   PlugZap,
   Users,
 } from "lucide-react";
 import CarGraphic from "../CarGraphic";
 import ContactSeller from "../ContactSeller";
 import EngineCore from "../EngineCore";
-import { Stamp } from "../ui";
+import ListingCard from "../ListingCard";
+import { Badge, Button, EmptyState, LinkButton } from "../ui";
 import { useCockpit } from "../../hooks/useCockpit";
+import { useCantonTaxes } from "../../hooks/useCantonTaxes";
 import { useFavorites } from "../../hooks/useFavorites";
 import { useListings } from "../../hooks/useListings";
 import { photoUrl } from "../../lib/supabase";
 import { href } from "../../lib/url";
+import {
+  FUELS,
+  MAINT_EV_PER_KM,
+  MAINT_ICE_PER_KM,
+  REF_WEIGHT_KG,
+  cantonTaxFor,
+  chAverageTax,
+  currentCarEnergy,
+} from "../../utils/costModel";
+import { CARD_COMBOS, type Listing } from "../../data/evData";
 import { fmtCH } from "../../utils/swiss";
-import type { Listing } from "../../data/evData";
 
 /* ============================================================================
-   /inserat/:id — one listing, one page, one URL.
-   The dossier (specs, measured SOH, seller) plus the embedded Rechenwerk
-   computing THIS car against the visitor's persisted context (tariff, km,
-   Lade-Mix, PV). RESERVIERT listings show their dossier but no simulation.
+   /inserat/:id — ein Inserat, eine Seite.
+
+   Neue Reihenfolge: Galerie und Preis/Kontakt zuerst, dann Beschreibung,
+   Daten, Kostenrechnung, Anbieter, ähnliche Inserate. Vorher stand das Foto
+   an vierter Stelle und die Kontaktaufnahme fast am Ende — auf einem
+   Marktplatz genau verkehrt herum.
    ============================================================================ */
+
+function Gallery({ listing }: { listing: Listing }) {
+  const photos = listing.photos ?? [];
+  const [active, setActive] = useState(0);
+
+  if (photos.length === 0) {
+    return (
+      <div className="card-flush grid aspect-[16/10] place-items-center bg-surface2">
+        <div className="p-6 text-center">
+          <CarGraphic
+            segment={listing.segment}
+            detailed
+            className="mx-auto h-28 w-auto text-fg3 sm:h-36"
+          />
+          <p className="mx-auto mt-4 max-w-prose text-small text-fg3">
+            Noch keine Fotos hochgeladen — die Zeichnung zeigt die
+            Karosserieform. Die technischen Daten unten gelten unabhängig davon.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="card-flush aspect-[16/10] overflow-hidden bg-surface2">
+        <img
+          src={photoUrl(photos[active])}
+          alt={`${listing.brand} ${listing.model} — Foto ${active + 1} von ${photos.length}`}
+          loading="eager"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
+      </div>
+      {photos.length > 1 && (
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+          {photos.map((p, i) => (
+            <button
+              key={p}
+              onClick={() => setActive(i)}
+              aria-label={`Foto ${i + 1} anzeigen`}
+              aria-pressed={i === active}
+              className={`h-16 w-24 shrink-0 overflow-hidden rounded-chip border transition-colors ${
+                i === active ? "border-accent" : "border-line hover:border-line2"
+              }`}
+            >
+              <img
+                src={photoUrl(p)}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InseratDetailPage({
   slug,
   initial,
+  all,
 }: {
   slug: string;
-  /** Build-time listing for prerendered pages — JSON-LD/OG live in the
-   *  Astro page head; this island just renders with it immediately. */
+  /** Build-Snapshot dieses Inserats — trägt die vorgerenderte Seite. */
   initial?: Listing;
+  /** Build-Snapshot des ganzen Bestands. Muss der Store übernehmen, damit
+   *  der erste Client-Render dieselben Daten sieht wie der Server (der
+   *  gebündelte Seed weicht davon ab). */
+  all?: Listing[];
 }) {
-  const { toggleCompare, compareIds, tariff, tariffLabel } = useCockpit();
-  const { favorites, toggleFavorite, canFavorite } = useFavorites();
-  const { listings, live } = useListings();
+  const {
+    toggleCompare,
+    compareIds,
+    tariff,
+    annualKm,
+    currentFuel,
+    currentCons,
+    publicShare,
+    gemeinde,
+  } = useCockpit();
+  const { favorites, toggleFavorite } = useFavorites();
+  const { listings, active: activeListings, live } = useListings(all);
+  const { taxes: cantonTaxes } = useCantonTaxes();
   const listing = listings.find((l) => l.id === slug) ?? (live ? undefined : initial);
 
-  // Title for the 404-fallback path (prerendered pages already have it).
   useEffect(() => {
     if (listing) {
       document.title = `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`;
     }
   }, [listing]);
 
+  // Das Inseratsalter ist der einzige Wert, der zwischen vorgerendertem HTML
+  // (Build-Snapshot) und Live-Daten auseinanderlaufen kann. Erst nach dem
+  // Mount zeigen — sonst verwirft React beim Abgleich die ganze Insel.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  /* Die Ersparnis für die Seitenleiste — dasselbe Modell wie im EngineCore,
+     nur ohne die Aufschlüsselung. */
+  const savings = useMemo(() => {
+    if (!listing) return 0;
+    const kwhYear = (annualKm / 100) * listing.consumption;
+    const publicKwh = kwhYear * (publicShare / 100);
+    const publicCost = Math.min(
+      ...CARD_COMBOS.map(
+        (c) => c.monthly * 12 + Math.max(0, publicKwh - c.inclKwh) * c.perKwh,
+      ),
+    );
+    const evEnergy = (kwhYear - publicKwh) * tariff + publicCost;
+    const isCurrentEv = currentFuel === "ELEKTRO";
+    const maint = isCurrentEv ? 0 : annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
+    const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
+    const taxCfg = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
+    const taxSaving = isCurrentEv
+      ? 0
+      : cantonTaxFor(listing.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
+    return (
+      currentCarEnergy(currentFuel, currentCons, annualKm, tariff) -
+      evEnergy +
+      maint +
+      taxSaving
+    );
+  }, [listing, annualKm, publicShare, tariff, currentFuel, currentCons, gemeinde, cantonTaxes]);
+
+  const similar = useMemo(() => {
+    if (!listing) return [];
+    return activeListings
+      .filter((l) => l.id !== listing.id)
+      .map((l) => ({
+        l,
+        score:
+          (l.segment === listing.segment ? 0 : 2) +
+          Math.abs(l.price - listing.price) / Math.max(listing.price, 1),
+      }))
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 4)
+      .map((x) => x.l);
+  }, [activeListings, listing]);
+
   if (!listing) {
     return (
-      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-8">
-        <div className="panel px-6 py-16 text-center">
-          <p className="stretch-wide text-2xl font-extrabold uppercase text-ink">
-            Inserat nicht gefunden.
-          </p>
-          <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
-            VERKAUFT, ZURÜCKGEZOGEN ODER FALSCHE URL.
-          </p>
-          <a
-            href={href("/inserate")}
-            className="mt-6 inline-block border border-line px-5 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink transition-colors hover:border-signal hover:text-signal"
-          >
-            ← Zu den Inseraten
-          </a>
-        </div>
-      </section>
+      <div className="mx-auto max-w-[88rem] px-4 py-16 sm:px-6">
+        <EmptyState
+          title="Dieses Inserat gibt es nicht mehr."
+          hint="Verkauft, zurückgezogen, oder die URL stimmt nicht."
+        >
+          <LinkButton href={href("/inserate")} variant="primary" size="sm">
+            Zu allen Inseraten
+          </LinkButton>
+        </EmptyState>
+      </div>
     );
   }
 
   const reserved = listing.status === "RESERVIERT";
   const inCompare = compareIds.includes(listing.id);
   const isFav = favorites.includes(listing.id);
-  const newDiscount =
+  const discount =
     listing.priceNew && listing.priceNew > listing.price
       ? Math.round((1 - listing.price / listing.priceNew) * 100)
       : null;
 
   const specs: [string, string][] = [
-    ["JAHRGANG", `${listing.year}`],
-    ["KM-STAND", fmtCH(listing.km)],
-    ["WLTP-REICHWEITE", `${listing.range} KM`],
-    ["VERBRAUCH", `${listing.consumption.toFixed(1)} KWH/100KM`],
-    ["BATTERIE NETTO", `${listing.battery} KWH`],
-    ["LADEZEIT 10–80 %", `${listing.chargeMin} MIN`],
-    ["DC-SPITZE", `${listing.dcKw} KW`],
-    ["SITZE", `${listing.seats}`],
+    ["Jahrgang", String(listing.year)],
+    ["Kilometerstand", `${fmtCH(listing.km)} km`],
+    ["WLTP-Reichweite", `${listing.range} km`],
+    ["Verbrauch", `${listing.consumption.toFixed(1)} kWh/100 km`],
+    ["Batterie netto", `${listing.battery} kWh`],
+    ["Laden 10–80 %", `${listing.chargeMin} min`],
+    ["DC-Spitze", `${listing.dcKw} kW`],
+    ["Sitze", String(listing.seats)],
   ];
 
   return (
-    <>
-      <section className="mx-auto max-w-7xl px-4 pt-10 sm:px-8">
-        <a
-          href={href("/inserate")}
-          className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-signal"
-        >
-          <ArrowLeft size={12} /> Alle Inserate
-        </a>
+    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-6 sm:px-6 sm:py-8">
+      <a
+        href={href("/inserate")}
+        className="inline-flex items-center gap-1.5 text-small text-fg2 transition-colors hover:text-fg"
+      >
+        <ArrowLeft size={14} aria-hidden /> Alle Inserate
+      </a>
 
-        {/* Dossier header */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-6 border-t border-line pt-6"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div>
-              <div className="mb-3 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-                <span className="text-signal">INSERAT {listing.id.toUpperCase()}</span>
-                <span className="current-line w-10" aria-hidden />
-                {listing.segment} · {listing.sellerType} · EINGESTELLT VOR{" "}
-                {listing.postedDays} TAGEN
-              </div>
-              <h1 className="stretch-expand text-4xl font-black uppercase leading-[0.95] tracking-tight text-ink sm:text-6xl">
-                {listing.brand} {listing.model}
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
-                {listing.note}
-              </p>
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="text-display font-semibold text-fg">
+          {listing.brand} {listing.model}
+        </h1>
+        {reserved ? (
+          <Badge tone="caution">Reserviert</Badge>
+        ) : (
+          <Badge tone="positive">Verfügbar</Badge>
+        )}
+      </div>
+      <p className="mt-1 text-body text-fg2">
+        {listing.segment.toLowerCase()} ·{" "}
+        {listing.sellerType === "GARAGE" ? "Garage" : "Privat"} · {listing.ort}
+        {mounted && ` · eingestellt vor ${listing.postedDays} Tagen`}
+      </p>
+
+      {/* Galerie + Seitenleiste */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <Gallery listing={listing} />
+
+        <aside className="lg:sticky lg:top-32 lg:self-start">
+          <div className="card p-5">
+            <div className="text-display font-semibold text-fg tabular">
+              CHF {fmtCH(listing.price)}
             </div>
-            <div className="flex flex-col items-end gap-3">
-              {reserved ? (
-                <Stamp className="!border-warn !text-warn">Reserviert</Stamp>
-              ) : (
-                <Stamp className="!border-lume !text-lume">Verfügbar</Stamp>
-              )}
-              <div className="font-mono text-4xl font-bold text-ink tabular sm:text-5xl">
-                {fmtCH(listing.price)}
-                <span className="ml-2 text-sm font-normal text-muted">CHF</span>
-              </div>
-              {newDiscount !== null && (
-                <div className="border border-lume/40 bg-lume/[0.06] px-3 py-1.5 font-mono text-[10px] tracking-[0.15em] text-lume tabular">
-                  NEUPREIS CHF {fmtCH(listing.priceNew!)} — DU SPARST{" "}
-                  {newDiscount} %
-                </div>
-              )}
-              {/* Signpost to the page's payoff: YOUR running costs, below */}
-              {!reserved && (
-                <a
-                  href="#rechenwerk"
-                  className="flex items-center gap-2 border border-signal/40 bg-signal/[0.06] px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-signal transition-colors hover:border-signal"
-                >
-                  STROM: CHF {(listing.consumption * tariff).toFixed(2)}/100 KM
-                  MIT TARIF {tariffLabel.toUpperCase()} — DEINE RECHNUNG ↓
-                </a>
-              )}
-              <div className="flex items-center gap-2">
-                <button
+            {discount !== null && (
+              <p className="mt-1 text-small text-fg2">
+                Neupreis CHF <span className="tabular">{fmtCH(listing.priceNew!)}</span> —{" "}
+                <span className="font-medium text-accent">{discount} % günstiger</span>
+              </p>
+            )}
+
+            <div className="mt-4 space-y-2">
+              {/* Auch bei reservierten Inseraten erreichbar — «sag Bescheid,
+                  falls es doch frei wird» ist eine legitime Anfrage. */}
+              <LinkButton href="#kontakt" variant="primary" className="w-full">
+                Anbieter kontaktieren
+              </LinkButton>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
                   onClick={() => toggleFavorite(listing.id)}
-                  title={
-                    !canFavorite
-                      ? "Merkliste — Login nötig"
-                      : isFav
-                        ? "Von Merkliste entfernen"
-                        : "Auf die Merkliste"
-                  }
-                  className={`flex items-center gap-2 border px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
-                    isFav
-                      ? "border-signal bg-signal text-nacht"
-                      : "border-line text-ink hover:border-signal hover:text-signal"
-                  }`}
+                  variant={isFav ? "primary" : "secondary"}
+                  size="sm"
                 >
-                  <Heart size={12} fill={isFav ? "currentColor" : "none"} />
+                  <Heart size={15} fill={isFav ? "currentColor" : "none"} />
                   {isFav ? "Gemerkt" : "Merken"}
-                </button>
-                <button
-                  disabled={reserved}
+                </Button>
+                <Button
                   onClick={() => toggleCompare(listing.id)}
-                className={`flex items-center gap-2 border px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
-                  reserved
-                    ? "cursor-not-allowed border-line text-muted"
-                    : inCompare
-                      ? "border-signal bg-signal text-nacht"
-                      : "border-line text-ink hover:border-signal hover:text-signal"
-                }`}
-              >
-                  <GitCompareArrows size={12} />
-                  {inCompare ? "Im Vergleich ✓" : "Vergleichen"}
-                </button>
+                  disabled={reserved}
+                  variant={inCompare ? "primary" : "secondary"}
+                  size="sm"
+                >
+                  <GitCompareArrows size={15} />
+                  {inCompare ? "Im Vergleich" : "Vergleichen"}
+                </Button>
               </div>
             </div>
-          </div>
 
-          {/* Photo gallery — or the technical drawing while photos are pending */}
-          {listing.photos && listing.photos.length > 0 ? (
-            <div className="mt-8 flex gap-3 overflow-x-auto pb-2">
-              {listing.photos.map((p, i) => (
-                <img
-                  key={p}
-                  src={photoUrl(p)}
-                  alt={`${listing.brand} ${listing.model} — Foto ${i + 1} von ${listing.photos!.length}`}
-                  loading={i === 0 ? "eager" : "lazy"}
-                  decoding="async"
-                  className="h-48 w-auto shrink-0 border border-line object-cover sm:h-64"
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="panel bg-blueprint relative mt-8 overflow-hidden px-6 py-8 sm:px-10">
-              <div className="flex flex-wrap items-center justify-between gap-6">
-                <CarGraphic
-                  segment={listing.segment}
-                  detailed
-                  className="h-36 w-auto max-w-full text-ink sm:h-48"
-                />
-                <div className="max-w-xs">
-                  <Stamp className="!border-line !text-muted">Fotos folgen</Stamp>
-                  <p className="mt-3 font-mono text-[9px] leading-relaxed tracking-[0.15em] text-muted">
-                    TYPENSKIZZE {listing.segment} — DER ANBIETER HAT NOCH KEINE
-                    FOTOS HOCHGELADEN. DIE SPEZIFIKATIONEN UNTEN GELTEN
-                    UNABHÄNGIG DAVON.
-                  </p>
-                </div>
-              </div>
-              <span className="pointer-events-none absolute bottom-3 right-4 font-mono text-[8px] tracking-[0.3em] text-muted/50">
-                ANSICHT SEITE · SCHEMATISCH
-              </span>
-            </div>
-          )}
-
-          {/* Spec grid + seller */}
-          <div className="mt-8 grid gap-6 lg:grid-cols-[2fr_1fr]">
-            <div className="grid grid-cols-2 gap-px bg-line font-mono sm:grid-cols-4">
-              {specs.map(([k, v]) => (
-                <div key={k} className="bg-panel px-4 py-4">
-                  <div className="text-[8px] uppercase tracking-[0.2em] text-muted">{k}</div>
-                  <div className="mt-1 text-sm font-bold text-ink tabular">{v}</div>
-                </div>
-              ))}
-            </div>
-            <div className="panel flex flex-col justify-between gap-4 p-5">
-              <div className="flex flex-wrap gap-2 font-mono text-[9px] uppercase tracking-[0.18em]">
-                <span className="flex items-center gap-1.5 border border-lume/50 px-2.5 py-1.5 text-lume">
-                  <HeartPulse size={12} /> SOH {listing.soh} % gemessen
-                </span>
-                {listing.bidi && (
-                  <span className="flex items-center gap-1.5 border border-lume/50 px-2.5 py-1.5 text-lume">
-                    <PlugZap size={12} /> Bidirektional (V2X)
-                  </span>
-                )}
-                <span className="flex items-center gap-1.5 border border-line px-2.5 py-1.5 text-muted">
-                  <BatteryCharging size={12} /> {listing.battery} kWh
-                </span>
-                <span className="flex items-center gap-1.5 border border-line px-2.5 py-1.5 text-muted">
-                  <Users size={12} /> {listing.seats} Sitze
-                </span>
-              </div>
-              <div>
-                <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-                  Anbieter
-                </div>
-                <div className="mt-1 text-base font-bold text-ink">{listing.seller}</div>
-                <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] tracking-[0.15em] text-muted">
-                  <MapPin size={11} className="text-signal" /> {listing.ort.toUpperCase()} ·{" "}
-                  {listing.sellerType}
-                </div>
-              </div>
+            {!reserved && (
               <a
-                href={href("/#beratung")}
-                className="flex items-center justify-center gap-2 border border-line bg-nacht px-4 py-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink transition-colors hover:border-signal hover:text-signal"
+                href="#kosten"
+                className="mt-4 block rounded-card bg-accent/[0.08] px-4 py-3 transition-colors hover:bg-accent/[0.12]"
               >
-                <CalendarClock size={12} /> Unsicher? Frag Gabriel
+                <span className="text-small text-fg2">
+                  {savings >= 0 ? "Gegenüber deinem Auto sparst du" : "Gegenüber deinem Auto zahlst du"}
+                </span>
+                <span className="mt-0.5 block text-h2 font-semibold text-accent tabular">
+                  CHF {fmtCH(Math.abs(savings))}
+                  <span className="ml-1.5 text-small font-normal text-fg2">pro Jahr</span>
+                </span>
+                <span className="mt-1 block text-small text-fg3">
+                  gegen deinen {FUELS[currentFuel].label} — Rechnung ansehen ↓
+                </span>
               </a>
+            )}
+
+            <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-4">
+              <Badge tone="positive">
+                <HeartPulse size={13} /> SOH {listing.soh} % gemessen
+              </Badge>
+              {listing.bidi && (
+                <Badge tone="positive">
+                  <PlugZap size={13} /> Bidirektional
+                </Badge>
+              )}
+              <Badge>
+                <BatteryCharging size={13} /> {listing.battery} kWh
+              </Badge>
+              <Badge>
+                <Users size={13} /> {listing.seats} Sitze
+              </Badge>
             </div>
           </div>
+        </aside>
+      </div>
 
-          {/* Direct line to the seller — user-owned listings only */}
+      {/* Beschreibung, Daten, Rechnung, Anbieter */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="space-y-6">
+          <section className="card p-5 sm:p-6">
+            <h2 className="text-h2 font-semibold text-fg">Zu diesem Auto</h2>
+            <p className="mt-2 max-w-prose text-body text-fg2">{listing.note}</p>
+
+            <h3 className="mt-6 text-h3 font-semibold text-fg">Technische Daten</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-x-6 sm:grid-cols-4">
+              {specs.map(([k, v]) => (
+                <div key={k} className="border-t border-line py-2.5">
+                  <dt className="text-small text-fg3">{k}</dt>
+                  <dd className="text-body font-medium text-fg tabular">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section id="kosten" className="scroll-mt-28">
+            {reserved ? (
+              <EmptyState
+                title="Reserviert — Rechnung pausiert."
+                hint="Nur offene Inserate werden durchgerechnet. Ähnliche Fahrzeuge findest du unten."
+              />
+            ) : (
+              <EngineCore listing={listing} />
+            )}
+          </section>
+
           <ContactSeller listing={listing} />
-        </motion.div>
-      </section>
-
-      {/* Embedded engine — THIS car, YOUR context */}
-      <section id="rechenwerk" className="mt-16 scroll-mt-20 border-t border-line bg-panel/40">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8">
-          <div className="mb-8 flex items-center gap-3">
-            <span className="font-mono text-xs tracking-[0.25em] text-signal">02</span>
-            <span className="current-line w-10" aria-hidden />
-            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-              Rechenwerk für dieses Inserat — dein Tarif, dein Lade-Mix
-            </span>
-          </div>
-          {reserved ? (
-            <div className="panel border-warn/40 px-6 py-12 text-center">
-              <p className="stretch-wide text-xl font-extrabold uppercase text-warn">
-                Reserviert — Simulation pausiert.
-              </p>
-              <p className="mt-2 font-mono text-[10px] tracking-[0.15em] text-muted">
-                NUR OFFENE INSERATE LAUFEN IM RECHENWERK. ÄHNLICHE FAHRZEUGE
-                UNTER /INSERATE.
-              </p>
-            </div>
-          ) : (
-            <EngineCore listing={listing} />
-          )}
         </div>
-      </section>
-    </>
+        <div aria-hidden className="hidden lg:block" />
+      </div>
+
+      {/* Ähnliche Inserate — hält im Katalog, wenn dieses Auto nicht passt */}
+      {similar.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-h2 font-semibold text-fg">Ähnliche Inserate</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {similar.map((l) => (
+              <ListingCard key={l.id} listing={l} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }

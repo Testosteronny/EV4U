@@ -1,187 +1,150 @@
-import { ArrowUpRight, GitCompareArrows, Heart } from "lucide-react";
+import { ChevronRight, GitCompareArrows, Heart } from "lucide-react";
 import { ListingThumb } from "./CarGraphic";
+import { Badge } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
 import { useFavorites } from "../hooks/useFavorites";
 import { href } from "../lib/url";
-import { type Listing } from "../data/evData";
 import { fmtCH } from "../utils/swiss";
+import { type Listing } from "../data/evData";
 
 /* ============================================================================
-   ListingBoard — the dense catalogue table on /inserate. Every row is a
-   <Link> to its /inserat/:id detail page. The compare toggle (max 3) lives
-   inside the row but never navigates. Strom/100 km is live from the fixed
-   tariff. Plain text throughout — scannability beats theater here.
+   ListingBoard — die dichte Listenansicht.
+
+   Früher die EINZIGE Darstellung des Katalogs: neun Spalten, in denen das
+   Foto auf 56×36 px schrumpfte. Jetzt ist sie der Modus für alle, die
+   Datenblätter vergleichen wollen — umschaltbar, mit grösserem Bild und
+   lesbaren Zellen. `compact` bleibt für eingebettete Listen (Konto, ähnliche
+   Inserate).
    ============================================================================ */
 
-const COLS_FULL =
-  "grid-cols-[minmax(0,2.2fr)_1fr_auto_auto] md:grid-cols-[minmax(0,2.2fr)_0.9fr_0.9fr_0.9fr_1fr_0.9fr_auto_auto_auto]";
-const COLS_COMPACT =
-  "grid-cols-[minmax(0,2.2fr)_1fr_auto] md:grid-cols-[minmax(0,2.2fr)_1fr_1fr_1fr_auto]";
+const COLS =
+  "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,2.4fr)_repeat(3,minmax(0,1fr))_auto]";
+const COLS_COMPACT = "grid-cols-[minmax(0,1fr)_auto]";
 
 export default function ListingBoard({
   listings,
   compact = false,
 }: {
   listings: Listing[];
-  /** Compact: fewer columns, no compare toggles. */
+  /** Weniger Spalten, keine Aktionen — für eingebettete Listen. */
   compact?: boolean;
 }) {
-  const { tariff, tariffLabel, compareIds, toggleCompare } = useCockpit();
-  const { favorites, toggleFavorite, canFavorite } = useFavorites();
-  const cols = compact ? COLS_COMPACT : COLS_FULL;
+  const { tariff, compareIds, toggleCompare } = useCockpit();
+  const { favorites, toggleFavorite } = useFavorites();
+  const cols = compact ? COLS_COMPACT : COLS;
 
   return (
-    <div className="panel overflow-hidden">
-      {/* Board header */}
-      <div
-        className={`grid ${cols} items-center gap-x-4 border-b border-line bg-nacht px-4 py-3 font-mono text-[9px] uppercase tracking-[0.2em] text-muted sm:px-6`}
-      >
-        <span>Inserat</span>
-        {!compact && <span className="hidden text-right md:block">Jahr · km</span>}
-        {!compact && <span className="hidden text-right md:block">Reichweite</span>}
-        <span className={compact ? "hidden text-right md:block" : "text-right"}>
-          Preis
-        </span>
-        <span className="hidden text-right text-signal md:block">Strom/100 km*</span>
-        <span className={compact ? "text-right" : "text-right"}>Status</span>
-        {!compact && (
-          <span className="hidden w-8 text-center md:block" title="Vergleichen">
-            VS
-          </span>
-        )}
-        {!compact && <span className="hidden w-8 md:block" aria-hidden />}
-        <span className="w-4" aria-hidden />
-      </div>
+    <div className="card-flush">
+      {!compact && (
+        <div
+          className={`grid ${cols} items-center gap-x-4 border-b border-line px-4 py-2.5 text-small text-fg3`}
+        >
+          <span>Inserat</span>
+          <span className="hidden text-right md:block">Jahr · km</span>
+          <span className="hidden text-right md:block">Reichweite</span>
+          <span className="hidden text-right md:block">Strom/100 km</span>
+          <span className="text-right">Preis</span>
+        </div>
+      )}
 
-      {/* Rows */}
       {listings.map((l) => {
         const reserved = l.status === "RESERVIERT";
         const per100 = l.consumption * tariff;
         const inCompare = compareIds.includes(l.id);
         const isFav = favorites.includes(l.id);
-        const isNew = l.postedDays <= 3;
+
         return (
-          <a
+          <div
             key={l.id}
-            href={href(`/inserat/${l.id}`)}
-            className={`group grid ${cols} w-full items-center gap-x-4 border-b border-line/60 px-4 py-4 text-left font-mono transition-colors duration-200 last:border-b-0 hover:bg-panel2/70 sm:px-6 ${
-              reserved ? "opacity-60" : ""
-            }`}
+            className="group relative border-b border-line last:border-b-0 transition-colors hover:bg-surface2/60"
           >
-            <span className="flex min-w-0 items-center gap-3">
-              <span
-                className={`h-9 w-[3px] shrink-0 transition-colors ${
-                  inCompare ? "bg-signal" : "bg-line group-hover:bg-signal/50"
-                }`}
-                aria-hidden
-              />
-              <ListingThumb
-                listing={l}
-                className="hidden h-9 w-14 transition-colors group-hover:border-signal/40 sm:grid"
-              />
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-bold tracking-wide text-ink">
-                  {l.brand} {l.model}
-                </span>
-                <span className="text-[9px] uppercase tracking-[0.2em] text-muted">
-                  {l.segment} · {l.sellerType}
-                  {isNew && !reserved && <span className="ml-2 text-lume">● NEU</span>}
-                </span>
-              </span>
-            </span>
-            {!compact && (
-              <span className="hidden text-right text-sm text-ink tabular md:block">
-                {l.year} · {fmtCH(l.km / 1000, 0)}T
-              </span>
-            )}
-            {!compact && (
-              <span className="hidden text-right text-sm text-ink tabular md:block">
-                {l.range} km
-              </span>
-            )}
-            <span
-              className={`text-right text-sm font-bold text-ink tabular ${compact ? "hidden md:block" : ""}`}
-            >
-              {fmtCH(l.price)}
-            </span>
-            <span className="hidden text-right text-sm font-bold text-signal tabular md:block">
-              CHF {per100.toFixed(2)}
-            </span>
-            <span
-              className={`text-right text-[9px] font-bold uppercase tracking-[0.15em] ${
-                reserved ? "text-warn" : "text-lume"
+            <a
+              href={href(`/inserat/${l.id}`)}
+              className={`grid ${cols} items-center gap-x-4 px-4 py-3 ${
+                reserved ? "opacity-65" : ""
               }`}
             >
-              {l.status}
-            </span>
+              <span className="flex min-w-0 items-center gap-3">
+                <ListingThumb listing={l} className="hidden h-12 w-[4.5rem] sm:block" />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-2">
+                    <span className="truncate text-body font-medium text-fg">
+                      {l.brand} {l.model}
+                    </span>
+                    {reserved ? (
+                      <Badge tone="caution">Reserviert</Badge>
+                    ) : (
+                      l.postedDays <= 3 && <Badge tone="positive">Neu</Badge>
+                    )}
+                  </span>
+                  <span className="block truncate text-small text-fg2">
+                    {l.segment.toLowerCase()} ·{" "}
+                    {l.sellerType === "GARAGE" ? "Garage" : "Privat"} · {l.ort}
+                    <span className="md:hidden">
+                      {" "}
+                      · {l.year} · <span className="tabular">{fmtCH(l.km)}</span> km
+                    </span>
+                  </span>
+                </span>
+              </span>
+
+              <span className="hidden text-right text-body text-fg2 tabular md:block">
+                {l.year} · {fmtCH(l.km)}
+              </span>
+              <span className="hidden text-right text-body text-fg2 tabular md:block">
+                {l.range} km
+              </span>
+              <span className="hidden text-right text-body text-fg2 tabular md:block">
+                {per100.toFixed(2)}
+              </span>
+
+              <span className="flex items-center justify-end gap-3">
+                <span className="text-body font-semibold text-fg tabular">
+                  {fmtCH(l.price)}
+                </span>
+                {compact && <ChevronRight size={15} className="text-fg3" aria-hidden />}
+                {!compact && <span className="w-[4.75rem]" aria-hidden />}
+              </span>
+            </a>
+
             {!compact && (
-              <button
-                title={inCompare ? "Aus Vergleich entfernen" : "Vergleichen (max. 3)"}
-                disabled={reserved}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!reserved) toggleCompare(l.id);
-                }}
-                className={`hidden h-7 w-8 place-items-center border transition-colors md:grid ${
-                  reserved
-                    ? "cursor-not-allowed border-line/50 text-muted/40"
-                    : inCompare
-                      ? "border-signal bg-signal text-nacht"
-                      : "border-line text-muted hover:border-signal hover:text-signal"
-                }`}
-              >
-                <GitCompareArrows size={12} />
-              </button>
+              <div className="absolute right-4 top-1/2 flex -translate-y-1/2 gap-1.5">
+                <button
+                  onClick={() => toggleFavorite(l.id)}
+                  title={isFav ? "Von der Merkliste entfernen" : "Auf die Merkliste"}
+                  className={`grid h-8 w-8 place-items-center rounded-card border transition-colors ${
+                    isFav
+                      ? "border-accent bg-accent text-on-accent"
+                      : "border-line2 bg-surface text-fg2 hover:text-fg"
+                  }`}
+                >
+                  <Heart size={14} fill={isFav ? "currentColor" : "none"} />
+                  <span className="sr-only">Merken</span>
+                </button>
+                <button
+                  onClick={() => toggleCompare(l.id)}
+                  disabled={reserved}
+                  title={
+                    reserved
+                      ? "Reservierte Inserate lassen sich nicht vergleichen"
+                      : inCompare
+                        ? "Aus dem Vergleich entfernen"
+                        : "Zum Vergleich hinzufügen (max. 3)"
+                  }
+                  className={`grid h-8 w-8 place-items-center rounded-card border transition-colors disabled:opacity-40 ${
+                    inCompare
+                      ? "border-accent bg-accent text-on-accent"
+                      : "border-line2 bg-surface text-fg2 hover:text-fg"
+                  }`}
+                >
+                  <GitCompareArrows size={14} />
+                  <span className="sr-only">Vergleichen</span>
+                </button>
+              </div>
             )}
-            {!compact && (
-              <button
-                title={
-                  !canFavorite
-                    ? "Merkliste — Login nötig"
-                    : isFav
-                      ? "Von Merkliste entfernen"
-                      : "Auf die Merkliste"
-                }
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleFavorite(l.id);
-                }}
-                className={`hidden h-7 w-8 place-items-center border transition-colors md:grid ${
-                  isFav
-                    ? "border-signal bg-signal text-nacht"
-                    : "border-line text-muted hover:border-signal hover:text-signal"
-                }`}
-              >
-                <Heart size={12} fill={isFav ? "currentColor" : "none"} />
-              </button>
-            )}
-            <ArrowUpRight
-              size={14}
-              className="justify-self-end text-muted transition-colors group-hover:text-signal"
-            />
-          </a>
+          </div>
         );
       })}
-
-      {/* Board footer */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-nacht px-4 py-3 font-mono text-[10px] text-muted sm:px-6">
-        <span>
-          * berechnet mit Tarif {tariffLabel} — {fmtCH(tariff * 100, 1)} Rp./kWh
-          {!compact && (
-            <span className="ml-3 hidden text-muted/60 md:inline">
-              · <GitCompareArrows size={9} className="inline" /> = vergleichen
-              (max. 3) · <Heart size={9} className="inline" /> = Merkliste
-            </span>
-          )}
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 bg-lume" aria-hidden />
-          {listings.filter((l) => l.status === "AKTIV").length} offen ·{" "}
-          {listings.filter((l) => l.status === "RESERVIERT").length} reserviert
-        </span>
-      </div>
     </div>
   );
 }

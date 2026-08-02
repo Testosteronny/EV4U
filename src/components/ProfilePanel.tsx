@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { BadgeCheck, Building2, Car, User } from "lucide-react";
-import { Segmented, Stamp } from "./ui";
+import { BadgeCheck } from "lucide-react";
+import { Badge, Button, Field, Segmented } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
 import type { Profile } from "../hooks/useProfile";
 import { patchCockpit } from "../stores/cockpit";
@@ -8,10 +8,8 @@ import { FUELS, type FuelType } from "../utils/costModel";
 import { resolveZip } from "../utils/swiss";
 
 /* ============================================================================
-   ProfilePanel — who is selling here? PRIVAT keeps it minimal (display
-   name); GARAGE opens the business fields (Firma, UID, Website) that later
-   feed the public garage profile and Zefix verification. Saved to the
-   user's own profiles row (RLS-scoped).
+   Verkäuferprofil — PRIVAT bleibt minimal, GARAGE öffnet die Geschäftsfelder
+   (Firma, UID, Website). Gespeichert wird in die eigene profiles-Zeile.
    ============================================================================ */
 
 export default function ProfilePanel({
@@ -34,7 +32,6 @@ export default function ProfilePanel({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fresh row after reload/save → sync the inputs.
   useEffect(() => {
     setType(profile.type);
     setName(profile.name);
@@ -75,171 +72,146 @@ export default function ProfilePanel({
       return;
     }
     setSaved(true);
-    // A new home PLZ becomes the live fix immediately — otherwise the stale
-    // local location would overwrite it again on the next visit.
+    // Neue Heim-PLZ gilt sofort, sonst überschreibt die alte lokale Fixierung
+    // sie beim nächsten Besuch wieder.
     if (plz && plz !== (profile.plz ?? "")) {
       const hit = resolveZip(plz);
       if (hit) setGemeinde(hit);
     }
-    // Same for the comparison car: every engine recalculates right away.
     if (consValid) patchCockpit({ fuel, ice: consNum });
   };
 
+  const touched = () => setSaved(false);
+
   return (
-    <div className="panel bg-blueprint p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-          {type === "GARAGE" ? <Building2 size={13} className="text-signal" /> : <User size={13} className="text-signal" />}
-          Verkäuferprofil
-        </span>
-        <div className="flex items-center gap-3">
+    <div className="card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-h2 font-semibold text-fg">Verkäuferprofil</h2>
+        <div className="flex items-center gap-2">
           {profile.verified && (
-            <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.15em] text-lume">
-              <BadgeCheck size={12} /> Verifiziert
-            </span>
+            <Badge tone="positive">
+              <BadgeCheck size={13} /> Verifiziert
+            </Badge>
           )}
-          {saved && !dirty && <Stamp className="!border-lume !text-lume">Gespeichert</Stamp>}
+          {saved && !dirty && <Badge tone="positive">Gespeichert</Badge>}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div>
-          <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-            Kontotyp
-          </span>
+          <span className="mb-1.5 block text-small font-medium text-fg2">Kontotyp</span>
           <Segmented
             options={[
-              { key: "PRIVAT" as const, label: "PRIVAT" },
-              { key: "GARAGE" as const, label: "GARAGE" },
+              { key: "PRIVAT" as const, label: "Privat" },
+              { key: "GARAGE" as const, label: "Garage" },
             ]}
             value={type}
             onChange={(t) => {
               setType(t);
-              setSaved(false);
+              touched();
             }}
           />
         </div>
-        <label className="block min-w-[180px] flex-1">
-          <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-            {type === "GARAGE" ? "Firmenname" : "Anzeigename"}
-          </span>
+        <Field label={type === "GARAGE" ? "Firmenname" : "Anzeigename"}>
           <input
             value={name}
             onChange={(e) => {
               setName(e.target.value);
-              setSaved(false);
+              touched();
             }}
             maxLength={80}
-            className="w-full border border-line bg-nacht px-3 py-2.5 font-mono text-sm text-ink focus:border-signal focus:outline-none"
+            className="field"
           />
-        </label>
-        <label className="block w-28">
-          <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-            Heim-PLZ
-          </span>
+        </Field>
+        <Field label="Heim-PLZ" hint="Wird als dein Standort für die Kostenrechnung übernommen.">
           <input
             value={plz}
             onChange={(e) => {
               setPlz(e.target.value.replace(/\D/g, "").slice(0, 4));
-              setSaved(false);
+              touched();
             }}
             placeholder="4617"
             inputMode="numeric"
-            className="w-full border border-line bg-nacht px-3 py-2.5 font-mono text-sm text-ink placeholder:text-muted/50 focus:border-signal focus:outline-none"
+            className="field tabular"
           />
-        </label>
+        </Field>
         {type === "GARAGE" && (
           <>
-            <label className="block min-w-[160px]">
-              <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-                UID (CHE-…)
-              </span>
+            <Field label="UID" hint="Prüfung über Zefix erfolgt manuell durch EV4U.">
               <input
                 value={uid}
                 onChange={(e) => {
                   setUid(e.target.value);
-                  setSaved(false);
+                  touched();
                 }}
                 placeholder="CHE-123.456.789"
                 maxLength={20}
-                className="w-full border border-line bg-nacht px-3 py-2.5 font-mono text-sm text-ink placeholder:text-muted/50 focus:border-signal focus:outline-none"
+                className="field"
               />
-            </label>
-            <label className="block min-w-[180px]">
-              <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-                Website
-              </span>
+            </Field>
+            <Field label="Website">
               <input
                 value={website}
                 onChange={(e) => {
                   setWebsite(e.target.value);
-                  setSaved(false);
+                  touched();
                 }}
                 placeholder="https://…"
                 maxLength={120}
-                className="w-full border border-line bg-nacht px-3 py-2.5 font-mono text-sm text-ink placeholder:text-muted/50 focus:border-signal focus:outline-none"
+                className="field"
               />
-            </label>
+            </Field>
           </>
         )}
-        <button
-          onClick={() => void save()}
-          disabled={!dirty || name.trim() === "" || !consValid}
-          className="border border-signal bg-signal px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
-        >
-          Speichern
-        </button>
       </div>
 
-      {/* Current car — feeds every Rechenwerk comparison */}
-      <div className="mt-5 border-t border-dashed border-line pt-4">
-        <div className="mb-3 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-muted">
-          <Car size={13} className="text-signal" /> Mein heutiges Auto — Basis
-          für jede Vergleichsrechnung
-        </div>
-        <div className="flex flex-wrap items-end gap-4">
+      {/* Heutiges Auto — Basis jeder Vergleichsrechnung */}
+      <div className="mt-6 border-t border-line pt-5">
+        <h3 className="text-h3 font-semibold text-fg">Mein heutiges Auto</h3>
+        <p className="mt-1 text-body text-fg2">
+          Basis für jede Vergleichsrechnung. Lässt sich auch jederzeit oben in
+          der Leiste «Deine Werte» ändern.
+        </p>
+        <div className="mt-4 flex flex-wrap items-end gap-4">
           <Segmented
             options={(Object.keys(FUELS) as FuelType[]).map((f) => ({
               key: f,
-              label: f,
+              label: FUELS[f].label,
             }))}
             value={fuel}
             onChange={(f) => {
               setFuel(f);
               setCons(String(FUELS[f].defaultCons));
-              setSaved(false);
+              touched();
             }}
           />
-          <label className="block w-40">
-            <span className="mb-1.5 block font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-              Verbrauch ({FUELS[fuel].unit})
-            </span>
-            <input
-              value={cons}
-              onChange={(e) => {
-                setCons(e.target.value.replace(/[^0-9.,]/g, ""));
-                setSaved(false);
-              }}
-              inputMode="decimal"
-              className={`w-full border bg-nacht px-3 py-2.5 font-mono text-sm text-ink focus:outline-none ${
-                consValid ? "border-line focus:border-signal" : "border-warn"
-              }`}
-            />
-          </label>
+          <div className="w-40">
+            <Field label={`Verbrauch (${FUELS[fuel].unit})`}>
+              <input
+                value={cons}
+                onChange={(e) => {
+                  setCons(e.target.value.replace(/[^0-9.,]/g, ""));
+                  touched();
+                }}
+                inputMode="decimal"
+                className={`field tabular ${consValid ? "" : "border-caution"}`}
+              />
+            </Field>
+          </div>
         </div>
       </div>
 
-      {error && (
-        <p className="mt-3 font-mono text-[10px] tracking-[0.12em] text-warn">
-          {error.toUpperCase()}
-        </p>
-      )}
-      {type === "GARAGE" && (
-        <p className="mt-3 font-mono text-[9px] leading-relaxed tracking-[0.1em] text-muted/70">
-          GARAGEN-KONTEN ERHALTEN DAS GARAGE-LABEL AUF JEDEM INSERAT. UID-PRÜFUNG
-          (ZEFIX) & VERIFIZIERT-BADGE: MANUELL DURCH EV4U.
-        </p>
-      )}
+      {error && <p className="mt-4 text-small text-caution">{error}</p>}
+
+      <div className="mt-6 flex justify-end border-t border-line pt-4">
+        <Button
+          onClick={() => void save()}
+          disabled={!dirty || name.trim() === "" || !consValid}
+          variant="primary"
+        >
+          Speichern
+        </Button>
+      </div>
     </div>
   );
 }

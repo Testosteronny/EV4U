@@ -1,8 +1,9 @@
 ---
 import "../index.css";
-import TopBar from "../components/TopBar";
+import Header from "../components/Header";
+import ContextBar from "../components/ContextBar";
+import AccountSync from "../components/AccountSync";
 import CompareTray from "../components/CompareTray";
-import PlzGate from "../components/PlzGate";
 import Footer from "../components/Footer.astro";
 
 interface Props {
@@ -30,15 +31,20 @@ const supabaseOrigin = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined
   <head>
     <meta charset="UTF-8" />
     <script is:inline>
-      // Apply the saved theme before CSS paints — prevents a dark/light flash.
+      // Hell ist der Default. Eine explizite Wahl gewinnt, sonst entscheidet
+      // die Systempräferenz. Läuft vor dem ersten Paint — kein Flash.
       try {
-        if (localStorage.getItem("ev4u.theme") === "light")
-          document.documentElement.classList.add("light");
+        var saved = localStorage.getItem("ev4u.theme");
+        var dark =
+          saved === "dark" ||
+          (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
       } catch (e) {}
     </script>
     <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#080D0B" />
+    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0E0F0E" media="(prefers-color-scheme: dark)" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
@@ -53,27 +59,36 @@ const supabaseOrigin = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} crossorigin />}
+    {/* Eine Familie, vier Schnitte. Vorher: Archivo über die volle
+        Breiten-Achse (wdth 62..125) PLUS Spline Sans Mono — beide sind
+        entfallen, weil es keine stretch-*-Klassen mehr gibt und Archivo
+        selbst Tabellenziffern mitbringt (font-variant-numeric: tabular-nums). */}
     <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Spline+Sans+Mono:ital,wght@0,300..700;1,300..700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <title>{title}</title>
     <slot name="head" />
   </head>
-  <body class="bg-nacht text-ink antialiased">
+  <body class="bg-canvas text-fg antialiased">
     <a
       href="#main"
-      class="fixed left-4 top-4 z-[100] -translate-y-24 border border-signal bg-nacht px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-signal transition-transform focus:translate-y-0"
+      class="fixed left-4 top-4 z-[100] -translate-y-24 rounded-card bg-accent px-4 py-2 text-small font-medium text-on-accent transition-transform focus:translate-y-0"
     >
       Zum Inhalt springen
     </a>
-    <div class="relative flex min-h-screen flex-col overflow-x-clip bg-nacht text-ink">
-      <TopBar client:load />
-      <main id="main" class="flex-1 pt-16">
+    <div class="flex min-h-screen flex-col overflow-x-clip">
+      {/* Header und Kontextleiste bilden einen sticky Block: die Werte, mit
+          denen jede Zahl auf der Seite gerechnet wird, bleiben sichtbar. */}
+      <div class="sticky top-0 z-50 border-b border-line bg-canvas/95 backdrop-blur-sm">
+        <Header client:load />
+        <ContextBar client:load />
+      </div>
+      <main id="main" class="flex-1">
         <slot />
       </main>
+      <AccountSync client:load />
       <CompareTray client:load />
-      <PlzGate client:load />
       <Footer />
     </div>
   </body>

@@ -4,10 +4,9 @@ import { photoUrl, supabase } from "../lib/supabase";
 import { resizeImage } from "../utils/image";
 
 /* ============================================================================
-   PhotoManager — per-listing photo handling on /konto.
-   Images are downscaled client-side (max 1600 px, JPEG ~82 %) before upload
-   into the user's own uid/ folder (enforced by the storage RLS policy);
-   the DB row keeps the bucket paths. Max 6 photos per Inserat.
+   PhotoManager — Fotos je Inserat. Bilder werden vor dem Upload auf 1600 px
+   verkleinert (JPEG ~82 %) und landen im eigenen uid/-Ordner, wie es die
+   Storage-Policy verlangt. Maximal sechs Fotos.
    ============================================================================ */
 
 const MAX_PHOTOS = 6;
@@ -63,22 +62,17 @@ export default function PhotoManager({
   };
 
   return (
-    <div className="mt-4 border-t border-dashed border-line pt-4">
+    <div className="mt-4 border-t border-line pt-4">
       <div className="flex flex-wrap items-center gap-2">
         {photos.map((p) => (
-          <div key={p} className="group relative h-16 w-24 border border-line">
-            <img
-              src={photoUrl(p)}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
+          <div key={p} className="group relative h-16 w-24 overflow-hidden rounded-chip border border-line">
+            <img src={photoUrl(p)} alt="" className="h-full w-full object-cover" loading="lazy" />
             <button
               onClick={() => void remove(p)}
               title="Foto entfernen"
-              className="absolute -right-1.5 -top-1.5 hidden h-5 w-5 place-items-center bg-signal text-nacht group-hover:grid"
+              className="absolute right-1 top-1 hidden h-6 w-6 place-items-center rounded-full bg-canvas/90 text-fg2 transition-colors hover:text-fg group-hover:grid"
             >
-              <X size={10} />
+              <X size={12} />
             </button>
           </div>
         ))}
@@ -86,10 +80,10 @@ export default function PhotoManager({
           <button
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className="flex h-16 w-24 flex-col items-center justify-center gap-1 border border-dashed border-line font-mono text-[8px] uppercase tracking-[0.15em] text-muted transition-colors hover:border-signal hover:text-signal disabled:cursor-wait"
+            className="flex h-16 w-24 flex-col items-center justify-center gap-1 rounded-chip border border-dashed border-line2 text-small text-fg2 transition-colors hover:border-accent hover:text-accent disabled:cursor-wait"
           >
-            <ImagePlus size={14} />
-            {busy ? "Lädt…" : `Fotos (${photos.length}/${MAX_PHOTOS})`}
+            <ImagePlus size={16} aria-hidden />
+            {busy ? "Lädt…" : `${photos.length}/${MAX_PHOTOS}`}
           </button>
         )}
         <input
@@ -104,13 +98,9 @@ export default function PhotoManager({
           }}
         />
       </div>
-      {error && (
-        <p className="mt-2 font-mono text-[9px] tracking-[0.12em] text-warn">
-          {error.toUpperCase()}
-        </p>
-      )}
-      <p className="mt-2 font-mono text-[8px] tracking-[0.12em] text-muted/60">
-        BILDER WERDEN VOR DEM UPLOAD AUF 1600 PX VERKLEINERT (JPEG).
+      {error && <p className="mt-2 text-small text-caution">{error}</p>}
+      <p className="mt-2 text-micro text-fg3">
+        Bilder werden vor dem Upload auf 1600 px verkleinert.
       </p>
     </div>
   );

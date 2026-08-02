@@ -362,9 +362,9 @@ export const SEGMENTS: ("ALLE" | Segment)[] = [
 export type SortKey = "price" | "km" | "range";
 
 export const SORTS: { key: SortKey; label: string; dir: 1 | -1 }[] = [
-  { key: "price", label: "↑ PREIS", dir: 1 },
-  { key: "km", label: "↑ KM", dir: 1 },
-  { key: "range", label: "↓ REICHWEITE", dir: -1 },
+  { key: "price", label: "Günstigste zuerst", dir: 1 },
+  { key: "km", label: "Wenigste km", dir: 1 },
+  { key: "range", label: "Grösste Reichweite", dir: -1 },
 ];
 
 /* ============================================================================

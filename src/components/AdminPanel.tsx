@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { ShieldAlert, Trash2 } from "lucide-react";
-import { Segmented } from "./ui";
+import { Badge, Button, Segmented } from "./ui";
 import { useListings } from "../hooks/useListings";
 import { supabase, type ListingRow } from "../lib/supabase";
 import { href } from "../lib/url";
 import { fmtCH } from "../utils/swiss";
 
 /* ============================================================================
-   AdminPanel — moderation view on /konto, rendered only for users with an
-   ADMIN row in user_roles. The UI is just a window: reading all listings
-   (incl. drafts), overriding status and deleting are each granted by their
-   own RLS policy via is_admin() — without the role the queries return
-   nothing and the mutations are rejected by the database.
+   Moderation — nur für Konten mit ADMIN-Rolle. Die Oberfläche ist bloss ein
+   Fenster: Lesen aller Inserate, Status überschreiben und Löschen sind
+   jeweils eigene RLS-Policies via is_admin(). Ohne Rolle liefern die
+   Abfragen nichts und die Mutationen werden von der Datenbank abgelehnt.
    ============================================================================ */
 
 type AdminListing = Pick<
@@ -20,6 +19,12 @@ type AdminListing = Pick<
 >;
 
 const STATI = ["ENTWURF", "AKTIV", "RESERVIERT", "VERKAUFT"] as const;
+const STATUS_LABEL: Record<(typeof STATI)[number], string> = {
+  ENTWURF: "Entwurf",
+  AKTIV: "Aktiv",
+  RESERVIERT: "Reserviert",
+  VERKAUFT: "Verkauft",
+};
 
 export default function AdminPanel({ userId }: { userId: string }) {
   const { refresh } = useListings();
@@ -56,51 +61,55 @@ export default function AdminPanel({ userId }: { userId: string }) {
   };
 
   return (
-    <div className="mt-12 border-t-2 border-warn/50 pt-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-warn">
-          <ShieldAlert size={14} /> Moderation — alle Inserate ({rows.length})
-        </span>
-        <span className="font-mono text-[9px] tracking-[0.15em] text-muted/70">
-          ADMIN-RECHTE: RLS-POLICIES, NICHT UI
+    <div className="card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-h2 font-semibold text-fg">
+          <ShieldAlert size={19} className="text-caution" aria-hidden />
+          Moderation
+        </h2>
+        <span className="text-small text-fg3">
+          {rows.length} Inserate · Rechte kommen aus den RLS-Policies, nicht aus
+          dieser Oberfläche
         </span>
       </div>
-      {error && (
-        <p className="mb-3 font-mono text-[10px] tracking-[0.12em] text-warn">
-          {error.toUpperCase()}
-        </p>
-      )}
-      <div className="space-y-2">
+
+      {error && <p className="mt-3 text-small text-caution">{error}</p>}
+
+      <div className="mt-4 space-y-2">
         {rows.map((l) => (
           <div
             key={l.id}
-            className="panel flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
+            className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3"
           >
             <div className="min-w-0">
               <a
                 href={href(`/inserat/${l.slug}`)}
-                className="stretch-wide text-sm font-extrabold uppercase text-ink hover:text-signal"
+                className="text-body font-medium text-fg transition-colors hover:text-accent"
               >
                 {l.brand} {l.model}
               </a>
-              <div className="mt-0.5 font-mono text-[9px] tracking-[0.12em] text-muted tabular">
-                CHF {fmtCH(l.price)} · {l.seller_name.toUpperCase()}
-                {l.owner === userId && " · EIGENES"}
+              <div className="flex items-center gap-2 text-small text-fg2">
+                <span className="tabular">CHF {fmtCH(l.price)}</span>
+                <span className="text-fg3">·</span>
+                {l.seller_name}
+                {l.owner === userId && <Badge>eigenes</Badge>}
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Segmented
-                options={STATI.map((s) => ({ key: s, label: s }))}
+                size="sm"
+                options={STATI.map((s) => ({ key: s, label: STATUS_LABEL[s] }))}
                 value={l.status}
                 onChange={(s) => void setStatus(l.id, s)}
               />
-              <button
+              <Button
                 onClick={() => void remove(l.id)}
-                title="Inserat löschen (Moderation)"
-                className="grid h-9 w-9 place-items-center border border-line text-muted transition-colors hover:border-warn hover:text-warn"
+                title="Inserat löschen"
+                variant="danger"
+                size="sm"
               >
                 <Trash2 size={14} />
-              </button>
+              </Button>
             </div>
           </div>
         ))}

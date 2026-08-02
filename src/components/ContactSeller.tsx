@@ -1,16 +1,20 @@
 import { useState } from "react";
-import { MessageSquare } from "lucide-react";
-import { href } from "../lib/url";
-import type { Listing } from "../data/evData";
+import { BadgeCheck, Building2, MapPin, User } from "lucide-react";
+import { Badge, Button, LinkButton } from "./ui";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
-import { Stamp } from "./ui";
+import { href } from "../lib/url";
+import type { Listing } from "../data/evData";
 
 /* ============================================================================
-   ContactSeller — the inquiry panel on a listing detail page.
-   Creates (or reuses) the conversation for (listing, buyer) and posts the
-   message. Hidden for platform-seeded listings (no owner) and for the
-   seller's own ads. RLS guarantees only the two participants ever read it.
+   Verkäuferpanel — wer verkauft, und der direkte Draht dorthin.
+
+   Vorher lag die Kontaktaufnahme weit unten und nur für Inserate mit
+   Besitzer; für Plattform-Inserate gab es gar nichts. Auf einem Marktplatz
+   ist das die Konversion — sie steht jetzt immer da, und die Fälle ohne
+   Postfach sagen wenigstens ehrlich, was möglich ist.
+
+   RLS garantiert, dass nur die beiden Beteiligten den Thread lesen.
    ============================================================================ */
 
 export default function ContactSeller({ listing }: { listing: Listing }) {
@@ -20,9 +24,9 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Not messageable: no backend, platform listing, or my own ad.
-  if (!supabase || !listing.uid || !listing.owner) return null;
-  if (session && session.user.id === listing.owner) return null;
+  const messageable = Boolean(supabase && listing.uid && listing.owner);
+  const isMine = Boolean(session && listing.owner === session.user.id);
+  const isGarage = listing.sellerType === "GARAGE";
 
   const send = async () => {
     if (!session || !supabase || !body.trim()) return;
@@ -58,60 +62,113 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
   };
 
   return (
-    <div className="panel mt-6 p-5">
-      <div className="mb-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted">
-        <MessageSquare size={13} className="text-signal" />
-        Nachricht an {listing.seller}
+    <section id="kontakt" className="card scroll-mt-28 p-5 sm:p-6">
+      <h2 className="text-h2 font-semibold text-fg">Anbieter</h2>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface2 text-fg2">
+            {isGarage ? <Building2 size={19} /> : <User size={19} />}
+          </span>
+          <div>
+            <div className="flex items-center gap-2 text-h3 font-semibold text-fg">
+              {listing.seller}
+              {isGarage && (
+                <Badge tone="neutral">
+                  <BadgeCheck size={13} /> Garage
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-small text-fg2">
+              <MapPin size={13} aria-hidden className="text-fg3" />
+              {listing.ort}
+            </div>
+          </div>
+        </div>
+        <LinkButton href={href("/#beratung")} variant="ghost" size="sm">
+          Unsicher? Frag Gabriel
+        </LinkButton>
       </div>
 
-      {sent ? (
-        <div className="flex flex-wrap items-center gap-4">
-          <Stamp>Gesendet</Stamp>
-          <p className="font-mono text-[10px] tracking-[0.15em] text-muted">
-            ANTWORTEN LANDEN IN DEINEM{" "}
-            <a href={href("/konto")} className="text-signal hover:underline">
-              POSTFACH AUF /KONTO
+      <div className="mt-5 border-t border-line pt-5">
+        {sent ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge tone="positive">Nachricht gesendet</Badge>
+            <p className="text-body text-fg2">
+              Antworten landen in deinem{" "}
+              <a
+                href={href("/konto")}
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                Postfach
+              </a>
+              .
+            </p>
+          </div>
+        ) : isMine ? (
+          <p className="text-body text-fg2">
+            Das ist dein eigenes Inserat. Anfragen erscheinen in deinem{" "}
+            <a
+              href={href("/konto")}
+              className="text-accent underline-offset-2 hover:underline"
+            >
+              Postfach
             </a>
             .
           </p>
-        </div>
-      ) : !session ? (
-        <p className="font-mono text-[10px] leading-relaxed tracking-[0.15em] text-muted">
-          ZUM SCHREIBEN ANMELDEN —{" "}
-          <a href={href("/konto")} className="text-signal hover:underline">
-            LOGIN-LINK AUF /KONTO
-          </a>
-          . DEINE NACHRICHT SIEHT NUR DER ANBIETER.
-        </p>
-      ) : (
-        <>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={3}
-            maxLength={2000}
-            placeholder={`Frage zu ${listing.brand} ${listing.model} — Probefahrt, Zustand, Preis…`}
-            className="w-full resize-none border border-line bg-nacht px-4 py-3 font-mono text-sm text-ink placeholder:text-muted/50 focus:border-signal focus:outline-none"
-          />
-          {error && (
-            <p className="mt-2 font-mono text-[10px] tracking-[0.12em] text-warn">
-              {error.toUpperCase()}
-            </p>
-          )}
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <span className="font-mono text-[9px] tracking-[0.12em] text-muted/60">
-              NUR DU UND DER ANBIETER — KEINE ÖFFENTLICHEN KOMMENTARE.
-            </span>
-            <button
-              onClick={() => void send()}
-              disabled={busy || !body.trim()}
-              className="border border-signal bg-signal px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.25em] text-nacht transition-colors hover:bg-signal-dim disabled:cursor-not-allowed disabled:border-line disabled:bg-panel disabled:text-muted"
+        ) : !messageable ? (
+          <p className="text-body text-fg2">
+            Dieses Inserat wird von EV4U selbst geführt — schreib uns an{" "}
+            <a
+              href="mailto:hallo@ev4u.ch"
+              className="text-accent underline-offset-2 hover:underline"
             >
-              {busy ? "Sendet…" : "Senden"}
-            </button>
+              hallo@ev4u.ch
+            </a>
+            , wir stellen den Kontakt her.
+          </p>
+        ) : !session ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-prose text-body text-fg2">
+              Zum Schreiben anmelden — ohne Passwort, per Login-Link. Deine
+              Nachricht sieht nur der Anbieter.
+            </p>
+            <LinkButton href={href("/konto")} variant="primary" size="sm">
+              Anmelden & schreiben
+            </LinkButton>
           </div>
-        </>
-      )}
-    </div>
+        ) : (
+          <>
+            <label className="block">
+              <span className="mb-1.5 block text-small font-medium text-fg2">
+                Deine Nachricht an {listing.seller}
+              </span>
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={3}
+                maxLength={2000}
+                placeholder={`Frage zu ${listing.brand} ${listing.model} — Probefahrt, Zustand, Preis…`}
+                className="field resize-none"
+              />
+            </label>
+            {error && <p className="mt-2 text-small text-caution">{error}</p>}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-small text-fg3">
+                Nur du und der Anbieter — keine öffentlichen Kommentare.
+              </span>
+              <Button
+                onClick={() => void send()}
+                disabled={busy || !body.trim()}
+                variant="primary"
+                size="sm"
+              >
+                {busy ? "Sendet…" : "Nachricht senden"}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }

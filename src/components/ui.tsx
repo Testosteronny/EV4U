@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -235,7 +236,11 @@ export function Field({
   );
 }
 
-/** Slider mit Inline-Wert. Ersetzt den Mischpult-Fader samt Lineal-Ticks. */
+/** Slider mit Inline-Wert. Ersetzt den Mischpult-Fader samt Lineal-Ticks.
+ *
+ *  `onCommit` feuert erst beim Loslassen. Wo ein Zug teuer ist — der
+ *  Preisfilter schreibt die URL und filtert den ganzen Katalog neu —, gehört
+ *  die Arbeit dorthin und nicht in jedes einzelne `change`-Ereignis. */
 export function Slider({
   label,
   value,
@@ -245,6 +250,7 @@ export function Slider({
   unit,
   format = (v) => fmtCH(v),
   onChange,
+  onCommit,
 }: {
   label: string;
   value: number;
@@ -254,8 +260,11 @@ export function Slider({
   unit?: string;
   format?: (v: number) => string;
   onChange: (v: number) => void;
+  onCommit?: (v: number) => void;
 }) {
-  const pct = ((value - min) / (max - min)) * 100;
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  const commit = (e: React.SyntheticEvent<HTMLInputElement>) =>
+    onCommit?.(Number(e.currentTarget.value));
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
@@ -274,7 +283,11 @@ export function Slider({
         value={value}
         style={{ "--val": `${pct}%` } as React.CSSProperties}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        onBlur={commit}
         aria-label={label}
+        aria-valuetext={`${format(value)}${unit ? ` ${unit}` : ""}`}
       />
     </div>
   );
@@ -322,6 +335,48 @@ export function Segmented<T extends string>({
   );
 }
 
+/** Einfachauswahl als umbrechende Chip-Reihe — die Variante für mehr als
+ *  vier Optionen, für die `Segmented` zu eng wird. Anders als ein <select>
+ *  bleiben alle Möglichkeiten sichtbar, was bei einer Wahl zählt, die den
+ *  Rest der Seite umrechnet. */
+export function ChipGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { key: T; label: string; hint?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label}>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const active = o.key === value;
+          return (
+            <button
+              key={o.key}
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(o.key)}
+              title={o.hint}
+              className={`rounded-chip border px-3 py-1.5 text-small font-medium transition-colors ${
+                active
+                  ? "border-accent bg-accent text-on-accent"
+                  : "border-line2 bg-surface text-fg2 hover:bg-surface2 hover:text-fg"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Zahlen -------------------------------------------------------- */
 
 /** Zahl im Schweizer Format, mit Tabellenziffern.
@@ -347,18 +402,59 @@ function Portal({ children }: { children: ReactNode }) {
   return createPortal(children, document.body);
 }
 
-/** Escape schliesst, Body-Scroll sperrt. */
-function useDismissable(onClose: () => void) {
+const FOCUSABLE =
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/** Escape schliesst, Body-Scroll sperrt, der Fokus bleibt drin und kehrt
+ *  danach dorthin zurück, wo er herkam. Ohne das steht der Fokus hinter dem
+ *  Overlay auf einer Seite, die man nicht mehr sieht — mit der Tastatur ist
+ *  ein solches Panel unbedienbar.
+ *
+ *  `panel` ist bewusst State und kein Ref: der Portal-Inhalt entsteht erst
+ *  einen Render nach dem Öffnen, und ein Ref wäre in dem Moment, in dem
+ *  dieser Effekt zum ersten Mal liefe, noch leer — der Fokus bliebe dann
+ *  stillschweigend draussen. Über State läuft der Effekt erneut, sobald der
+ *  Knoten wirklich hängt. */
+function useModal(onClose: () => void, panel: HTMLElement | null) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    if (!panel) return;
+    const opener = document.activeElement as HTMLElement | null;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null,
+      );
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !panel.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !panel.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    // Erstes bedienbares Element, sonst das Panel selbst.
+    (panel.querySelector<HTMLElement>(FOCUSABLE) ?? panel).focus({ preventScroll: true });
+
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      opener?.focus?.({ preventScroll: true });
     };
-  }, [onClose]);
+  }, [onClose, panel]);
 }
 
 /** Zentriertes Overlay auf Desktop, Bottom-Sheet auf dem Telefon. */
@@ -375,26 +471,33 @@ export function Sheet({
   footer?: ReactNode;
   wide?: boolean;
 }) {
-  useDismissable(onClose);
+  const [panel, setPanel] = useState<HTMLDivElement | null>(null);
+  const titleId = useId();
+  useModal(onClose, panel);
+
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[80] flex items-end justify-center bg-fg/25 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
+        className="fixed inset-0 z-80 flex items-end justify-center bg-fg/25 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
         onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
       >
         <div
+          ref={setPanel}
           onClick={(e) => e.stopPropagation()}
-          className={`overlay-card animate-fade-in flex max-h-[92vh] w-full flex-col rounded-b-none sm:rounded-b-overlay ${
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+          className={`overlay-card animate-fade-in flex max-h-[92vh] w-full flex-col rounded-b-none outline-hidden sm:rounded-b-overlay ${
             wide ? "max-w-2xl" : "max-w-lg"
           }`}
         >
           <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-            <h2 className="text-h3 font-semibold text-fg">{title}</h2>
+            <h2 id={titleId} className="text-h3 font-semibold text-fg">
+              {title}
+            </h2>
             <IconButton onClick={onClose} aria-label="Schliessen" className="h-8 w-8">
-              <X size={16} />
+              <X size={16} aria-hidden />
             </IconButton>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
@@ -410,7 +513,8 @@ export function Sheet({
 }
 
 /** Ankerndes Popover — Basis der Filter-Dropdowns auf /inserate.
- *  Auf dem Telefon fällt es auf ein Bottom-Sheet zurück. */
+ *  Auf dem Telefon fällt es auf ein Bottom-Sheet zurück: ein 280 px breites
+ *  Dropdown am rechten Rand eines 360-px-Schirms ragt sonst aus dem Bild. */
 export function Popover({
   label,
   summary,
@@ -426,8 +530,10 @@ export function Popover({
   width?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [asSheet, setAsSheet] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const id = useId();
+  const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     if (!open) return;
@@ -443,36 +549,61 @@ export function Popover({
     };
   }, [open]);
 
+  // Erst beim Öffnen entscheiden, nicht beim Rendern: sonst wäre der Wert im
+  // vorgerenderten HTML geraten und die Hydration schlüge fehl.
+  const toggle = () => {
+    setAsSheet(window.matchMedia("(max-width: 639px)").matches);
+    setOpen((o) => !o);
+  };
+
+  const trigger = (
+    <button
+      onClick={toggle}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      aria-controls={open ? id : undefined}
+      className={`inline-flex h-9 items-center gap-1.5 rounded-card border px-3 text-small font-medium transition-colors ${
+        active
+          ? "border-accent bg-accent/10 text-accent"
+          : "border-line2 bg-surface text-fg2 hover:bg-surface2 hover:text-fg"
+      }`}
+    >
+      {active && summary ? summary : label}
+      <svg
+        width="10"
+        height="6"
+        viewBox="0 0 10 6"
+        aria-hidden
+        className={`transition-transform ${open ? "rotate-180" : ""}`}
+      >
+        <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </button>
+  );
+
+  if (open && asSheet) {
+    return (
+      <div className="relative" ref={wrap}>
+        {trigger}
+        <Sheet title={label} onClose={close}>
+          {children(close)}
+        </Sheet>
+      </div>
+    );
+  }
+
   return (
     <div className="relative" ref={wrap}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-controls={id}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-card border px-3 text-small font-medium transition-colors ${
-          active
-            ? "border-accent bg-accent/10 text-accent"
-            : "border-line2 bg-surface text-fg2 hover:bg-surface2 hover:text-fg"
-        }`}
-      >
-        {active && summary ? summary : label}
-        <svg
-          width="10"
-          height="6"
-          viewBox="0 0 10 6"
-          aria-hidden
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </button>
+      {trigger}
       {open && (
         <div
           id={id}
+          role="dialog"
+          aria-label={label}
           className="overlay-card animate-fade-in absolute left-0 z-50 mt-1.5 max-h-[70vh] overflow-y-auto p-3"
           style={{ width, maxWidth: "calc(100vw - 2rem)" }}
         >
-          {children(() => setOpen(false))}
+          {children(close)}
         </div>
       )}
     </div>

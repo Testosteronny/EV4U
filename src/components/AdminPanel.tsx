@@ -4,6 +4,12 @@ import { Badge, Button, Segmented } from "./ui";
 import { useListings } from "../hooks/useListings";
 import { supabase, type ListingRow } from "../lib/supabase";
 import { href } from "../lib/url";
+import {
+  LISTING_STATI,
+  STATUS_LABEL,
+  vehicleTitle,
+  type ListingStatusFull,
+} from "../utils/format";
 import { fmtCH } from "../utils/swiss";
 
 /* ============================================================================
@@ -17,14 +23,6 @@ type AdminListing = Pick<
   ListingRow,
   "id" | "slug" | "brand" | "model" | "price" | "status" | "seller_name" | "owner"
 >;
-
-const STATI = ["ENTWURF", "AKTIV", "RESERVIERT", "VERKAUFT"] as const;
-const STATUS_LABEL: Record<(typeof STATI)[number], string> = {
-  ENTWURF: "Entwurf",
-  AKTIV: "Aktiv",
-  RESERVIERT: "Reserviert",
-  VERKAUFT: "Verkauft",
-};
 
 export default function AdminPanel({ userId }: { userId: string }) {
   const { refresh } = useListings();
@@ -45,7 +43,7 @@ export default function AdminPanel({ userId }: { userId: string }) {
     void load();
   }, [load]);
 
-  const setStatus = async (id: string, status: (typeof STATI)[number]) => {
+  const setStatus = async (id: string, status: ListingStatusFull) => {
     if (!supabase) return;
     const { error: err } = await supabase.from("listings").update({ status }).eq("id", id);
     if (err) setError(err.message);
@@ -86,7 +84,7 @@ export default function AdminPanel({ userId }: { userId: string }) {
                 href={href(`/inserat/${l.slug}`)}
                 className="text-body font-medium text-fg transition-colors hover:text-accent"
               >
-                {l.brand} {l.model}
+                {vehicleTitle(l)}
               </a>
               <div className="flex items-center gap-2 text-small text-fg2">
                 <span className="tabular">CHF {fmtCH(l.price)}</span>
@@ -98,7 +96,7 @@ export default function AdminPanel({ userId }: { userId: string }) {
             <div className="flex items-center gap-2">
               <Segmented
                 size="sm"
-                options={STATI.map((s) => ({ key: s, label: STATUS_LABEL[s] }))}
+                options={LISTING_STATI.map((s) => ({ key: s, label: STATUS_LABEL[s] }))}
                 value={l.status}
                 onChange={(s) => void setStatus(l.id, s)}
               />

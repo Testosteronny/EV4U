@@ -1,8 +1,9 @@
 import EngineCore from "../EngineCore";
-import { Field, LinkButton, PageHeader } from "../ui";
-import { useCockpit } from "../../hooks/useCockpit";
+import { EmptyState, Field, LinkButton, PageHeader } from "../ui";
+import { useCockpit, useSimulatedListing } from "../../hooks/useCockpit";
 import { useListings } from "../../hooks/useListings";
 import { href } from "../../lib/url";
+import { vehicleTitle } from "../../utils/format";
 import { fmtCH } from "../../utils/swiss";
 import type { Listing } from "../../data/evData";
 
@@ -16,47 +17,63 @@ import type { Listing } from "../../data/evData";
    ============================================================================ */
 
 export default function RechenwerkPage({ initial }: { initial?: Listing[] }) {
-  const { listing, setListingId } = useCockpit();
+  const { setListingId } = useCockpit();
   const { active } = useListings(initial);
+  const listing = useSimulatedListing(initial);
 
   return (
-    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-352 animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
       <PageHeader
         title="Was kostet mich ein E-Auto?"
         lead="Wähle ein Auto aus dem Bestand — EV4U rechnet es gegen dein heutiges Auto durch, mit dem Stromtarif deiner Gemeinde."
       />
 
-      <div className="mt-6 max-w-md">
-        <Field
-          label="Auto in der Rechnung"
-          hint="Alle offenen Inserate. Die Rechnung darunter gilt für dieses Auto."
-        >
-          <select
-            value={listing.id}
-            onChange={(e) => setListingId(e.target.value)}
-            className="field"
+      {listing ? (
+        <>
+          <div className="mt-6 max-w-md">
+            <Field
+              label="Auto in der Rechnung"
+              hint="Alle offenen Inserate. Die Rechnung darunter gilt für dieses Auto."
+            >
+              <select
+                value={listing.id}
+                onChange={(e) => setListingId(e.target.value)}
+                className="field"
+              >
+                {active.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {vehicleTitle(l)} — CHF {fmtCH(l.price)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="mt-6">
+            <EngineCore listing={listing} />
+          </div>
+
+          <div className="card mt-6 flex flex-wrap items-center justify-between gap-4 p-5">
+            <p className="max-w-prose text-body text-fg2">
+              Die Zahlen passen? Dieses Auto steht wirklich zum Verkauf.
+            </p>
+            <LinkButton href={href(`/inserat/${listing.id}`)} variant="primary">
+              {vehicleTitle(listing)} ansehen →
+            </LinkButton>
+          </div>
+        </>
+      ) : (
+        <div className="mt-8">
+          <EmptyState
+            title="Gerade steht kein offenes Inserat bereit."
+            hint="Die Rechnung braucht ein echtes Auto — sobald wieder eines im Katalog ist, steht sie hier."
           >
-            {active.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.brand} {l.model} — CHF {fmtCH(l.price)}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      <div className="mt-6">
-        <EngineCore listing={listing} />
-      </div>
-
-      <div className="card mt-6 flex flex-wrap items-center justify-between gap-4 p-5">
-        <p className="max-w-prose text-body text-fg2">
-          Die Zahlen passen? Dieses Auto steht wirklich zum Verkauf.
-        </p>
-        <LinkButton href={href(`/inserat/${listing.id}`)} variant="primary">
-          {listing.brand} {listing.model} ansehen →
-        </LinkButton>
-      </div>
+            <LinkButton href={href("/inserate")} variant="primary" size="sm">
+              Zum Katalog
+            </LinkButton>
+          </EmptyState>
+        </div>
+      )}
     </div>
   );
 }

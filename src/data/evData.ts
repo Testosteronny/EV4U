@@ -61,8 +61,8 @@ export type Listing = {
 export const LISTINGS: Listing[] = [
   {
     id: "dacia-spring",
-    brand: "DACIA",
-    model: "SPRING EXTREME",
+    brand: "Dacia",
+    model: "Spring Extreme",
     segment: "KOMPAKT",
     year: 2023,
     km: 31000,
@@ -85,8 +85,8 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "renault-5",
-    brand: "RENAULT",
-    model: "5 E-TECH 52",
+    brand: "Renault",
+    model: "5 E-Tech 52",
     segment: "KOMPAKT",
     year: 2025,
     km: 9500,
@@ -109,8 +109,8 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "tesla-m3",
-    brand: "TESLA",
-    model: "MODEL 3 RWD",
+    brand: "Tesla",
+    model: "Model 3 RWD",
     segment: "LIMOUSINE",
     year: 2024,
     km: 28000,
@@ -134,7 +134,7 @@ export const LISTINGS: Listing[] = [
   {
     id: "byd-seal",
     brand: "BYD",
-    model: "SEAL EXCELLENCE",
+    model: "Seal Excellence",
     segment: "LIMOUSINE",
     year: 2024,
     km: 22000,
@@ -157,7 +157,7 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "hyundai-i6",
-    brand: "HYUNDAI",
+    brand: "Hyundai",
     model: "IONIQ 6 77",
     segment: "LIMOUSINE",
     year: 2023,
@@ -181,8 +181,8 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "porsche-taycan",
-    brand: "PORSCHE",
-    model: "TAYCAN",
+    brand: "Porsche",
+    model: "Taycan",
     segment: "LIMOUSINE",
     year: 2022,
     km: 47000,
@@ -206,7 +206,7 @@ export const LISTINGS: Listing[] = [
   {
     id: "vw-id7",
     brand: "VW",
-    model: "ID.7 TOURER PRO S",
+    model: "ID.7 Tourer Pro S",
     segment: "KOMBI",
     year: 2024,
     km: 19000,
@@ -229,8 +229,8 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "nio-et5t",
-    brand: "NIO",
-    model: "ET5 TOURING",
+    brand: "Nio",
+    model: "ET5 Touring",
     segment: "KOMBI",
     year: 2023,
     km: 36000,
@@ -254,7 +254,7 @@ export const LISTINGS: Listing[] = [
   {
     id: "bmw-i5t",
     brand: "BMW",
-    model: "I5 TOURING",
+    model: "i5 Touring",
     segment: "KOMBI",
     year: 2024,
     km: 21000,
@@ -277,8 +277,8 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "skoda-enyaq",
-    brand: "ŠKODA",
-    model: "ENYAQ 85",
+    brand: "Škoda",
+    model: "Enyaq 85",
     segment: "SUV",
     year: 2024,
     km: 24000,
@@ -301,7 +301,7 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "kia-ev6",
-    brand: "KIA",
+    brand: "Kia",
     model: "EV6 77 AWD",
     segment: "SUV",
     year: 2022,
@@ -325,8 +325,8 @@ export const LISTINGS: Listing[] = [
   },
   {
     id: "audi-q6",
-    brand: "AUDI",
-    model: "Q6 E-TRON",
+    brand: "Audi",
+    model: "Q6 e-tron",
     segment: "SUV",
     year: 2025,
     km: 11000,
@@ -348,8 +348,6 @@ export const LISTINGS: Listing[] = [
     note: "PPE-Plattform mit 800 V — Bank-Laden: zwei 400-V-Hälften parallel.",
   },
 ];
-
-export const ACTIVE_LISTINGS = LISTINGS.filter((l) => l.status === "AKTIV");
 
 export const SEGMENTS: ("ALLE" | Segment)[] = [
   "ALLE",
@@ -427,5 +425,5 @@ export const GABRIEL = {
   initials: "G",
   intro:
     "Hoi! Ich bin Gabriel. Ich fahre selbst elektrisch — und sage dir auch, wenn ein Auto nichts für dich ist.",
-  slots: ["HEUTE 14:15", "HEUTE 16:45", "MORGEN 09:30", "MORGEN 13:30"],
+  slots: ["Heute 14:15", "Heute 16:45", "Morgen 09:30", "Morgen 13:30"],
 };

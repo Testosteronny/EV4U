@@ -16,7 +16,7 @@ export default function Hero() {
   const { listings, active } = useListings();
 
   return (
-    <section className="mx-auto max-w-[88rem] px-4 pb-10 pt-12 sm:px-6 sm:pb-14 sm:pt-16">
+    <section className="mx-auto max-w-352 px-4 pb-10 pt-12 sm:px-6 sm:pb-14 sm:pt-16">
       <h1 className="max-w-3xl text-display font-semibold text-fg sm:text-display-lg">
         E-Autos kaufen und verkaufen — mit den Kosten, die du wirklich hast.
       </h1>

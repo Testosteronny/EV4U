@@ -30,11 +30,16 @@ export const aiSearchPossible = (): boolean => Boolean(supabase);
 
 /** Übersetzt Freitext in Filter. `null` heisst: nicht verfügbar oder
  *  fehlgeschlagen — dann normal weitersuchen. */
+/** Nach dieser Zeit ist die lokale Suche schneller da als die Antwort — und
+ *  eine Spinner-Beschriftung, die nie endet, ist schlimmer als kein Versuch. */
+const TIMEOUT_MS = 8000;
+
 export async function aiSearch(query: string): Promise<AiSearchResult | null> {
   if (!supabase || query.trim().length < 2) return null;
   try {
     const { data, error } = await supabase.functions.invoke("suche", {
       body: { query: query.trim() },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (error || !data || typeof data !== "object") return null;
     const result = data as Partial<AiSearchResult>;

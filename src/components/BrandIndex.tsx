@@ -19,7 +19,7 @@ export default function BrandIndex() {
   if (brands.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-[88rem] px-4 py-10 sm:px-6" aria-label="Marken im Bestand">
+    <section className="mx-auto max-w-352 px-4 py-10 sm:px-6" aria-label="Marken im Bestand">
       <div className="eyebrow mb-3">Marken im Bestand</div>
       <div className="flex flex-wrap gap-2">
         {brands.map(([brand, count]) => (

@@ -11,7 +11,10 @@
       PLZ → municipality (BFS no.), canton, LV95 coordinates.
 
    Output: src/data/tariffs.json — { meta, plz: { "4616": [name, canton,
-   rpPerKwh, e, n], ... } }. Commit the JSON; re-run once a year when ElCom
+   rpPerKwh, e, n], ... } } — plus src/data/tariffMeta.json (meta only).
+   The site bundles the small meta file on every page and loads the large
+   PLZ map lazily, only when a postcode has to be resolved (utils/swiss.ts).
+   Commit both files; re-run once a year when ElCom
    publishes the new tariffs (early September):
 
        npm run fetch:tariffs
@@ -25,6 +28,7 @@ import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), "../src/data/tariffs.json");
+const OUT_META = resolve(dirname(OUT), "tariffMeta.json");
 
 const SPARQL_ENDPOINT = "https://lindas.admin.ch/query";
 const EP = "https://energy.ld.admin.ch/elcom/electricityprice";
@@ -218,6 +222,7 @@ const out = {
 
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify(out));
+writeFileSync(OUT_META, JSON.stringify(out.meta, null, 2) + "\n");
 console.log(
-  `Wrote ${OUT}\n  ${matched} PLZ entries · CH median ${chMedianRp} Rp./kWh · period ${period}`,
+  `Wrote ${OUT} + ${OUT_META}\n  ${matched} PLZ entries · CH median ${chMedianRp} Rp./kWh · period ${period}`,
 );

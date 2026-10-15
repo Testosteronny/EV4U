@@ -4,6 +4,7 @@ import { Badge, Button, LinkButton } from "./ui";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
 import { href } from "../lib/url";
+import { SELLER_LABEL, vehicleTitle } from "../utils/format";
 import type { Listing } from "../data/evData";
 
 /* ============================================================================
@@ -27,6 +28,7 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
   const messageable = Boolean(supabase && listing.uid && listing.owner);
   const isMine = Boolean(session && listing.owner === session.user.id);
   const isGarage = listing.sellerType === "GARAGE";
+  const sellerLabel = SELLER_LABEL[listing.sellerType];
 
   const send = async () => {
     if (!session || !supabase || !body.trim()) return;
@@ -62,7 +64,7 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
   };
 
   return (
-    <section id="kontakt" className="card scroll-mt-28 p-5 sm:p-6">
+    <section id="kontakt" className="card p-5 sm:p-6">
       <h2 className="text-h2 font-semibold text-fg">Anbieter</h2>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
@@ -73,11 +75,10 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
           <div>
             <div className="flex items-center gap-2 text-h3 font-semibold text-fg">
               {listing.seller}
-              {isGarage && (
-                <Badge tone="neutral">
-                  <BadgeCheck size={13} /> Garage
-                </Badge>
-              )}
+              <Badge tone="neutral">
+                {isGarage && <BadgeCheck size={13} aria-hidden />}
+                {sellerLabel}
+              </Badge>
             </div>
             <div className="flex items-center gap-1.5 text-small text-fg2">
               <MapPin size={13} aria-hidden className="text-fg3" />
@@ -148,7 +149,7 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
                 onChange={(e) => setBody(e.target.value)}
                 rows={3}
                 maxLength={2000}
-                placeholder={`Frage zu ${listing.brand} ${listing.model} — Probefahrt, Zustand, Preis…`}
+                placeholder={`Frage zu ${vehicleTitle(listing)} — Probefahrt, Zustand, Preis…`}
                 className="field resize-none"
               />
             </label>

@@ -22,14 +22,14 @@ const POINTS = [
   },
   {
     icon: ShieldCheck,
-    title: "Gemessen, nicht behauptet",
-    text: "Jedes Inserat trägt den State of Health seiner Batterie — der Wert, der bei einem gebrauchten E-Auto über den Preis entscheidet.",
+    title: "Der Batteriewert steht dabei",
+    text: "Jedes Inserat nennt den State of Health der Batterie — den Wert, der bei einem gebrauchten E-Auto über den Preis entscheidet. Zertifiziert vom Partner, wo der Check gemacht wurde.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="mx-auto max-w-[88rem] px-4 py-10 sm:px-6">
+    <section className="mx-auto max-w-352 px-4 py-10 sm:px-6">
       <h2 className="text-h2 font-semibold text-fg">Wie EV4U rechnet</h2>
       <div className="mt-5 grid gap-4 md:grid-cols-3">
         {POINTS.map((p) => (

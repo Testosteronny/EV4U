@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { Badge, Button, EmptyState, LinkButton } from "./ui";
 import { supabase } from "../lib/supabase";
 import { href } from "../lib/url";
+import { vehicleTitle } from "../utils/format";
 
 /* ============================================================================
    Postfach — die Reiterseite «Nachrichten» auf /konto. RLS beschränkt die
@@ -100,7 +101,7 @@ export default function Inbox({ userId }: { userId: string }) {
             >
               <span className="flex flex-wrap items-center gap-2">
                 <span className="text-h3 font-semibold text-fg">
-                  {c.listing ? `${c.listing.brand} ${c.listing.model}` : "Inserat entfernt"}
+                  {c.listing ? vehicleTitle(c.listing) : "Inserat entfernt"}
                 </span>
                 <Badge>{asBuyer ? "als Käufer" : "als Verkäufer"}</Badge>
               </span>
@@ -131,7 +132,7 @@ export default function Inbox({ userId }: { userId: string }) {
                       >
                         <div
                           className={`max-w-[80%] rounded-card px-4 py-2.5 ${
-                            mine ? "bg-accent/[0.09]" : "bg-surface2"
+                            mine ? "bg-accent/9" : "bg-surface2"
                           }`}
                         >
                           <p className="text-body text-fg">{m.body}</p>

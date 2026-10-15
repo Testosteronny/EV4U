@@ -1,0 +1,14 @@
+{
+  "period": "2026",
+  "category": "H4",
+  "product": "standard",
+  "unit": "Rp./kWh (exkl. MwSt.)",
+  "chMedianRp": 27.89,
+  "municipalities": 2124,
+  "plzCount": 3172,
+  "sources": [
+    "ElCom via lindas.admin.ch",
+    "swisstopo AMTOVZ (PLZ-Verzeichnis)"
+  ],
+  "generated": "2026-06-12"
+}

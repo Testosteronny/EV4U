@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck } from "lucide-react";
-import { Badge, Button, Field, Segmented } from "./ui";
+import { Badge, Button, ChipGroup, Field, Segmented, Slider } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
 import type { Profile } from "../hooks/useProfile";
 import { patchCockpit } from "../stores/cockpit";
-import { FUELS, type FuelType } from "../utils/costModel";
+import { FUELS, PLUGIN_KWH_PER_100KM, isFuelType, type FuelType } from "../utils/costModel";
 import { resolveZip } from "../utils/swiss";
 
 /* ============================================================================
    Verkäuferprofil — PRIVAT bleibt minimal, GARAGE öffnet die Geschäftsfelder
    (Firma, UID, Website). Gespeichert wird in die eigene profiles-Zeile.
    ============================================================================ */
+
+/** Ein unbekannter Antrieb in der Profilzeile (ältere Version, Import) darf
+ *  das Kostenmodell nicht auf undefined laufen lassen. */
+const safeFuel = (v: unknown): FuelType => (isFuelType(v) ? v : "BENZIN");
 
 export default function ProfilePanel({
   profile,
@@ -19,15 +23,15 @@ export default function ProfilePanel({
   profile: Profile;
   onSave: (fields: Partial<Omit<Profile, "id" | "verified">>) => Promise<string | null>;
 }) {
-  const { setGemeinde } = useCockpit();
+  const { setGemeinde, elecShare, setElecShare } = useCockpit();
   const [type, setType] = useState<Profile["type"]>(profile.type);
   const [name, setName] = useState(profile.name);
   const [plz, setPlz] = useState(profile.plz ?? "");
   const [uid, setUid] = useState(profile.company_uid ?? "");
   const [website, setWebsite] = useState(profile.website ?? "");
-  const [fuel, setFuel] = useState<FuelType>(profile.car_fuel ?? "BENZIN");
+  const [fuel, setFuel] = useState<FuelType>(safeFuel(profile.car_fuel));
   const [cons, setCons] = useState(
-    String(profile.car_consumption ?? FUELS[profile.car_fuel ?? "BENZIN"].defaultCons),
+    String(profile.car_consumption ?? FUELS[safeFuel(profile.car_fuel)].defaultCons),
   );
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,9 +42,9 @@ export default function ProfilePanel({
     setPlz(profile.plz ?? "");
     setUid(profile.company_uid ?? "");
     setWebsite(profile.website ?? "");
-    setFuel(profile.car_fuel ?? "BENZIN");
+    setFuel(safeFuel(profile.car_fuel));
     setCons(
-      String(profile.car_consumption ?? FUELS[profile.car_fuel ?? "BENZIN"].defaultCons),
+      String(profile.car_consumption ?? FUELS[safeFuel(profile.car_fuel)].defaultCons),
     );
   }, [profile]);
 
@@ -53,7 +57,7 @@ export default function ProfilePanel({
     plz !== (profile.plz ?? "") ||
     uid !== (profile.company_uid ?? "") ||
     website !== (profile.website ?? "") ||
-    fuel !== (profile.car_fuel ?? "BENZIN") ||
+    fuel !== safeFuel(profile.car_fuel) ||
     consNum !== Number(profile.car_consumption ?? FUELS[fuel].defaultCons);
 
   const save = async () => {
@@ -75,8 +79,9 @@ export default function ProfilePanel({
     // Neue Heim-PLZ gilt sofort, sonst überschreibt die alte lokale Fixierung
     // sie beim nächsten Besuch wieder.
     if (plz && plz !== (profile.plz ?? "")) {
-      const hit = resolveZip(plz);
-      if (hit) setGemeinde(hit);
+      void resolveZip(plz)
+        .then((hit) => hit && setGemeinde(hit))
+        .catch((err: unknown) => console.warn("[ev4u] PLZ map failed to load:", err));
     }
     if (consValid) patchCockpit({ fuel, ice: consNum });
   };
@@ -172,11 +177,13 @@ export default function ProfilePanel({
           Basis für jede Vergleichsrechnung. Lässt sich auch jederzeit oben in
           der Leiste «Deine Werte» ändern.
         </p>
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <Segmented
+        <div className="mt-4">
+          <ChipGroup
+            label="Antrieb deines heutigen Autos"
             options={(Object.keys(FUELS) as FuelType[]).map((f) => ({
               key: f,
               label: FUELS[f].label,
+              hint: FUELS[f].hint,
             }))}
             value={fuel}
             onChange={(f) => {
@@ -185,20 +192,48 @@ export default function ProfilePanel({
               touched();
             }}
           />
-          <div className="w-40">
-            <Field label={`Verbrauch (${FUELS[fuel].unit})`}>
-              <input
-                value={cons}
-                onChange={(e) => {
-                  setCons(e.target.value.replace(/[^0-9.,]/g, ""));
-                  touched();
-                }}
-                inputMode="decimal"
-                className={`field tabular ${consValid ? "" : "border-caution"}`}
-              />
-            </Field>
-          </div>
+          <p className="mt-1.5 text-small text-fg3">{FUELS[fuel].hint}</p>
         </div>
+        <div className="mt-4 w-44">
+          <Field
+            label={
+              fuel === "PLUGIN"
+                ? `Benzin im Hybridbetrieb (${FUELS[fuel].unit})`
+                : `Verbrauch (${FUELS[fuel].unit})`
+            }
+          >
+            <input
+              value={cons}
+              onChange={(e) => {
+                setCons(e.target.value.replace(/[^0-9.,]/g, ""));
+                touched();
+              }}
+              inputMode="decimal"
+              className={`field tabular ${consValid ? "" : "border-caution"}`}
+            />
+          </Field>
+        </div>
+
+        {/* Der Ladeanteil des Plug-in-Hybrids ist Teil des Kontexts, nicht des
+            Profils — er wird lokal gespeichert wie die übrigen «Deine Werte». */}
+        {fuel === "PLUGIN" && (
+          <div className="mt-4 max-w-sm">
+            <Slider
+              label="Davon elektrisch gefahren"
+              value={elecShare}
+              min={0}
+              max={100}
+              step={5}
+              unit="%"
+              format={(v) => String(v)}
+              onChange={setElecShare}
+            />
+            <p className="mt-1 text-small text-fg3">
+              Diese Kilometer fahren auf Strom ({PLUGIN_KWH_PER_100KM} kWh/100 km,
+              Heimtarif), der Rest auf Benzin.
+            </p>
+          </div>
+        )}
       </div>
 
       {error && <p className="mt-4 text-small text-caution">{error}</p>}

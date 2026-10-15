@@ -8,20 +8,31 @@
 ## What makes EV4U distinct
 - Every listing shows real energy cost per 100 km at the visitor's local
   Swiss electricity tariff (official ElCom data, all ~2'100 municipalities).
-- Listings include a measured battery state of health (SOH), not a claim.
+- Listings include the battery state of health (SOH) — stated by the seller,
+  or certified when a partner check was done.
 - Second-hand prices are shown against the Swiss list price when new
   ("Neupreis-Vergleich"), so buyers see the saving.
-- The Rechenwerk simulation compares petrol vs. electricity cost including
-  charging-card subscriptions (TCS eCharge, MOVE, IONITY) and home solar.
+- The cost model compares petrol/diesel vs. electricity including
+  charging-card subscriptions (TCS eCharge, MOVE, IONITY), maintenance and
+  the cantonal vehicle tax (weight-based, incl. each canton's EV discount),
+  plus optional home solar. Insurance and depreciation are excluded, stated.
+- Pump prices are the official BFS national monthly average, refreshed by CI.
 
 ## Key pages
-- /inserate : all open listings, filterable (brand, body, seats, price)
+- /inserate : all listings; free-text search plus filters for body, brand,
+  price, range, DC charging power, seats, provider and bidirectional charging.
+  Filters live in the URL (?seg=SUV&preis=40000), so any search is shareable.
 - /inserat/{slug} : one listing with full specs and the embedded cost engine
 - /rechenwerk : standalone cost calculator (petrol vs. electric, solar, cards)
+- /vergleich : up to three listings side by side, incl. computed annual cost
 - /verkaufen : post a listing (private or garage)
 
 ## Data sources
 - Electricity tariffs: ElCom (Swiss federal electricity regulator) via
   LINDAS open data, category H4, updated yearly.
 - Localities/coordinates: swisstopo official directory (AMTOVZ).
+- Fuel prices: BFS Landesindex der Konsumentenpreise (su-d-05.02.91),
+  national monthly average, month shown in the UI.
+- Cantonal vehicle tax: researched per canton (rate per 100 kg + EV
+  discount), year shown in the UI.
 - Charging-card prices: published provider offers, dated in the UI.

@@ -38,6 +38,12 @@ jobs:
 
       - run: npm ci
 
+      # Fails the deploy on a type error instead of shipping a broken island.
+      # `npm run build` runs this too; as a separate step it is the first
+      # thing red in the log, before any data fetching noise.
+      - name: Type-check
+        run: npm run typecheck
+
       # Refresh the BFS national average fuel prices (monthly open data)
       # before building. Non-fatal: if the BFS API is unreachable, the
       # committed src/data/fuelPrices.json is the fallback.

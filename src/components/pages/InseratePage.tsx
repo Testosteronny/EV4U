@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { BookmarkPlus, Compass, LayoutGrid, List, Heart, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BookmarkPlus, Compass, Heart, LayoutGrid, List, X } from "lucide-react";
 import ListingBoard from "../ListingBoard";
 import ListingCard from "../ListingCard";
 import AutoFinder, { type FinderParams } from "../AutoFinder";
-import SearchBox, { matchesQuery } from "../SearchBox";
+import SearchBox from "../SearchBox";
 import {
   Badge,
   Button,
@@ -17,9 +17,24 @@ import {
 import { useFavorites } from "../../hooks/useFavorites";
 import { useListings } from "../../hooks/useListings";
 import { useSession } from "../../hooks/useSession";
+import {
+  AI_KEYS,
+  ANBIETER,
+  DC_STEPS,
+  FILTER_KEYS,
+  PRICE_MAX,
+  PRICE_MIN,
+  PREDICATES,
+  RANGE_STEPS,
+  SITZE,
+  passes,
+  readFilters,
+  type Filters,
+} from "../../lib/filters";
 import { supabase } from "../../lib/supabase";
+import { SEGMENT_LABEL, SELLER_LABEL, brandName } from "../../utils/format";
 import { fmtCH } from "../../utils/swiss";
-import { SEGMENTS, SORTS, type Listing, type SortKey } from "../../data/evData";
+import { SEGMENTS, SORTS, type Listing, type Segment, type SortKey } from "../../data/evData";
 
 /* ============================================================================
    /inserate — der Katalog.
@@ -36,53 +51,10 @@ import { SEGMENTS, SORTS, type Listing, type SortKey } from "../../data/evData";
 
    Die URL bleibt die einzige Quelle der Wahrheit und die Parameternamen
    bleiben unverändert — gespeicherte Suchen aus der alten Version
-   funktionieren weiter.
+   funktionieren weiter. Was ein Parameter bedeutet, steht in lib/filters.ts.
    ============================================================================ */
 
-const PRICE_MAX = 120000;
-/** Von der KI-Suche mitgeschickte Begleitparameter — keine Filter. */
-const AI_KEYS = ["ai", "airx", "aino"] as const;
-const ANBIETER = ["ALLE", "PRIVAT", "GARAGE"] as const;
-const SITZE = ["ALLE", "4", "5"] as const;
-const RANGE_STEPS = [0, 300, 400, 500, 600];
-const DC_STEPS = [0, 50, 100, 150, 250];
-
-type Filters = {
-  q: string;
-  seg: string;
-  marke: string;
-  anbieter: string;
-  sitze: string;
-  preis: number;
-  reichweite: number;
-  laden: number;
-  v2x: boolean;
-  fav: boolean;
-};
-
-/** Ein Prädikat je Filterschlüssel. Getrennt gehalten, damit Facettenzahlen
- *  berechnet werden können: „wie viele Treffer gäbe dieser Wert, wenn alle
- *  ANDEREN Filter gesetzt bleiben?“ */
-type Predicate = (l: Listing, f: Filters, favorites: string[]) => boolean;
-
-const PREDICATES: Record<keyof Filters, Predicate> = {
-  q: (l, f) => matchesQuery(l, f.q),
-  seg: (l, f) => f.seg === "ALLE" || l.segment === f.seg,
-  marke: (l, f) => f.marke === "ALLE" || l.brand === f.marke,
-  anbieter: (l, f) => f.anbieter === "ALLE" || l.sellerType === f.anbieter,
-  sitze: (l, f) => f.sitze === "ALLE" || l.seats === Number(f.sitze),
-  preis: (l, f) => l.price <= f.preis,
-  reichweite: (l, f) => l.range >= f.reichweite,
-  laden: (l, f) => l.dcKw >= f.laden,
-  v2x: (l, f) => !f.v2x || l.bidi,
-  fav: (l, f, favorites) => !f.fav || favorites.includes(l.id),
-};
-
-const KEYS = Object.keys(PREDICATES) as (keyof Filters)[];
-
-function passes(l: Listing, f: Filters, favorites: string[], except?: keyof Filters) {
-  return KEYS.every((k) => k === except || PREDICATES[k](l, f, favorites));
-}
+const SORT_LABEL = (k: SortKey) => SORTS.find((s) => s.key === k)?.label ?? "Sortieren";
 
 export default function InseratePage({ initial }: { initial?: Listing[] }) {
   const { listings } = useListings(initial);
@@ -110,12 +82,12 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
     if (fromUrl.toString()) setSpState(fromUrl);
   }, []);
 
-  const setSp = (next: URLSearchParams) => {
+  const setSp = useCallback((next: URLSearchParams) => {
     AI_KEYS.forEach((k) => next.delete(k));
     const query = next.toString();
     history.replaceState(null, "", query ? `${location.pathname}?${query}` : location.pathname);
     setSpState(next);
-  };
+  }, []);
 
   const [finderOpen, setFinderOpen] = useState(false);
   const [searchSaved, setSearchSaved] = useState(false);
@@ -139,40 +111,26 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
     }
   };
 
-  const f: Filters = {
-    q: sp.get("q") ?? "",
-    seg: sp.get("seg") ?? "ALLE",
-    marke: sp.get("marke") ?? "ALLE",
-    anbieter: sp.get("anbieter") ?? "ALLE",
-    sitze: sp.get("sitze") ?? "ALLE",
-    preis: Number(sp.get("preis") ?? PRICE_MAX),
-    reichweite: Number(sp.get("reichweite") ?? 0),
-    laden: Number(sp.get("laden") ?? 0),
-    v2x: sp.get("v2x") === "1",
-    fav: sp.get("fav") === "1",
-  };
+  const f = useMemo(() => readFilters(sp), [sp]);
   const sort = (sp.get("sort") ?? "price") as SortKey;
 
-  const set = (key: string, value: string | number, def: string | number) => {
-    const next = new URLSearchParams(sp);
-    if (String(value) === String(def)) next.delete(key);
-    else next.set(key, String(value));
-    setSp(next);
-    setSearchSaved(false);
-  };
+  const set = useCallback(
+    (key: string, value: string | number, def: string | number) => {
+      const next = new URLSearchParams(sp);
+      if (String(value) === String(def)) next.delete(key);
+      else next.set(key, String(value));
+      setSp(next);
+      setSearchSaved(false);
+    },
+    [sp, setSp],
+  );
 
   const applyFinder = (p: FinderParams) => {
     const next = new URLSearchParams(sp);
-    const put = (key: string, val: string | number | null | undefined, def: string | number) => {
-      if (val == null || String(val) === String(def)) next.delete(key);
-      else next.set(key, String(val));
-    };
-    put("seg", p.seg ?? "ALLE", "ALLE");
-    put("sitze", p.sitze ?? "ALLE", "ALLE");
-    put("preis", p.preis ?? PRICE_MAX, PRICE_MAX);
-    put("reichweite", p.reichweite ?? 0, 0);
-    put("laden", p.laden ?? 0, 0);
-    put("v2x", p.v2x ?? null, "");
+    for (const [key, val] of Object.entries(p)) {
+      if (val === null) next.delete(key);
+      else next.set(key, val);
+    }
     setSp(next);
     setFinderOpen(false);
   };
@@ -187,16 +145,23 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
     return listings
       .filter((l) => passes(l, f, favorites))
       .sort((a, b) => (a[sort] - b[sort]) * dir);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listings, favorites, sp, sort]);
+  }, [listings, favorites, f, sort]);
 
-  /** Trefferzahl für einen Optionswert unter allen übrigen Filtern. */
-  const countFor = (key: keyof Filters, value: string | number | boolean) => {
-    const probe = { ...f, [key]: value } as Filters;
-    return listings.filter(
-      (l) => passes(l, f, favorites, key) && PREDICATES[key](l, probe, favorites),
-    ).length;
-  };
+  /* ---- Facettenzahlen ----------------------------------------------------
+     „Wie viele Treffer gäbe dieser Wert, wenn alles ANDERE gesetzt bleibt?“
+     Einmal je Filterschlüssel über den Bestand, nicht einmal je Option:
+     vorher lief pro geöffnetem Popover und Render ein voller Durchlauf je
+     Zeile — bei 12 Inseraten unsichtbar, bei 1'000 nicht mehr. */
+  const facets = useMemo(() => {
+    const pools = {} as Record<keyof Filters, Listing[]>;
+    for (const key of FILTER_KEYS) {
+      pools[key] = listings.filter((l) => passes(l, f, favorites, key));
+    }
+    return <K extends keyof Filters>(key: K, value: Filters[K]) => {
+      const probe = { ...f, [key]: value } as Filters;
+      return pools[key].filter((l) => PREDICATES[key](l, probe, favorites)).length;
+    };
+  }, [listings, f, favorites]);
 
   /* ---- Aktive Filter als eine einzige Chip-Reihe ------------------------- */
   type Chip = { key: keyof Filters; label: string; clear: () => void };
@@ -205,15 +170,19 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
   if (f.seg !== "ALLE")
     chips.push({
       key: "seg",
-      label: f.seg.toLowerCase(),
+      label: SEGMENT_LABEL[f.seg as Segment] ?? f.seg,
       clear: () => set("seg", "ALLE", "ALLE"),
     });
   if (f.marke !== "ALLE")
-    chips.push({ key: "marke", label: f.marke, clear: () => set("marke", "ALLE", "ALLE") });
+    chips.push({
+      key: "marke",
+      label: brandName(f.marke),
+      clear: () => set("marke", "ALLE", "ALLE"),
+    });
   if (f.anbieter !== "ALLE")
     chips.push({
       key: "anbieter",
-      label: f.anbieter === "GARAGE" ? "Garage" : "Privat",
+      label: SELLER_LABEL[f.anbieter as "PRIVAT" | "GARAGE"] ?? f.anbieter,
       clear: () => set("anbieter", "ALLE", "ALLE"),
     });
   if (f.sitze !== "ALLE")
@@ -247,8 +216,10 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
 
   const clearAll = () => {
     const next = new URLSearchParams();
-    if (sp.get("sort")) next.set("sort", sp.get("sort")!);
+    const keepSort = sp.get("sort");
+    if (keepSort) next.set("sort", keepSort);
     setSp(next);
+    setSearchSaved(false);
   };
 
   /** Welcher einzelne Filter kostet die meisten Treffer? Der Leerzustand
@@ -271,7 +242,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
   };
 
   return (
-    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-352 animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
       <PageHeader
         title={f.fav ? "Merkliste" : "Inserate"}
         lead={
@@ -282,34 +253,33 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
       >
         <div className="flex items-center gap-2">
           <Button onClick={() => setFinderOpen(true)} variant="secondary" size="sm">
-            <Compass size={15} /> Unsicher? 6 Fragen
+            <Compass size={15} aria-hidden /> Unsicher? 6 Fragen
           </Button>
           <div className="hidden rounded-card border border-line2 bg-surface2 p-0.5 sm:flex">
-            <button
-              onClick={() => changeView("grid")}
-              aria-pressed={view === "grid"}
-              title="Rasteransicht"
-              className={`grid h-8 w-8 place-items-center rounded-[7px] transition-colors ${
-                view === "grid" ? "bg-surface text-fg shadow-sm" : "text-fg3 hover:text-fg"
-              }`}
-            >
-              <LayoutGrid size={15} />
-            </button>
-            <button
-              onClick={() => changeView("list")}
-              aria-pressed={view === "list"}
-              title="Listenansicht"
-              className={`grid h-8 w-8 place-items-center rounded-[7px] transition-colors ${
-                view === "list" ? "bg-surface text-fg shadow-sm" : "text-fg3 hover:text-fg"
-              }`}
-            >
-              <List size={15} />
-            </button>
+            {(
+              [
+                ["grid", LayoutGrid, "Rasteransicht"],
+                ["list", List, "Listenansicht"],
+              ] as const
+            ).map(([key, Icon, label]) => (
+              <button
+                key={key}
+                onClick={() => changeView(key)}
+                aria-pressed={view === key}
+                title={label}
+                className={`grid h-8 w-8 place-items-center rounded-[7px] transition-colors ${
+                  view === key ? "bg-surface text-fg shadow-xs" : "text-fg3 hover:text-fg"
+                }`}
+              >
+                <Icon size={15} aria-hidden />
+                <span className="sr-only">{label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </PageHeader>
 
-      {/* Suche — auf dieser Seite gross, nicht nur im Header */}
+      {/* Suche — auf dieser Seite gross, wo der Header keine zeigt */}
       <div className="mt-6 md:hidden">
         <SearchBox initial={f.q} />
       </div>
@@ -318,15 +288,15 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Popover
           label="Karosserie"
-          summary={f.seg !== "ALLE" ? f.seg.toLowerCase() : undefined}
+          summary={f.seg !== "ALLE" ? SEGMENT_LABEL[f.seg as Segment] : undefined}
           active={f.seg !== "ALLE"}
         >
           {(close) =>
             SEGMENTS.map((s) => (
               <OptionRow
                 key={s}
-                label={s === "ALLE" ? "Alle Karosserien" : s.toLowerCase()}
-                count={countFor("seg", s)}
+                label={s === "ALLE" ? "Alle Karosserien" : SEGMENT_LABEL[s]}
+                count={facets("seg", s)}
                 active={f.seg === s}
                 onClick={() => {
                   set("seg", s, "ALLE");
@@ -339,14 +309,14 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
 
         <Popover
           label="Marke"
-          summary={f.marke !== "ALLE" ? f.marke : undefined}
+          summary={f.marke !== "ALLE" ? brandName(f.marke) : undefined}
           active={f.marke !== "ALLE"}
         >
           {(close) => (
             <>
               <OptionRow
                 label="Alle Marken"
-                count={countFor("marke", "ALLE")}
+                count={facets("marke", "ALLE")}
                 active={f.marke === "ALLE"}
                 onClick={() => {
                   set("marke", "ALLE", "ALLE");
@@ -356,8 +326,8 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
               {brands.map((b) => (
                 <OptionRow
                   key={b}
-                  label={b}
-                  count={countFor("marke", b)}
+                  label={brandName(b)}
+                  count={facets("marke", b)}
                   active={f.marke === b}
                   onClick={() => {
                     set("marke", b, "ALLE");
@@ -375,23 +345,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
           active={f.preis < PRICE_MAX}
           width={280}
         >
-          {() => (
-            <div className="px-1 py-1">
-              <Slider
-                label="Höchstpreis"
-                value={f.preis}
-                min={10000}
-                max={PRICE_MAX}
-                step={5000}
-                unit="CHF"
-                onChange={(v) => set("preis", v, PRICE_MAX)}
-              />
-              <p className="mt-2 text-small text-fg3">
-                <span className="tabular">{countFor("preis", f.preis)}</span> Inserate in
-                diesem Rahmen.
-              </p>
-            </div>
-          )}
+          {() => <PriceFilter value={f.preis} onCommit={(v) => set("preis", v, PRICE_MAX)} />}
         </Popover>
 
         <Popover
@@ -404,7 +358,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
               <OptionRow
                 key={r}
                 label={r === 0 ? "Egal" : `ab ${r} km`}
-                count={countFor("reichweite", r)}
+                count={facets("reichweite", r)}
                 active={f.reichweite === r}
                 onClick={() => {
                   set("reichweite", r, 0);
@@ -417,15 +371,19 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
 
         <Popover
           label="Anbieter"
-          summary={f.anbieter !== "ALLE" ? (f.anbieter === "GARAGE" ? "Garage" : "Privat") : undefined}
+          summary={
+            f.anbieter !== "ALLE"
+              ? SELLER_LABEL[f.anbieter as "PRIVAT" | "GARAGE"]
+              : undefined
+          }
           active={f.anbieter !== "ALLE"}
         >
           {(close) =>
             ANBIETER.map((a) => (
               <OptionRow
                 key={a}
-                label={a === "ALLE" ? "Alle Anbieter" : a === "GARAGE" ? "Garage" : "Privat"}
-                count={countFor("anbieter", a)}
+                label={a === "ALLE" ? "Alle Anbieter" : SELLER_LABEL[a]}
+                count={facets("anbieter", a)}
                 active={f.anbieter === a}
                 onClick={() => {
                   set("anbieter", a, "ALLE");
@@ -436,11 +394,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
           }
         </Popover>
 
-        <Popover
-          label="Mehr"
-          active={f.sitze !== "ALLE" || f.laden > 0 || f.v2x}
-          width={280}
-        >
+        <Popover label="Mehr" active={f.sitze !== "ALLE" || f.laden > 0 || f.v2x} width={280}>
           {() => (
             <div className="space-y-4 px-1 py-1">
               <div>
@@ -449,7 +403,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
                   <OptionRow
                     key={s}
                     label={s === "ALLE" ? "Egal" : `${s} Sitze`}
-                    count={countFor("sitze", s)}
+                    count={facets("sitze", s)}
                     active={f.sitze === s}
                     onClick={() => set("sitze", s, "ALLE")}
                   />
@@ -461,7 +415,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
                   <OptionRow
                     key={d}
                     label={d === 0 ? "Egal" : `ab ${d} kW`}
-                    count={countFor("laden", d)}
+                    count={facets("laden", d)}
                     active={f.laden === d}
                     onClick={() => set("laden", d, 0)}
                   />
@@ -471,7 +425,7 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
                 <div className="eyebrow mb-1.5">Bidirektional</div>
                 <OptionRow
                   label="Kann rückspeisen (V2H/V2L/V2G)"
-                  count={countFor("v2x", true)}
+                  count={facets("v2x", true)}
                   active={f.v2x}
                   onClick={() => set("v2x", f.v2x ? "" : "1", "")}
                 />
@@ -483,20 +437,21 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => set("fav", f.fav ? "" : "1", "")}
-            title={canFavorite ? undefined : "Merkliste — Anmeldung nötig"}
+            aria-pressed={f.fav}
+            title={
+              canFavorite ? "Nur gemerkte Inserate zeigen" : "Merkliste — Anmeldung nötig"
+            }
             className={`inline-flex h-9 items-center gap-1.5 rounded-card border px-3 text-small font-medium transition-colors ${
               f.fav
                 ? "border-accent bg-accent/10 text-accent"
                 : "border-line2 bg-surface text-fg2 hover:bg-surface2 hover:text-fg"
             }`}
           >
-            <Heart size={14} fill={f.fav ? "currentColor" : "none"} />
+            <Heart size={14} fill={f.fav ? "currentColor" : "none"} aria-hidden />
             <span className="tabular">{favorites.length}</span>
+            <span className="sr-only">gemerkte Inserate</span>
           </button>
-          <Popover
-            label={SORTS.find((s) => s.key === sort)?.label ?? "Sortieren"}
-            width={220}
-          >
+          <Popover label={SORT_LABEL(sort)} width={220}>
             {(close) =>
               SORTS.map((s) => (
                 <OptionRow
@@ -537,19 +492,19 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
             aria-label="Hinweis ausblenden"
             className="grid h-7 w-7 shrink-0 place-items-center rounded-chip text-fg3 transition-colors hover:bg-surface2 hover:text-fg"
           >
-            <X size={14} />
+            <X size={14} aria-hidden />
           </button>
         </div>
       )}
 
       {/* Ergebniszeile + aktive Filter — EINE Reihe für alles */}
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
-        <span className="text-small text-fg2">
+        <p className="text-small text-fg2" aria-live="polite">
           <span className="font-medium text-fg tabular">{rows.length}</span> von{" "}
           <span className="tabular">{listings.length}</span> Inseraten
-        </span>
+        </p>
         {chips.map((c) => (
-          <FilterChip key={c.label} onRemove={c.clear}>
+          <FilterChip key={c.key} onRemove={c.clear}>
             {c.label}
           </FilterChip>
         ))}
@@ -561,17 +516,17 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
             Alle zurücksetzen
           </button>
         )}
-        <div className="ml-auto flex items-center gap-2">
-          {searchSaved ? (
-            <Badge tone="positive">Suche gespeichert</Badge>
-          ) : (
-            session && (
+        {session && (
+          <div className="ml-auto flex items-center gap-2">
+            {searchSaved ? (
+              <Badge tone="positive">Suche gespeichert</Badge>
+            ) : (
               <Button onClick={() => void saveSearch()} variant="ghost" size="sm">
-                <BookmarkPlus size={14} /> Suche merken
+                <BookmarkPlus size={14} aria-hidden /> Suche merken
               </Button>
-            )
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Ergebnisse */}
@@ -579,8 +534,8 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
         {rows.length > 0 ? (
           view === "grid" ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {rows.map((l) => (
-                <ListingCard key={l.id} listing={l} />
+              {rows.map((l, i) => (
+                <ListingCard key={l.id} listing={l} priority={i < 4} />
               ))}
             </div>
           ) : (
@@ -624,6 +579,40 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
           onClose={() => setFinderOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+/** Preisregler mit lokalem Zustand: die URL (und damit die Neuberechnung des
+ *  ganzen Katalogs) wird erst beim Loslassen geschrieben. Vorher schrieb
+ *  jedes einzelne Pixel Ziehweg einen History-Eintrag. */
+function PriceFilter({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  return (
+    <div className="px-1 py-1">
+      <Slider
+        label="Höchstpreis"
+        value={draft}
+        min={PRICE_MIN}
+        max={PRICE_MAX}
+        step={2500}
+        unit="CHF"
+        onChange={setDraft}
+        onCommit={onCommit}
+      />
+      <p className="mt-2 text-small text-fg3">
+        {draft >= PRICE_MAX
+          ? "Kein Höchstpreis."
+          : `Zeigt Inserate bis CHF ${fmtCH(draft)}.`}
+      </p>
     </div>
   );
 }

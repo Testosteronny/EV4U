@@ -14,21 +14,14 @@ import EngineCore from "../EngineCore";
 import ListingCard from "../ListingCard";
 import { Badge, Button, EmptyState, LinkButton } from "../ui";
 import { useCockpit } from "../../hooks/useCockpit";
-import { useCantonTaxes } from "../../hooks/useCantonTaxes";
+import { useCosts } from "../../hooks/useCosts";
 import { useFavorites } from "../../hooks/useFavorites";
 import { useListings } from "../../hooks/useListings";
 import { photoUrl } from "../../lib/supabase";
 import { href } from "../../lib/url";
-import {
-  FUELS,
-  MAINT_EV_PER_KM,
-  MAINT_ICE_PER_KM,
-  REF_WEIGHT_KG,
-  cantonTaxFor,
-  chAverageTax,
-  currentCarEnergy,
-} from "../../utils/costModel";
-import { CARD_COMBOS, type Listing } from "../../data/evData";
+import { FUELS } from "../../utils/costModel";
+import { SEGMENT_LABEL, SELLER_LABEL, vehicleTitle } from "../../utils/format";
+import { type Listing } from "../../data/evData";
 import { fmtCH } from "../../utils/swiss";
 
 /* ============================================================================
@@ -43,10 +36,11 @@ import { fmtCH } from "../../utils/swiss";
 function Gallery({ listing }: { listing: Listing }) {
   const photos = listing.photos ?? [];
   const [active, setActive] = useState(0);
+  const title = vehicleTitle(listing);
 
   if (photos.length === 0) {
     return (
-      <div className="card-flush grid aspect-[16/10] place-items-center bg-surface2">
+      <div className="card-flush grid aspect-16/10 place-items-center bg-surface2">
         <div className="p-6 text-center">
           <CarGraphic
             segment={listing.segment}
@@ -64,11 +58,12 @@ function Gallery({ listing }: { listing: Listing }) {
 
   return (
     <div>
-      <div className="card-flush aspect-[16/10] overflow-hidden bg-surface2">
+      <div className="card-flush aspect-16/10 overflow-hidden bg-surface2">
         <img
           src={photoUrl(photos[active])}
-          alt={`${listing.brand} ${listing.model} — Foto ${active + 1} von ${photos.length}`}
+          alt={`${title} — Foto ${active + 1} von ${photos.length}`}
           loading="eager"
+          fetchPriority="high"
           decoding="async"
           className="h-full w-full object-cover"
         />
@@ -113,59 +108,21 @@ export default function InseratDetailPage({
    *  gebündelte Seed weicht davon ab). */
   all?: Listing[];
 }) {
-  const {
-    toggleCompare,
-    compareIds,
-    tariff,
-    annualKm,
-    currentFuel,
-    currentCons,
-    publicShare,
-    gemeinde,
-  } = useCockpit();
+  const { toggleCompare, compareIds, currentFuel } = useCockpit();
   const { favorites, toggleFavorite } = useFavorites();
   const { listings, active: activeListings, live } = useListings(all);
-  const { taxes: cantonTaxes } = useCantonTaxes();
   const listing = listings.find((l) => l.id === slug) ?? (live ? undefined : initial);
 
+  const title = listing ? vehicleTitle(listing) : "";
+
   useEffect(() => {
-    if (listing) {
-      document.title = `${listing.brand} ${listing.model} — CHF ${fmtCH(listing.price)} | EV4U`;
-    }
-  }, [listing]);
+    if (listing) document.title = `${title} — CHF ${fmtCH(listing.price)} | EV4U`;
+  }, [listing, title]);
 
-  // Das Inseratsalter ist der einzige Wert, der zwischen vorgerendertem HTML
-  // (Build-Snapshot) und Live-Daten auseinanderlaufen kann. Erst nach dem
-  // Mount zeigen — sonst verwirft React beim Abgleich die ganze Insel.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  /* Die Ersparnis für die Seitenleiste — dasselbe Modell wie im EngineCore,
-     nur ohne die Aufschlüsselung. */
-  const savings = useMemo(() => {
-    if (!listing) return 0;
-    const kwhYear = (annualKm / 100) * listing.consumption;
-    const publicKwh = kwhYear * (publicShare / 100);
-    const publicCost = Math.min(
-      ...CARD_COMBOS.map(
-        (c) => c.monthly * 12 + Math.max(0, publicKwh - c.inclKwh) * c.perKwh,
-      ),
-    );
-    const evEnergy = (kwhYear - publicKwh) * tariff + publicCost;
-    const isCurrentEv = currentFuel === "ELEKTRO";
-    const maint = isCurrentEv ? 0 : annualKm * (MAINT_ICE_PER_KM - MAINT_EV_PER_KM);
-    const cantonCode = gemeinde && gemeinde.canton !== "CH" ? gemeinde.canton : null;
-    const taxCfg = (cantonCode && cantonTaxes[cantonCode]) || chAverageTax(cantonTaxes);
-    const taxSaving = isCurrentEv
-      ? 0
-      : cantonTaxFor(listing.weightKg ?? REF_WEIGHT_KG, taxCfg).saving;
-    return (
-      currentCarEnergy(currentFuel, currentCons, annualKm, tariff) -
-      evEnergy +
-      maint +
-      taxSaving
-    );
-  }, [listing, annualKm, publicShare, tariff, currentFuel, currentCons, gemeinde, cantonTaxes]);
+  /* Dieselbe Rechnung wie im EngineCore weiter unten — buchstäblich dieselbe
+     Funktion, damit die Kachel in der Seitenleiste der Aufschlüsselung
+     darunter nie widersprechen kann. */
+  const costs = useCosts(listing);
 
   const similar = useMemo(() => {
     if (!listing) return [];
@@ -184,7 +141,7 @@ export default function InseratDetailPage({
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-[88rem] px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-352 px-4 py-16 sm:px-6">
         <EmptyState
           title="Dieses Inserat gibt es nicht mehr."
           hint="Verkauft, zurückgezogen, oder die URL stimmt nicht."
@@ -200,6 +157,8 @@ export default function InseratDetailPage({
   const reserved = listing.status === "RESERVIERT";
   const inCompare = compareIds.includes(listing.id);
   const isFav = favorites.includes(listing.id);
+  const savings = costs?.savings ?? 0;
+  const cheaper = savings >= 0;
   const discount =
     listing.priceNew && listing.priceNew > listing.price
       ? Math.round((1 - listing.price / listing.priceNew) * 100)
@@ -217,7 +176,7 @@ export default function InseratDetailPage({
   ];
 
   return (
-    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto max-w-352 animate-fade-in px-4 py-6 sm:px-6 sm:py-8">
       <a
         href={href("/inserate")}
         className="inline-flex items-center gap-1.5 text-small text-fg2 transition-colors hover:text-fg"
@@ -226,9 +185,7 @@ export default function InseratDetailPage({
       </a>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="text-display font-semibold text-fg">
-          {listing.brand} {listing.model}
-        </h1>
+        <h1 className="text-display font-semibold text-fg">{title}</h1>
         {reserved ? (
           <Badge tone="caution">Reserviert</Badge>
         ) : (
@@ -236,16 +193,49 @@ export default function InseratDetailPage({
         )}
       </div>
       <p className="mt-1 text-body text-fg2">
-        {listing.segment.toLowerCase()} ·{" "}
-        {listing.sellerType === "GARAGE" ? "Garage" : "Privat"} · {listing.ort}
-        {mounted && ` · eingestellt vor ${listing.postedDays} Tagen`}
+        {SEGMENT_LABEL[listing.segment]} · {SELLER_LABEL[listing.sellerType]} ·{" "}
+        {listing.ort} · eingestellt vor {listing.postedDays}{" "}
+        {listing.postedDays === 1 ? "Tag" : "Tagen"}
       </p>
 
-      {/* Galerie + Seitenleiste */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <Gallery listing={listing} />
+      {/* Galerie + Seitenleiste. Die Leiste bleibt beim Scrollen stehen, so
+          lange die linke Spalte läuft — Preis und Kontakt sind immer da. */}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="space-y-6">
+          <Gallery listing={listing} />
 
-        <aside className="lg:sticky lg:top-32 lg:self-start">
+          <section className="card p-5 sm:p-6">
+            <h2 className="text-h2 font-semibold text-fg">Zu diesem Auto</h2>
+            <p className="mt-2 max-w-prose whitespace-pre-line text-body text-fg2">
+              {listing.note}
+            </p>
+
+            <h3 className="mt-6 text-h3 font-semibold text-fg">Technische Daten</h3>
+            <dl className="mt-3 grid grid-cols-2 gap-x-6 sm:grid-cols-4">
+              {specs.map(([k, v]) => (
+                <div key={k} className="border-t border-line py-2.5">
+                  <dt className="text-small text-fg3">{k}</dt>
+                  <dd className="text-body font-medium text-fg tabular">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section id="kosten">
+            {reserved ? (
+              <EmptyState
+                title="Reserviert — Rechnung pausiert."
+                hint="Nur offene Inserate werden durchgerechnet. Ähnliche Fahrzeuge findest du unten."
+              />
+            ) : (
+              <EngineCore listing={listing} />
+            )}
+          </section>
+
+          <ContactSeller listing={listing} />
+        </div>
+
+        <aside className="lg:sticky lg:top-28">
           <div className="card p-5">
             <div className="text-display font-semibold text-fg tabular">
               CHF {fmtCH(listing.price)}
@@ -269,7 +259,7 @@ export default function InseratDetailPage({
                   variant={isFav ? "primary" : "secondary"}
                   size="sm"
                 >
-                  <Heart size={15} fill={isFav ? "currentColor" : "none"} />
+                  <Heart size={15} fill={isFav ? "currentColor" : "none"} aria-hidden />
                   {isFav ? "Gemerkt" : "Merken"}
                 </Button>
                 <Button
@@ -277,24 +267,39 @@ export default function InseratDetailPage({
                   disabled={reserved}
                   variant={inCompare ? "primary" : "secondary"}
                   size="sm"
+                  title={
+                    reserved ? "Reservierte Inserate lassen sich nicht vergleichen" : undefined
+                  }
                 >
-                  <GitCompareArrows size={15} />
+                  <GitCompareArrows size={15} aria-hidden />
                   {inCompare ? "Im Vergleich" : "Vergleichen"}
                 </Button>
               </div>
             </div>
 
-            {!reserved && (
+            {!reserved && costs && (
               <a
                 href="#kosten"
-                className="mt-4 block rounded-card bg-accent/[0.08] px-4 py-3 transition-colors hover:bg-accent/[0.12]"
+                className={`mt-4 block rounded-card px-4 py-3 transition-colors ${
+                  cheaper
+                    ? "bg-accent/8 hover:bg-accent/12"
+                    : "bg-caution/8 hover:bg-caution/12"
+                }`}
               >
                 <span className="text-small text-fg2">
-                  {savings >= 0 ? "Gegenüber deinem Auto sparst du" : "Gegenüber deinem Auto zahlst du"}
+                  {cheaper
+                    ? "Gegenüber deinem Auto sparst du"
+                    : "Gegenüber deinem Auto zahlst du"}
                 </span>
-                <span className="mt-0.5 block text-h2 font-semibold text-accent tabular">
+                <span
+                  className={`mt-0.5 block text-h2 font-semibold tabular ${
+                    cheaper ? "text-accent" : "text-caution"
+                  }`}
+                >
                   CHF {fmtCH(Math.abs(savings))}
-                  <span className="ml-1.5 text-small font-normal text-fg2">pro Jahr</span>
+                  <span className="ml-1.5 text-small font-normal text-fg2">
+                    {cheaper ? "pro Jahr" : "mehr pro Jahr"}
+                  </span>
                 </span>
                 <span className="mt-1 block text-small text-fg3">
                   gegen deinen {FUELS[currentFuel].label} — Rechnung ansehen ↓
@@ -304,56 +309,22 @@ export default function InseratDetailPage({
 
             <div className="mt-4 flex flex-wrap gap-1.5 border-t border-line pt-4">
               <Badge tone="positive">
-                <HeartPulse size={13} /> SOH {listing.soh} % gemessen
+                <HeartPulse size={13} aria-hidden /> SOH {listing.soh} %
               </Badge>
               {listing.bidi && (
                 <Badge tone="positive">
-                  <PlugZap size={13} /> Bidirektional
+                  <PlugZap size={13} aria-hidden /> Bidirektional
                 </Badge>
               )}
               <Badge>
-                <BatteryCharging size={13} /> {listing.battery} kWh
+                <BatteryCharging size={13} aria-hidden /> {listing.battery} kWh
               </Badge>
               <Badge>
-                <Users size={13} /> {listing.seats} Sitze
+                <Users size={13} aria-hidden /> {listing.seats} Sitze
               </Badge>
             </div>
           </div>
         </aside>
-      </div>
-
-      {/* Beschreibung, Daten, Rechnung, Anbieter */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <div className="space-y-6">
-          <section className="card p-5 sm:p-6">
-            <h2 className="text-h2 font-semibold text-fg">Zu diesem Auto</h2>
-            <p className="mt-2 max-w-prose text-body text-fg2">{listing.note}</p>
-
-            <h3 className="mt-6 text-h3 font-semibold text-fg">Technische Daten</h3>
-            <dl className="mt-3 grid grid-cols-2 gap-x-6 sm:grid-cols-4">
-              {specs.map(([k, v]) => (
-                <div key={k} className="border-t border-line py-2.5">
-                  <dt className="text-small text-fg3">{k}</dt>
-                  <dd className="text-body font-medium text-fg tabular">{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-
-          <section id="kosten" className="scroll-mt-28">
-            {reserved ? (
-              <EmptyState
-                title="Reserviert — Rechnung pausiert."
-                hint="Nur offene Inserate werden durchgerechnet. Ähnliche Fahrzeuge findest du unten."
-              />
-            ) : (
-              <EngineCore listing={listing} />
-            )}
-          </section>
-
-          <ContactSeller listing={listing} />
-        </div>
-        <div aria-hidden className="hidden lg:block" />
       </div>
 
       {/* Ähnliche Inserate — hält im Katalog, wenn dieses Auto nicht passt */}

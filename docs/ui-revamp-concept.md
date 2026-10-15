@@ -1,6 +1,24 @@
 # EV4U — UI-Revamp: Konzept «Klartext»
 
-Status: Vorschlag · Stand 2026-07-28
+Status: **umgesetzt** · Konzept 2026-07-28 · umgesetzt 2026-08
+
+Dieses Dokument bleibt als Begründung stehen — warum die Oberfläche so
+aussieht, wie sie aussieht. Die Diagnose in Abschnitt 1 beschreibt den
+*alten* Stand; die Zahlen dort sind historisch, nicht aktuell.
+
+Abweichungen von der Planung, bewusst getroffen:
+
+- **Spline Sans Mono ist ersatzlos entfallen** (3.2 sah es noch für Readouts
+  vor). Archivo bringt echte Tabellenziffern mit — dafür braucht es kein
+  zweites Schriftgesicht und keinen zweiten Font-Download.
+- **Regel 1 gilt auch für die Daten**, nicht nur fürs Chrom. Der Katalog stand
+  vollständig in Versalien («RENAULT 5 E-TECH 52»), weil die Marken- und
+  Modellnamen so in der Datenbank lagen. `src/utils/format.ts` setzt sie beim
+  Anzeigen; das Erfassungsformular schreibt sie nicht mehr gross.
+- **Der Vergleich übernimmt einen geteilten `?ids=`-Link**, statt daneben eine
+  zweite, nur lesbare Auswahl zu führen (4.3 liess das offen).
+- **Inserate sind bearbeitbar** (`ListingEditor`). Ohne das endete der
+  Verkäufer-Pfad in einem Entwurf, den niemand je vervollständigen konnte.
 
 ---
 

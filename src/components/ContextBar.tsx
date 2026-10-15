@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useStore } from "@nanostores/react";
 import { MapPin, SlidersHorizontal } from "lucide-react";
-import { Badge, Button, Field, Segmented, Sheet, Slider } from "./ui";
+import { Badge, Button, ChipGroup, Field, Segmented, Sheet, Slider } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
 import { $contextSheet, closeContextSheet, openContextSheet } from "../stores/ui";
-import { FUELS, type FuelType } from "../utils/costModel";
-import { CH_AVG_TARIFF, TARIFF_META, fmtCH, resolveZip } from "../utils/swiss";
+import { FUELS, PLUGIN_KWH_PER_100KM, type FuelType } from "../utils/costModel";
+import { CH_AVG_TARIFF, TARIFF_META, fmtCH } from "../utils/swiss";
+import { usePlzResolver } from "../hooks/usePlzResolver";
 
 /* ============================================================================
    ContextBar — «Deine Werte».
@@ -50,6 +51,8 @@ function ContextSheet({ onClose }: { onClose: () => void }) {
     setCurrentFuel,
     currentCons,
     setCurrentCons,
+    elecShare,
+    setElecShare,
     publicShare,
     setPublicShare,
     pv,
@@ -57,16 +60,29 @@ function ContextSheet({ onClose }: { onClose: () => void }) {
   } = useCockpit();
 
   const [zip, setZip] = useState(gemeinde?.zip ?? "");
-  const hit = zip.length === 4 ? resolveZip(zip) : null;
-  const invalid = zip.length === 4 && !hit;
+  // The PLZ map loads when the sheet opens; until it's there a complete PLZ
+  // is "pending", not "invalid".
+  const resolveZip = usePlzResolver();
+  const hit = zip.length === 4 && resolveZip ? resolveZip(zip) : null;
+  const invalid = zip.length === 4 && !!resolveZip && !hit;
   const fuelCfg = FUELS[currentFuel];
+  const isPlugin = currentFuel === "PLUGIN";
 
   // Vier gültige Ziffern setzen den Tarif direkt — kein Bestätigungsschritt.
+  //
+  // Beim Kürzen wird NICHT zurückgesetzt: wer «4617» zu «46» löscht, um eine
+  // andere PLZ zu tippen, hatte sonst mitten im Tippen keinen Standort mehr,
+  // und wer das Sheet dann schloss, war seinen fixierten Tarif los. Der alte
+  // Wert gilt, bis ein neuer gültig ist; entfernen kann man ihn ausdrücklich.
   useEffect(() => {
     if (hit && hit.zip !== gemeinde?.zip) setGemeinde(hit);
-    if (zip.length < 4 && gemeinde) setGemeinde(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zip]);
+  }, [zip, resolveZip]);
+
+  const clearZip = () => {
+    setZip("");
+    setGemeinde(null);
+  };
 
   return (
     <Sheet
@@ -115,21 +131,30 @@ function ContextSheet({ onClose }: { onClose: () => void }) {
           )}
 
           {gemeinde ? (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-accent/[0.07] px-4 py-3">
-              <div>
-                <div className="text-body font-medium text-fg">{gemeinde.name}</div>
-                <div className="text-small text-fg2">
-                  {gemeinde.zip} · Kanton {gemeinde.canton}
+            <>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-accent/[0.07] px-4 py-3">
+                <div>
+                  <div className="text-body font-medium text-fg">{gemeinde.name}</div>
+                  <div className="text-small text-fg2">
+                    {gemeinde.zip} · Kanton {gemeinde.canton}
+                    {gemeinde.via && ` · Tarif von ${gemeinde.via}`}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {gemeinde.estimated && <Badge tone="caution">geschätzt</Badge>}
+                  <span className="text-h3 font-semibold text-accent tabular">
+                    {fmtCH(gemeinde.tariff * 100, 1)}
+                    <span className="ml-1 text-small font-normal text-fg2">Rp./kWh</span>
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {gemeinde.estimated && <Badge tone="caution">geschätzt</Badge>}
-                <span className="text-h3 font-semibold text-accent tabular">
-                  {fmtCH(gemeinde.tariff * 100, 1)}
-                  <span className="ml-1 text-small font-normal text-fg2">Rp./kWh</span>
-                </span>
-              </div>
-            </div>
+              <button
+                onClick={clearZip}
+                className="mt-2 text-small text-fg3 underline-offset-2 transition-colors hover:text-fg hover:underline"
+              >
+                Standort entfernen
+              </button>
+            </>
           ) : (
             <p className="mt-3 text-small text-fg2">
               Ohne PLZ rechnen wir mit dem Schweizer Median{" "}
@@ -151,84 +176,136 @@ function ContextSheet({ onClose }: { onClose: () => void }) {
           onChange={setAnnualKm}
         />
 
-        {/* 3 — Das Vergleichsauto */}
+        <div className="h-px bg-line" />
+
+        {/* 3 — Das Vergleichsauto. Ab hier zwei klar getrennte Blöcke: was du
+             HEUTE fährst, und wie du ein E-Auto laden würdest. Vorher standen
+             beide ohne Trennung untereinander, und der Lade-Mix las sich wie
+             eine Frage an den Benziner. */}
         <section>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-small font-medium text-fg2">Dein Auto heute</span>
-            <Segmented
-              size="sm"
+          <h3 className="text-h3 font-semibold text-fg">Dein Auto heute</h3>
+          <p className="mt-0.5 text-small text-fg2">
+            Der Massstab: Jede Ersparnis auf EV4U wird gegen dieses Auto gerechnet.
+          </p>
+          <div className="mt-3">
+            <ChipGroup
+              label="Antrieb deines heutigen Autos"
               options={(Object.keys(FUELS) as FuelType[]).map((f) => ({
                 key: f,
                 label: FUELS[f].label,
+                hint: FUELS[f].hint,
               }))}
               value={currentFuel}
               onChange={setCurrentFuel}
             />
+            <p className="mt-1.5 text-small text-fg3">{fuelCfg.hint}</p>
           </div>
-          <Slider
-            label={`Verbrauch ${fuelCfg.label}`}
-            value={currentCons}
-            min={fuelCfg.min}
-            max={fuelCfg.max}
-            step={0.1}
-            unit={fuelCfg.unit}
-            format={(v) => v.toFixed(1)}
-            onChange={setCurrentCons}
-          />
+          <div className="mt-4">
+            <Slider
+              label={isPlugin ? "Benzin im Hybridbetrieb" : `Verbrauch ${fuelCfg.label}`}
+              value={currentCons}
+              min={fuelCfg.min}
+              max={fuelCfg.max}
+              step={0.1}
+              unit={fuelCfg.unit}
+              format={(v) => v.toFixed(1)}
+              onChange={setCurrentCons}
+            />
+            {isPlugin && (
+              <p className="mt-1 text-small text-fg3">
+                Was er braucht, wenn die Batterie leer ist und der Motor läuft —
+                nicht der WLTP-Mischwert von ein bis zwei Litern.
+              </p>
+            )}
+          </div>
+
+          {/* Nur beim Plug-in-Hybrid: ohne diesen Anteil fehlt der Strom, den
+              das heutige Auto ebenfalls verbraucht, in der Rechnung. */}
+          {isPlugin && (
+            <div className="mt-4">
+              <Slider
+                label="Davon elektrisch gefahren"
+                value={elecShare}
+                min={0}
+                max={100}
+                step={5}
+                unit="%"
+                format={(v) => String(v)}
+                onChange={setElecShare}
+              />
+              <p className="mt-1 text-small text-fg3">
+                {fmtCH(annualKm * (elecShare / 100))} von {fmtCH(annualKm)} km
+                elektrisch, gerechnet mit {PLUGIN_KWH_PER_100KM} kWh/100 km zu
+                deinem Heimtarif. Der Rest fährt auf Benzin.
+              </p>
+            </div>
+          )}
         </section>
 
-        {/* 4 — Lade-Mix */}
-        <div>
-          <Slider
-            label="Anteil unterwegs geladen"
-            value={publicShare}
-            min={0}
-            max={100}
-            step={5}
-            unit="%"
-            format={(v) => String(v)}
-            onChange={setPublicShare}
-          />
-          <p className="mt-1 text-small text-fg3">
-            {100 - publicShare} % zuhause zu {fmtCH(tariff * 100, 1)} Rp./kWh,{" "}
-            {publicShare} % unterwegs an öffentlichen Ladern.
-          </p>
-        </div>
+        <div className="h-px bg-line" />
 
-        {/* 5 — PV */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <span className="text-small font-medium text-fg2">
-              Photovoltaik zuhause
-            </span>
-            <p className="text-small text-fg3">
-              Rechnet zusätzliches Sparpotenzial beim Heimladen aus.
+        {/* 4 — Das E-Auto. Diese beiden Angaben gelten dem Inserat, das
+             gerade gerechnet wird — nicht dem Auto von oben. */}
+        <section>
+          <h3 className="text-h3 font-semibold text-fg">
+            Wenn du elektrisch fahren würdest
+          </h3>
+          <p className="mt-0.5 text-small text-fg2">
+            Gilt für jedes Inserat, das EV4U dir durchrechnet — unabhängig
+            davon, was du heute fährst.
+          </p>
+
+          <div className="mt-4">
+            <Slider
+              label="Anteil unterwegs geladen"
+              value={publicShare}
+              min={0}
+              max={100}
+              step={5}
+              unit="%"
+              format={(v) => String(v)}
+              onChange={setPublicShare}
+            />
+            <p className="mt-1 text-small text-fg3">
+              {100 - publicShare} % zuhause zu {fmtCH(tariff * 100, 1)} Rp./kWh,{" "}
+              {publicShare} % unterwegs an öffentlichen Ladern.
             </p>
           </div>
-          <Segmented
-            size="sm"
-            options={[
-              { key: "ja" as const, label: "Ja" },
-              { key: "nein" as const, label: "Nein" },
-            ]}
-            value={pv}
-            onChange={setPv}
-          />
-        </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span className="text-small font-medium text-fg2">
+                Photovoltaik zuhause
+              </span>
+              <p className="text-small text-fg3">
+                Rechnet zusätzliches Sparpotenzial beim Heimladen aus.
+              </p>
+            </div>
+            <Segmented
+              size="sm"
+              options={[
+                { key: "ja" as const, label: "Ja" },
+                { key: "nein" as const, label: "Nein" },
+              ]}
+              value={pv}
+              onChange={setPv}
+            />
+          </div>
+        </section>
       </div>
     </Sheet>
   );
 }
 
 export default function ContextBar() {
-  const { gemeinde, hydrated, annualKm, currentFuel, currentCons, publicShare } =
+  const { gemeinde, hydrated, annualKm, currentFuel, currentCons, elecShare, publicShare } =
     useCockpit();
   const open = useStore($contextSheet);
   const fuelCfg = FUELS[currentFuel];
 
   return (
     <>
-      <div className="mx-auto flex h-9 max-w-[88rem] items-center gap-2 overflow-hidden px-4 text-small sm:px-6">
+      <div className="mx-auto flex h-9 max-w-352 items-center gap-2 overflow-hidden px-4 text-small sm:px-6">
         <span className="hidden shrink-0 text-fg3 sm:inline">Deine Werte</span>
 
         {/* Erstbesuch: die Aufforderung steht inline in der Leiste — kein
@@ -270,9 +347,15 @@ export default function ContextBar() {
           <Item className="hidden md:inline">
             {fuelCfg.label} <span className="tabular">{currentCons.toFixed(1)}</span>{" "}
             {fuelCfg.unit.split("/")[0]}
+            {currentFuel === "PLUGIN" && (
+              <>
+                {" "}
+                · <span className="tabular">{elecShare} %</span> elektrisch
+              </>
+            )}
           </Item>
           <Item className="hidden xl:inline">
-            <span className="tabular">{100 - publicShare} %</span> zuhause
+            <span className="tabular">{100 - publicShare} %</span> zuhause laden
           </Item>
         </span>
 

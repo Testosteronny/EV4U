@@ -11,7 +11,10 @@ import {
 } from "../../hooks/useVehicleModels";
 import { supabase } from "../../lib/supabase";
 import { href } from "../../lib/url";
-import { fmtCH } from "../../utils/swiss";
+import { REF_WEIGHT_KG } from "../../utils/costModel";
+import { SEGMENT_LABEL, SELLER_LABEL } from "../../utils/format";
+import { fmtCH, resolveZip } from "../../utils/swiss";
+import { usePlzResolver } from "../../hooks/usePlzResolver";
 
 /* ============================================================================
    /verkaufen — Angebotsseite plus Erfassung als Drei-Schritt-Assistent.
@@ -29,8 +32,8 @@ const STEPS = [
   },
   {
     icon: HeartPulse,
-    title: "SOH messen",
-    text: "Ein zertifizierter Batterie-Check macht dein Inserat glaubwürdig — gemessen statt behauptet.",
+    title: "SOH messen (optional)",
+    text: "Ein zertifizierter Batterie-Check beim Partner macht aus deiner Angabe einen belegten Wert — das Argument, das den Preis hält.",
   },
   {
     icon: Radio,
@@ -93,6 +96,16 @@ export default function VerkaufenPage() {
   const modelName = manual ? (form.MODELL ?? "") : (selected?.model ?? "");
   const vehicleDone = brandName.trim() !== "" && modelName.trim() !== "";
   const segment = selected ? toListingSegment(selected.segment) : "LIMOUSINE";
+  // The PLZ map loads once the seller starts typing a postcode.
+  const resolvePlz = usePlzResolver((form.PLZ ?? "") !== "");
+  const plzHit =
+    resolvePlz && /^\d{4}$/.test(form.PLZ ?? "") ? resolvePlz(form.PLZ!) : null;
+  // Die Eckdaten, ohne die ein Inserat niemandem hilft.
+  const factsDone =
+    Number(form.JAHRGANG) >= 2010 &&
+    Number(form.JAHRGANG) <= new Date().getFullYear() + 1 &&
+    Number(form.PREIS) > 0 &&
+    (form.KM ?? "") !== "";
 
   const set = (key: string, value: string) => {
     setForm((p) => ({ ...p, [key]: value }));
@@ -105,30 +118,44 @@ export default function VerkaufenPage() {
     setBusy(true);
     const slugBase = `${brandName}-${modelName}`
       .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
+
+    // Eine reine PLZ ist kein Ort. Auflösen, solange die Eingabe eindeutig
+    // ist — sonst stünde auf dem Inserat «4617» neben lauter «4600 Olten».
+    const plz = (form.PLZ ?? "").trim();
+    const hit = /^\d{4}$/.test(plz) ? await resolveZip(plz).catch(() => null) : null;
+    const ort = hit && !hit.estimated ? `${hit.zip} ${hit.name}` : plz;
+
     const { error: err } = await supabase.from("listings").insert({
       slug: `${slugBase}-${Math.random().toString(36).slice(2, 6)}`,
       owner: session.user.id,
-      brand: brandName.toUpperCase(),
-      model: modelName.toUpperCase(),
+      // Keine Versalien mehr: der Katalog setzt Fahrzeugnamen gemischt, und
+      // ein `.toUpperCase()` beim Speichern hätte diese Information für
+      // immer weggeworfen.
+      brand: brandName.trim(),
+      model: modelName.trim(),
       segment,
       year: Number(form.JAHRGANG) || new Date().getFullYear(),
       km: Number(form.KM) || 0,
       price: Number(form.PREIS) || 1,
+      // Aus dem Katalog vorbefüllt, wo vorhanden — sonst der Referenzwert.
+      // Alles davon ist auf /konto bearbeitbar, bevor publiziert wird.
       range_km: selected?.range_km_max ?? 400,
       consumption: selected?.consumption_min ?? 16.8,
       charge_min: 30,
       dc_kw: 150,
       battery_kwh: 60,
-      weight_kg: 1900,
-      soh: 95,
+      weight_kg: REF_WEIGHT_KG,
+      soh: Number(form.SOH) || 100,
       seats: selected?.seats_max ?? 5,
       seller_name: profile?.name || session.user.email?.split("@")[0] || "Privat",
       seller_type: profile?.type ?? "PRIVAT",
-      ort: form.PLZ ?? "",
+      ort,
       status: "ENTWURF",
-      note: "Details folgen — Entwurf.",
+      note: form.BESCHREIBUNG?.trim() || "",
       price_new: selected?.price_from_chf ?? null,
       model_id: selected?.id ?? null,
     });
@@ -138,10 +165,10 @@ export default function VerkaufenPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[88rem] animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-352 animate-fade-in px-4 py-8 sm:px-6 sm:py-10">
       <PageHeader
         title="Dein E-Auto verkaufen"
-        lead="Privat oder als Garage. Ein Inserat mit gemessenen Werten — Käufer sehen nicht nur den Preis, sondern was das Auto sie kostet."
+        lead="Privat oder als Garage. Käufer sehen bei dir nicht nur den Preis, sondern was das Auto sie im Jahr kostet — mit ihrem eigenen Stromtarif gerechnet."
       />
 
       {/* Ablauf */}
@@ -263,7 +290,7 @@ export default function VerkaufenPage() {
                                 {b}
                               </option>
                             ))}
-                            <option value={MANUAL}>Andere Marke (manuell)</option>
+                            <option value={MANUAL}>Andere Marke (nicht im Katalog)</option>
                           </select>
                         </Field>
                         {!manual && (
@@ -288,17 +315,22 @@ export default function VerkaufenPage() {
                     )}
                     {manual && (
                       <>
-                        <Field label="Marke">
+                        <Field
+                          label="Marke eintippen"
+                          hint="So, wie sie der Hersteller schreibt — «Polestar», nicht «POLESTAR»."
+                        >
                           <input
                             value={form.MARKE ?? ""}
                             onChange={(e) => set("MARKE", e.target.value)}
+                            maxLength={40}
                             className="field"
                           />
                         </Field>
-                        <Field label="Modell">
+                        <Field label="Modell eintippen">
                           <input
                             value={form.MODELL ?? ""}
                             onChange={(e) => set("MODELL", e.target.value)}
+                            maxLength={60}
                             className="field"
                           />
                         </Field>
@@ -316,7 +348,7 @@ export default function VerkaufenPage() {
                             selected.seats_max && `${selected.seats_max} Sitze`,
                             selected.price_from_chf &&
                               `Neupreis ab CHF ${fmtCH(selected.price_from_chf)}`,
-                            toListingSegment(selected.segment).toLowerCase(),
+                            SEGMENT_LABEL[toListingSegment(selected.segment)],
                           ]
                             .filter(Boolean)
                             .map((c) => (
@@ -335,7 +367,9 @@ export default function VerkaufenPage() {
                     <Field label="Jahrgang">
                       <input
                         value={form.JAHRGANG ?? ""}
-                        onChange={(e) => set("JAHRGANG", e.target.value.replace(/\D/g, ""))}
+                        onChange={(e) =>
+                          set("JAHRGANG", e.target.value.replace(/\D/g, "").slice(0, 4))
+                        }
                         inputMode="numeric"
                         placeholder="2023"
                         className="field tabular"
@@ -350,7 +384,14 @@ export default function VerkaufenPage() {
                         className="field tabular"
                       />
                     </Field>
-                    <Field label="Standort-PLZ">
+                    <Field
+                      label="Standort-PLZ"
+                      hint={
+                        plzHit
+                          ? `${plzHit.zip} ${plzHit.name} · Kanton ${plzHit.canton}`
+                          : "Vier Ziffern — daraus wird der Ort auf dem Inserat."
+                      }
+                    >
                       <input
                         value={form.PLZ ?? ""}
                         onChange={(e) =>
@@ -370,15 +411,44 @@ export default function VerkaufenPage() {
                         className="field tabular"
                       />
                     </Field>
+                    <Field
+                      label="Batterie-SOH in %"
+                      hint="Aus Zertifikat oder Bordcomputer. Weisst du es nicht, lass 100 stehen und trag es später nach."
+                    >
+                      <input
+                        value={form.SOH ?? ""}
+                        onChange={(e) =>
+                          set("SOH", e.target.value.replace(/\D/g, "").slice(0, 3))
+                        }
+                        inputMode="numeric"
+                        placeholder="94"
+                        className="field tabular"
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <Field
+                        label="Beschreibung"
+                        hint="Was ein Foto nicht zeigt: Zustand, Ausstattung, Servicehistorie."
+                      >
+                        <textarea
+                          value={form.BESCHREIBUNG ?? ""}
+                          onChange={(e) => set("BESCHREIBUNG", e.target.value)}
+                          rows={3}
+                          maxLength={1200}
+                          placeholder="Erstbesitz, Service lückenlos, Winterräder dabei…"
+                          className="field resize-y"
+                        />
+                      </Field>
+                    </div>
                   </div>
                 )}
 
                 {step === 2 && (
                   <div>
                     <p className="max-w-prose text-body text-fg2">
-                      Das speichern wir als privaten Entwurf. Fotos, Beschreibung
-                      und der SOH-Wert kommen auf deinem Konto dazu — publiziert
-                      wird erst, wenn du es auslöst.
+                      Das speichern wir als privaten Entwurf. Fotos und die
+                      technischen Daten ergänzt du auf deinem Konto —
+                      publiziert wird erst, wenn du es auslöst.
                     </p>
                     {!supabase ? (
                       <p className="mt-3 text-small text-caution">
@@ -412,7 +482,12 @@ export default function VerkaufenPage() {
                 {step < 2 ? (
                   <Button
                     onClick={() => setStep((s) => s + 1)}
-                    disabled={step === 0 && !vehicleDone}
+                    disabled={(step === 0 && !vehicleDone) || (step === 1 && !factsDone)}
+                    title={
+                      step === 1 && !factsDone
+                        ? "Jahrgang, Kilometerstand und Preis fehlen noch"
+                        : undefined
+                    }
                     variant="primary"
                   >
                     Weiter
@@ -436,7 +511,7 @@ export default function VerkaufenPage() {
             <aside>
               <div className="eyebrow mb-2">So sehen Käufer dein Inserat</div>
               <div className="card-flush">
-                <div className="grid aspect-[16/10] place-items-center border-b border-line bg-surface2">
+                <div className="grid aspect-16/10 place-items-center border-b border-line bg-surface2">
                   <CarGraphic segment={segment} className="h-3/5 w-3/5 text-fg3" />
                 </div>
                 <div className="p-4">
@@ -449,8 +524,10 @@ export default function VerkaufenPage() {
                       {form.KM ? fmtCH(Number(form.KM)) : "—"}
                     </span>{" "}
                     km ·{" "}
-                    {selected?.range_km_max ? `${selected.range_km_max} km Reichweite` : "Reichweite"}{" "}
-                    · {profile?.type === "GARAGE" ? "Garage" : "Privat"}
+                    {selected?.range_km_max
+                      ? `${selected.range_km_max} km Reichweite`
+                      : "Reichweite"}{" "}
+                    · {SELLER_LABEL[profile?.type ?? "PRIVAT"]}
                   </p>
                   <div className="mt-3 border-t border-line pt-3 text-h3 font-semibold text-fg tabular">
                     CHF {form.PREIS ? fmtCH(Number(form.PREIS)) : "—"}

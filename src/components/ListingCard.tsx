@@ -1,10 +1,10 @@
-import { GitCompareArrows, Heart } from "lucide-react";
 import CarGraphic from "./CarGraphic";
+import ListingActions from "./ListingActions";
 import { Badge } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
-import { useFavorites } from "../hooks/useFavorites";
 import { photoUrl } from "../lib/supabase";
 import { href } from "../lib/url";
+import { SELLER_LABEL, vehicleTitle } from "../utils/format";
 import { fmtCH } from "../utils/swiss";
 import type { Listing } from "../data/evData";
 
@@ -17,25 +17,31 @@ import type { Listing } from "../data/evData";
    trägt Aktionen, nicht Daten.
    ============================================================================ */
 
-export default function ListingCard({ listing: l }: { listing: Listing }) {
-  const { tariff, compareIds, toggleCompare } = useCockpit();
-  const { favorites, toggleFavorite } = useFavorites();
+export default function ListingCard({
+  listing: l,
+  /** Erstes Bild der ersten Reihe: eager laden, es ist meist das LCP-Element. */
+  priority = false,
+}: {
+  listing: Listing;
+  priority?: boolean;
+}) {
+  const { tariff } = useCockpit();
 
   const reserved = l.status === "RESERVIERT";
   const photo = l.photos?.[0];
   const per100 = l.consumption * tariff;
-  const inCompare = compareIds.includes(l.id);
-  const isFav = favorites.includes(l.id);
+  const title = vehicleTitle(l);
 
   return (
     <div className="card-flush group relative flex flex-col transition-colors hover:border-line2">
       <a href={href(`/inserat/${l.id}`)} className="flex flex-1 flex-col">
-        <div className="relative aspect-[16/10] overflow-hidden border-b border-line bg-surface2">
+        <div className="relative aspect-16/10 overflow-hidden border-b border-line bg-surface2">
           {photo ? (
             <img
               src={photoUrl(photo)}
-              alt={`${l.brand} ${l.model}`}
-              loading="lazy"
+              alt={title}
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : undefined}
               decoding="async"
               className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02] ${
                 reserved ? "opacity-70" : ""
@@ -46,31 +52,30 @@ export default function ListingCard({ listing: l }: { listing: Listing }) {
               <CarGraphic segment={l.segment} className="h-3/5 w-3/5 text-fg3" />
             </div>
           )}
-          {reserved && (
+          {reserved ? (
             <span className="absolute left-3 top-3">
               <Badge tone="caution" className="bg-canvas/90">
                 Reserviert
               </Badge>
             </span>
-          )}
-          {!reserved && l.postedDays <= 3 && (
-            <span className="absolute left-3 top-3">
-              <Badge tone="positive" className="bg-canvas/90">
-                Neu
-              </Badge>
-            </span>
+          ) : (
+            l.postedDays <= 3 && (
+              <span className="absolute left-3 top-3">
+                <Badge tone="positive" className="bg-canvas/90">
+                  Neu
+                </Badge>
+              </span>
+            )
           )}
         </div>
 
         <div className="flex flex-1 flex-col justify-between gap-3 p-4">
           <div>
-            <h3 className="truncate text-h3 font-semibold text-fg">
-              {l.brand} {l.model}
-            </h3>
+            <h3 className="truncate text-h3 font-semibold text-fg">{title}</h3>
             <p className="mt-1 text-small text-fg2">
               {l.year} · <span className="tabular">{fmtCH(l.km)}</span> km ·{" "}
               <span className="tabular">{l.range}</span> km Reichweite ·{" "}
-              {l.sellerType === "GARAGE" ? "Garage" : "Privat"}
+              {SELLER_LABEL[l.sellerType]}
             </p>
           </div>
           <div className="flex items-end justify-between gap-3 border-t border-line pt-3">
@@ -87,39 +92,7 @@ export default function ListingCard({ listing: l }: { listing: Listing }) {
 
       {/* Aktionen liegen über dem Kartenlink, nicht darin — sonst navigieren
           sie mit. */}
-      <div className="absolute right-2.5 top-2.5 flex gap-1.5">
-        <button
-          onClick={() => toggleFavorite(l.id)}
-          title={isFav ? "Von der Merkliste entfernen" : "Auf die Merkliste"}
-          className={`grid h-8 w-8 place-items-center rounded-card border backdrop-blur-sm transition-colors ${
-            isFav
-              ? "border-accent bg-accent text-on-accent"
-              : "border-line2 bg-canvas/85 text-fg2 hover:text-fg"
-          }`}
-        >
-          <Heart size={15} fill={isFav ? "currentColor" : "none"} />
-          <span className="sr-only">Merken</span>
-        </button>
-        <button
-          onClick={() => toggleCompare(l.id)}
-          disabled={reserved}
-          title={
-            reserved
-              ? "Reservierte Inserate lassen sich nicht vergleichen"
-              : inCompare
-                ? "Aus dem Vergleich entfernen"
-                : "Zum Vergleich hinzufügen (max. 3)"
-          }
-          className={`grid h-8 w-8 place-items-center rounded-card border backdrop-blur-sm transition-colors disabled:opacity-40 ${
-            inCompare
-              ? "border-accent bg-accent text-on-accent"
-              : "border-line2 bg-canvas/85 text-fg2 hover:text-fg"
-          }`}
-        >
-          <GitCompareArrows size={15} />
-          <span className="sr-only">Vergleichen</span>
-        </button>
-      </div>
+      <ListingActions listing={l} variant="overlay" className="absolute right-2.5 top-2.5" />
     </div>
   );
 }

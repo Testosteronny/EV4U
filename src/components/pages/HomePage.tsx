@@ -30,7 +30,7 @@ export default function HomePage({ initial }: { initial?: Listing[] }) {
     <div className="animate-fade-in">
       <Hero />
 
-      <section className="mx-auto max-w-[88rem] border-t border-line px-4 py-10 sm:px-6">
+      <section className="mx-auto max-w-352 border-t border-line px-4 py-10 sm:px-6">
         <SectionHeader
           title="Neu auf EV4U"
           lead="Die zuletzt eingestellten Angebote — live aus der Datenbank."
@@ -40,8 +40,8 @@ export default function HomePage({ initial }: { initial?: Listing[] }) {
           </LinkButton>
         </SectionHeader>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {freshest.map((l) => (
-            <ListingCard key={l.id} listing={l} />
+          {freshest.map((l, i) => (
+            <ListingCard key={l.id} listing={l} priority={i < 4} />
           ))}
         </div>
       </section>

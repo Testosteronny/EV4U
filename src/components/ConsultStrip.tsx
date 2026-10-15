@@ -21,7 +21,7 @@ export default function ConsultStrip() {
   };
 
   return (
-    <section id="beratung" className="mx-auto max-w-[88rem] scroll-mt-32 px-4 py-10 sm:px-6">
+    <section id="beratung" className="mx-auto max-w-352 px-4 py-10 sm:px-6">
       <div className="card flex flex-wrap items-center justify-between gap-x-8 gap-y-5 p-5 sm:p-6">
         <div className="flex items-start gap-4">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-surface2 text-fg2">

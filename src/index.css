@@ -1,6 +1,224 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-canvas: rgb(var(--c-canvas));
+  --color-surface: rgb(var(--c-surface));
+  --color-surface2: rgb(var(--c-surface2));
+  --color-line: rgb(var(--c-line));
+  --color-line2: rgb(var(--c-line2));
+  --color-fg: rgb(var(--c-fg));
+  --color-fg2: rgb(var(--c-fg2));
+  --color-fg3: rgb(var(--c-fg3));
+
+  --color-accent: rgb(var(--c-accent));
+  --color-accent-hover: rgb(var(--c-accent-hover));
+
+  --color-on-accent: rgb(var(--c-on-accent));
+  --color-caution: rgb(var(--c-caution));
+
+  --font-sans: 'Archivo', system-ui, sans-serif;
+
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1rem;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.25rem;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.5rem;
+  --text-h3: 1.0625rem;
+  --text-h3--line-height: 1.5rem;
+  --text-h2: 1.375rem;
+  --text-h2--line-height: 1.75rem;
+  --text-h2--letter-spacing: -0.02em;
+  --text-display: 2rem;
+  --text-display--line-height: 2.375rem;
+  --text-display--letter-spacing: -0.02em;
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 2.75rem;
+  --text-display-lg--letter-spacing: -0.022em;
+
+  --radius-card: 10px;
+  --radius-chip: 6px;
+  --radius-overlay: 14px;
+
+  --shadow-overlay: var(--overlay-shadow);
+
+  --container-prose: 68ch;
+
+  --animate-fade-in: fade-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility card {
+  /* --- Flächen -----------------------------------------------------------
+     Karten grenzen sich durch Fläche + Haarlinie ab, nicht durch Schatten.
+     Schatten bleibt den Overlays vorbehalten. */
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 10px;
+}
+
+@utility card-flush {
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+@utility overlay-card {
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-line));
+  border-radius: 14px;
+  box-shadow: var(--overlay-shadow);
+}
+
+@utility slider {
+  /* --- Slider ------------------------------------------------------------
+     Ersetzt den Mischpult-Fader: runder Thumb, dünne Spur, keine Ticks. */
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  &::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      rgb(var(--c-accent)) 0%,
+      rgb(var(--c-accent)) var(--val, 50%),
+      rgb(var(--c-line2)) var(--val, 50%),
+      rgb(var(--c-line2)) 100%
+    );
+  }
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border-radius: 999px;
+    background: rgb(var(--c-surface));
+    border: 2px solid rgb(var(--c-accent));
+    transition: transform 0.12s ease;
+  }
+  &:hover::-webkit-slider-thumb {
+    transform: scale(1.1);
+  }
+  &::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: rgb(var(--c-line2));
+  }
+  &::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: rgb(var(--c-accent));
+  }
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: rgb(var(--c-surface));
+    border: 2px solid rgb(var(--c-accent));
+  }
+}
+
+@utility field {
+  /* --- Formularfelder ----------------------------------------------------- */
+  width: 100%;
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-line2));
+  border-radius: 10px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  color: rgb(var(--c-fg));
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+  &::placeholder {
+    color: rgb(var(--c-fg3));
+  }
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--c-accent));
+    box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.14);
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &select {
+    cursor: pointer;
+    padding-right: 2rem;
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgb(var(--c-fg2)) 50%),
+      linear-gradient(135deg, rgb(var(--c-fg2)) 50%, transparent 50%);
+    background-position:
+      calc(100% - 16px) calc(50% + 1px),
+      calc(100% - 11px) calc(50% + 1px);
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+  }
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility tabular {
+  /* Ziffern in Tabellen und Readouts richten sich aneinander aus. */
+  font-variant-numeric: tabular-nums;
+}
+
+@utility eyebrow {
+  /* Regel 1: Versalien ausschliesslich hier — Eyebrow über einem Abschnitt. */
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--c-fg3));
+}
 
 /* ============================================================================
    EV4U — Design system «Klartext»
@@ -74,6 +292,14 @@
     background: rgb(var(--c-canvas));
   }
 
+  /* Header (56 px) + Kontextleiste (36 px) kleben oben. Ohne diese Angabe
+     landet jedes Sprungziel — «#kosten», «#kontakt», «#beratung», der
+     Skip-Link — unter der Leiste. Vorher stand an jedem Ziel einzeln ein
+     `scroll-mt-*`, in drei verschiedenen Werten und nie am richtigen. */
+  html {
+    scroll-padding-top: 6.5rem;
+  }
+
   /* Regel 3: nichts unter 13 px ausser Rechtlichem. Die Basis ist 15/24 —
      das Arbeitspferd, das dem alten System komplett fehlte. */
   body {
@@ -93,10 +319,14 @@
     text-wrap: pretty;
   }
 
+  /* Der Ring folgt dem border-radius des Elements von selbst. Hier zusätzlich
+     `border-radius: 4px` zu setzen — wie es vorher stand — verformt jeden
+     fokussierten Button und jede fokussierte Karte im Moment des Fokus von
+     10 px auf 4 px: eine sichtbare Delle genau dort, wo die Tastatur
+     gerade steht. */
   :focus-visible {
     outline: 2px solid rgb(var(--c-accent));
     outline-offset: 2px;
-    border-radius: 4px;
   }
 
   /* Nur noch reduzierte Bewegung respektieren — es gibt kaum mehr welche. */
@@ -107,148 +337,5 @@
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
-  }
-}
-
-@layer components {
-  /* --- Flächen -----------------------------------------------------------
-     Karten grenzen sich durch Fläche + Haarlinie ab, nicht durch Schatten.
-     Schatten bleibt den Overlays vorbehalten. */
-  .card {
-    background: rgb(var(--c-surface));
-    border: 1px solid rgb(var(--c-line));
-    border-radius: 10px;
-  }
-
-  .card-flush {
-    background: rgb(var(--c-surface));
-    border: 1px solid rgb(var(--c-line));
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .overlay-card {
-    background: rgb(var(--c-surface));
-    border: 1px solid rgb(var(--c-line));
-    border-radius: 14px;
-    box-shadow: var(--overlay-shadow);
-  }
-
-  /* --- Slider ------------------------------------------------------------
-     Ersetzt den Mischpult-Fader: runder Thumb, dünne Spur, keine Ticks. */
-  .slider {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 20px;
-    background: transparent;
-    cursor: pointer;
-  }
-  .slider::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      rgb(var(--c-accent)) 0%,
-      rgb(var(--c-accent)) var(--val, 50%),
-      rgb(var(--c-line2)) var(--val, 50%),
-      rgb(var(--c-line2)) 100%
-    );
-  }
-  .slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    margin-top: -6px;
-    border-radius: 999px;
-    background: rgb(var(--c-surface));
-    border: 2px solid rgb(var(--c-accent));
-    transition: transform 0.12s ease;
-  }
-  .slider:hover::-webkit-slider-thumb {
-    transform: scale(1.1);
-  }
-  .slider::-moz-range-track {
-    height: 4px;
-    border-radius: 999px;
-    background: rgb(var(--c-line2));
-  }
-  .slider::-moz-range-progress {
-    height: 4px;
-    border-radius: 999px;
-    background: rgb(var(--c-accent));
-  }
-  .slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 999px;
-    background: rgb(var(--c-surface));
-    border: 2px solid rgb(var(--c-accent));
-  }
-
-  /* --- Formularfelder ----------------------------------------------------- */
-  .field {
-    width: 100%;
-    background: rgb(var(--c-surface));
-    border: 1px solid rgb(var(--c-line2));
-    border-radius: 10px;
-    padding: 0.625rem 0.875rem;
-    font-size: 0.9375rem;
-    line-height: 1.5rem;
-    color: rgb(var(--c-fg));
-    transition:
-      border-color 0.12s ease,
-      box-shadow 0.12s ease;
-  }
-  .field::placeholder {
-    color: rgb(var(--c-fg3));
-  }
-  .field:focus {
-    outline: none;
-    border-color: rgb(var(--c-accent));
-    box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.14);
-  }
-  .field:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  select.field {
-    cursor: pointer;
-    padding-right: 2rem;
-    appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, rgb(var(--c-fg2)) 50%),
-      linear-gradient(135deg, rgb(var(--c-fg2)) 50%, transparent 50%);
-    background-position:
-      calc(100% - 16px) calc(50% + 1px),
-      calc(100% - 11px) calc(50% + 1px);
-    background-size:
-      5px 5px,
-      5px 5px;
-    background-repeat: no-repeat;
-  }
-}
-
-@layer utilities {
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  /* Ziffern in Tabellen und Readouts richten sich aneinander aus. */
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
-  /* Regel 1: Versalien ausschliesslich hier — Eyebrow über einem Abschnitt. */
-  .eyebrow {
-    font-size: 0.6875rem;
-    line-height: 1rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgb(var(--c-fg3));
   }
 }

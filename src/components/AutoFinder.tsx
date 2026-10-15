@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { Badge, Button, Sheet } from "./ui";
-import type { Listing } from "../data/evData";
+import { PRICE_MAX } from "../lib/filters";
+import { SEGMENT_LABEL } from "../utils/format";
+import { fmtCH } from "../utils/swiss";
+import type { Listing, Segment } from "../data/evData";
 
 /* ============================================================================
    E-Auto-Finder — sechs Fragen für alle, die noch nicht wissen, wonach sie
@@ -10,15 +13,15 @@ import type { Listing } from "../data/evData";
 
    Jede Antwort trägt einen Patch derselben URL-Parameter, die auch die
    Filterzeile schreibt — die Ergebnisse sind danach ganz normal weiter
-   verfeinerbar.
+   verfeinerbar. `null` heisst «diesen Filter entfernen»: eine Antwort wie
+   «Egal» muss eine zuvor gesetzte Einschränkung auch wirklich lösen, sonst
+   sagt der Finder etwas anderes als er tut.
    ============================================================================ */
 
 export type FinderParams = Record<string, string | null>;
 
 type Option = { label: string; hint?: string; params: FinderParams };
 type Question = { id: string; tag: string; title: string; sub?: string; options: Option[] };
-
-const PRICE_MAX = 120000;
 
 const QUESTIONS: Question[] = [
   {
@@ -28,10 +31,14 @@ const QUESTIONS: Question[] = [
     sub: "Lässt sich später jederzeit anpassen.",
     options: [
       { label: "Stadt und Pendeln", hint: "Klein, wendig, günstig", params: { seg: "KOMPAKT" } },
-      { label: "Effiziente Limousine", hint: "Tiefer Verbrauch, viel Reichweite", params: { seg: "LIMOUSINE" } },
+      {
+        label: "Effiziente Limousine",
+        hint: "Tiefer Verbrauch, viel Reichweite",
+        params: { seg: "LIMOUSINE" },
+      },
       { label: "Kombi", hint: "Maximaler Laderaum", params: { seg: "KOMBI" } },
       { label: "SUV", hint: "Hohe Sitzposition, Familie", params: { seg: "SUV" } },
-      { label: "Zeig mir alles", hint: "Noch keine Vorliebe", params: { seg: "ALLE" } },
+      { label: "Zeig mir alles", hint: "Noch keine Vorliebe", params: { seg: null } },
     ],
   },
   {
@@ -39,9 +46,9 @@ const QUESTIONS: Question[] = [
     tag: "Sitze",
     title: "Wie viele Sitzplätze brauchst du?",
     options: [
-      { label: "Bis vier reichen", hint: "Zweitwagen, Paar, Stadt", params: { sitze: "ALLE" } },
+      { label: "Vier genügen", hint: "Zweitwagen, Paar, Stadt", params: { sitze: "4" } },
       { label: "Volle fünf Sitze", hint: "Familie und Gepäck", params: { sitze: "5" } },
-      { label: "Egal", hint: "Zählt für mich nicht", params: { sitze: "ALLE" } },
+      { label: "Egal", hint: "Zählt für mich nicht", params: { sitze: null } },
     ],
   },
   {
@@ -50,9 +57,17 @@ const QUESTIONS: Question[] = [
     title: "Wie lang ist deine typische Strecke?",
     sub: "Gefiltert wird nach WLTP-Reichweite.",
     options: [
-      { label: "Kurzstrecke", hint: "Stadt und Pendeln, unter 50 km pro Tag", params: { reichweite: "0" } },
+      {
+        label: "Kurzstrecke",
+        hint: "Stadt und Pendeln, unter 50 km pro Tag",
+        params: { reichweite: null },
+      },
       { label: "Mittel", hint: "Auch mal übers Wochenende", params: { reichweite: "400" } },
-      { label: "Langstrecke", hint: "Regelmässig Autobahn und Ferien", params: { reichweite: "500" } },
+      {
+        label: "Langstrecke",
+        hint: "Regelmässig Autobahn und Ferien",
+        params: { reichweite: "500" },
+      },
     ],
   },
   {
@@ -60,9 +75,17 @@ const QUESTIONS: Question[] = [
     tag: "Laden",
     title: "Wo lädst du meistens?",
     options: [
-      { label: "Zuhause oder am Solardach", hint: "Über Nacht, günstiger Eigenstrom", params: { laden: "0" } },
-      { label: "Unterwegs am Schnelllader", hint: "Tempo zählt — ab 150 kW", params: { laden: "150" } },
-      { label: "Gemischt", hint: "Beides kommt vor", params: { laden: "0" } },
+      {
+        label: "Zuhause oder am Solardach",
+        hint: "Über Nacht, günstiger Eigenstrom",
+        params: { laden: null },
+      },
+      {
+        label: "Unterwegs am Schnelllader",
+        hint: "Tempo zählt — ab 150 kW",
+        params: { laden: "150" },
+      },
+      { label: "Gemischt", hint: "Beides kommt vor", params: { laden: null } },
     ],
   },
   {
@@ -70,10 +93,10 @@ const QUESTIONS: Question[] = [
     tag: "Budget",
     title: "Was darf es kosten?",
     options: [
-      { label: "Bis 20’000", hint: "Einstieg", params: { preis: "20000" } },
-      { label: "Bis 35’000", hint: "Mittelklasse", params: { preis: "35000" } },
-      { label: "Bis 60’000", hint: "Premium", params: { preis: "60000" } },
-      { label: "Offen", hint: "Zeig mir alles", params: { preis: String(PRICE_MAX) } },
+      { label: "Bis 20'000", hint: "Einstieg", params: { preis: "20000" } },
+      { label: "Bis 35'000", hint: "Mittelklasse", params: { preis: "35000" } },
+      { label: "Bis 60'000", hint: "Premium", params: { preis: "60000" } },
+      { label: "Offen", hint: "Zeig mir alles", params: { preis: null } },
     ],
   },
   {
@@ -89,6 +112,8 @@ const QUESTIONS: Question[] = [
   },
 ];
 
+/** Alle Antworten zu einem Parameter-Patch. Jede Frage schreibt genau ihren
+ *  eigenen Schlüssel, es kann sich also nichts gegenseitig überschreiben. */
 function mergeParams(answers: (number | null)[]): FinderParams {
   const out: FinderParams = {};
   answers.forEach((sel, qi) => {
@@ -99,11 +124,9 @@ function mergeParams(answers: (number | null)[]): FinderParams {
 }
 
 function matches(l: Listing, p: FinderParams): boolean {
-  const seg = p.seg ?? "ALLE";
-  const sitze = p.sitze ?? "ALLE";
   return (
-    (seg === "ALLE" || l.segment === seg) &&
-    (sitze === "ALLE" || l.seats === Number(sitze)) &&
+    (!p.seg || l.segment === p.seg) &&
+    (!p.sitze || l.seats === Number(p.sitze)) &&
     l.range >= Number(p.reichweite ?? 0) &&
     l.dcKw >= Number(p.laden ?? 0) &&
     l.price <= Number(p.preis ?? PRICE_MAX) &&
@@ -113,12 +136,11 @@ function matches(l: Listing, p: FinderParams): boolean {
 
 function summaryChips(p: FinderParams): string[] {
   const out: string[] = [];
-  if (p.seg && p.seg !== "ALLE") out.push(p.seg.toLowerCase());
-  if (p.sitze === "5") out.push("5 Sitze");
-  if (p.reichweite && Number(p.reichweite) > 0) out.push(`ab ${p.reichweite} km`);
-  if (p.laden && Number(p.laden) > 0) out.push(`ab ${p.laden} kW`);
-  if (p.preis && Number(p.preis) < PRICE_MAX)
-    out.push(`bis ${Math.round(Number(p.preis) / 1000)}’000`);
+  if (p.seg) out.push(SEGMENT_LABEL[p.seg as Segment] ?? p.seg);
+  if (p.sitze) out.push(`${p.sitze} Sitze`);
+  if (p.reichweite) out.push(`ab ${p.reichweite} km`);
+  if (p.laden) out.push(`ab ${p.laden} kW`);
+  if (p.preis) out.push(`bis CHF ${fmtCH(Number(p.preis))}`);
   if (p.v2x === "1") out.push("bidirektional");
   return out;
 }
@@ -134,6 +156,9 @@ export default function AutoFinder({
 }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>(() => QUESTIONS.map(() => null));
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const total = QUESTIONS.length;
   const onResult = step >= total;
@@ -149,7 +174,10 @@ export default function AutoFinder({
       next[step] = i;
       return next;
     });
-    window.setTimeout(() => setStep((s) => s + 1), 150);
+    // Kurz stehen lassen, damit die Auswahl sichtbar wird, bevor es
+    // weitergeht — der Timer wird beim Schliessen aufgeräumt.
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setStep((s) => s + 1), 150);
   };
 
   const q = QUESTIONS[Math.min(step, total - 1)];
@@ -171,10 +199,10 @@ export default function AutoFinder({
               variant="ghost"
               size="sm"
             >
-              <RotateCcw size={14} /> Nochmal
+              <RotateCcw size={14} aria-hidden /> Nochmal
             </Button>
             <Button onClick={() => onApply(merged)} variant="primary">
-              {count} Inserate ansehen
+              {count === 1 ? "1 Inserat ansehen" : `${count} Inserate ansehen`}
             </Button>
           </>
         ) : (
@@ -185,9 +213,9 @@ export default function AutoFinder({
               variant="ghost"
               size="sm"
             >
-              <ArrowLeft size={14} /> Zurück
+              <ArrowLeft size={14} aria-hidden /> Zurück
             </Button>
-            <span className="text-small text-fg2">
+            <span className="text-small text-fg2" aria-live="polite">
               <span className="font-medium text-fg tabular">{count}</span> Treffer bisher
             </span>
           </>
@@ -248,6 +276,7 @@ export default function AutoFinder({
                 <button
                   key={o.label}
                   onClick={() => pick(oi)}
+                  aria-pressed={active}
                   className={`rounded-card border px-4 py-3 text-left transition-colors ${
                     active
                       ? "border-accent bg-accent/[0.07]"

@@ -1,4 +1,5 @@
 import type { Listing, Segment } from "../data/evData";
+import { vehicleTitle } from "../utils/format";
 import { photoUrl } from "../lib/supabase";
 
 /* ============================================================================
@@ -60,7 +61,7 @@ export function ListingThumb({
       {photo ? (
         <img
           src={photoUrl(photo)}
-          alt={`${listing.brand} ${listing.model}`}
+          alt={vehicleTitle(listing)}
           loading="lazy"
           decoding="async"
           className="h-full w-full object-cover"

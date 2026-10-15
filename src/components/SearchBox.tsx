@@ -3,8 +3,9 @@ import { Search, Sparkles, X } from "lucide-react";
 import { aiSearch, aiSearchPossible, aiSearchUrl } from "../lib/aiSearch";
 import { useListings } from "../hooks/useListings";
 import { href } from "../lib/url";
+import { SELLER_LABEL, vehicleTitle } from "../utils/format";
+import { matchesQuery } from "../utils/search";
 import { fmtCH } from "../utils/swiss";
-import type { Listing } from "../data/evData";
 
 /* ============================================================================
    SearchBox — ein Feld, zwei Wege.
@@ -21,16 +22,6 @@ import type { Listing } from "../data/evData";
    nützt. Ist die Funktion nicht deployt oder scheitert der Aufruf, passiert
    genau das, was vorher passiert wäre: normale Textsuche.
    ============================================================================ */
-
-/** Ein Treffer, wenn jedes eingegebene Wort irgendwo im Datensatz vorkommt —
- *  «tesla 3» findet «TESLA MODEL 3 RWD». Wird auch von /inserate benutzt. */
-export function matchesQuery(l: Listing, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const hay = `${l.brand} ${l.model} ${l.segment} ${l.sellerType} ${l.seller} ${l.ort} ${l.year}`
-    .toLowerCase();
-  return q.split(/\s+/).every((word) => hay.includes(word));
-}
 
 export default function SearchBox({
   initial = "",
@@ -177,10 +168,10 @@ export default function SearchBox({
               >
                 <span className="min-w-0">
                   <span className="block truncate text-body font-medium text-fg">
-                    {l.brand} {l.model}
+                    {vehicleTitle(l)}
                   </span>
                   <span className="block text-small text-fg3">
-                    {l.year} · {fmtCH(l.km / 1000, 0)}′ km · {l.sellerType.toLowerCase()}
+                    {l.year} · {fmtCH(l.km)} km · {SELLER_LABEL[l.sellerType]}
                   </span>
                 </span>
                 <span className="shrink-0 text-body font-medium text-fg tabular">

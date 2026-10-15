@@ -2,13 +2,15 @@
 import Base from "../layouts/Base.astro";
 import InseratePage from "../components/pages/InseratePage";
 import { fetchBuildListings } from "../lib/buildListings";
+import { jsonLd } from "../lib/jsonLd";
+import { vehicleTitle } from "../utils/format";
 
 // Build-time snapshot → the catalogue prerenders with the real inventory,
 // and the ItemList below tells crawlers/LLMs exactly what is for sale.
 const listings = await fetchBuildListings();
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-const jsonLd = JSON.stringify({
+const itemListLd = jsonLd({
   "@context": "https://schema.org",
   "@type": "ItemList",
   name: "E-Auto-Inserate Schweiz — EV4U",
@@ -16,7 +18,7 @@ const jsonLd = JSON.stringify({
   itemListElement: listings.map((l, i) => ({
     "@type": "ListItem",
     position: i + 1,
-    name: `${l.brand} ${l.model} (${l.year})`,
+    name: `${vehicleTitle(l)} (${l.year})`,
     url: new URL(`${base}/inserat/${l.id}`, Astro.site).href,
   })),
 });
@@ -26,6 +28,6 @@ const jsonLd = JSON.stringify({
   title="Inserate — EV4U"
   description="Alle offenen E-Auto-Inserate von Privaten und Garagen — filterbar nach Marke, Sitzen und Preis, jedes mit Energiekosten in deiner Gemeinde."
 >
-  <script type="application/ld+json" set:html={jsonLd} slot="head" />
+  <script is:inline type="application/ld+json" set:html={itemListLd} slot="head" />
   <InseratePage client:load initial={listings} />
 </Base>

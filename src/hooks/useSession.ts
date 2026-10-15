@@ -1,22 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useStore } from "@nanostores/react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "../lib/supabase";
+import { $session, $sessionReady, ensureSession } from "../stores/session";
 
-/** Current Supabase auth session, kept in sync with login/logout/refresh. */
+/** Current Supabase auth session. One fetch and one subscription per page —
+ *  see stores/session.ts; this hook is only the read side. */
 export function useSession(): { session: Session | null; ready: boolean } {
-  const [session, setSession] = useState<Session | null>(null);
-  const [ready, setReady] = useState(!supabase);
+  const session = useStore($session);
+  const ready = useStore($sessionReady);
 
   useEffect(() => {
-    if (!supabase) return;
-    void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setReady(true);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-    });
-    return () => sub.subscription.unsubscribe();
+    ensureSession();
   }, []);
 
   return { session, ready };

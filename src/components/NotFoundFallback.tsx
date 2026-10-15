@@ -22,7 +22,7 @@ export default function NotFoundFallback() {
   }
 
   return (
-    <div className="mx-auto max-w-[88rem] px-4 py-16 sm:px-6">
+    <div className="mx-auto max-w-352 px-4 py-16 sm:px-6">
       <EmptyState
         title="Diese Seite gibt es nicht."
         hint="Die URL stimmt nicht, oder die Seite wurde verschoben."

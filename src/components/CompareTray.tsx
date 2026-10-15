@@ -3,6 +3,8 @@ import { LinkButton } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
 import { useListings } from "../hooks/useListings";
 import { href } from "../lib/url";
+import { MAX_COMPARE } from "../stores/cockpit";
+import { vehicleShort } from "../utils/format";
 
 /* ============================================================================
    CompareTray — die Leiste, sobald etwas im Vergleich liegt. Auf /vergleich
@@ -35,11 +37,14 @@ export default function CompareTray() {
               title="Aus dem Vergleich entfernen"
               className="inline-flex items-center gap-1.5 rounded-chip border border-line bg-surface px-2.5 py-1 text-small text-fg transition-colors hover:border-line2 hover:bg-surface2"
             >
-              {l.brand} {l.model.split(" ")[0]}
+              {vehicleShort(l)}
               <X size={12} className="text-fg3" aria-hidden />
+              <span className="sr-only">aus dem Vergleich entfernen</span>
             </button>
           ))}
-          <span className="text-small text-fg3 tabular">{compareIds.length}/3</span>
+          <span className="text-small text-fg3 tabular">
+            {items.length}/{MAX_COMPARE}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -48,7 +53,7 @@ export default function CompareTray() {
           >
             Leeren
           </button>
-          {compareIds.length >= 2 ? (
+          {items.length >= 2 ? (
             <LinkButton href={href("/vergleich")} variant="primary" size="sm">
               Vergleichen →
             </LinkButton>

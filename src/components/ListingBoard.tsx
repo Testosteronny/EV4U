@@ -1,9 +1,10 @@
-import { ChevronRight, GitCompareArrows, Heart } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { ListingThumb } from "./CarGraphic";
+import ListingActions from "./ListingActions";
 import { Badge } from "./ui";
 import { useCockpit } from "../hooks/useCockpit";
-import { useFavorites } from "../hooks/useFavorites";
 import { href } from "../lib/url";
+import { SEGMENT_LABEL, SELLER_LABEL, vehicleTitle } from "../utils/format";
 import { fmtCH } from "../utils/swiss";
 import { type Listing } from "../data/evData";
 
@@ -29,8 +30,7 @@ export default function ListingBoard({
   /** Weniger Spalten, keine Aktionen — für eingebettete Listen. */
   compact?: boolean;
 }) {
-  const { tariff, compareIds, toggleCompare } = useCockpit();
-  const { favorites, toggleFavorite } = useFavorites();
+  const { tariff } = useCockpit();
   const cols = compact ? COLS_COMPACT : COLS;
 
   return (
@@ -50,13 +50,11 @@ export default function ListingBoard({
       {listings.map((l) => {
         const reserved = l.status === "RESERVIERT";
         const per100 = l.consumption * tariff;
-        const inCompare = compareIds.includes(l.id);
-        const isFav = favorites.includes(l.id);
 
         return (
           <div
             key={l.id}
-            className="group relative border-b border-line last:border-b-0 transition-colors hover:bg-surface2/60"
+            className="group relative border-b border-line transition-colors last:border-b-0 hover:bg-surface2/60"
           >
             <a
               href={href(`/inserat/${l.id}`)}
@@ -65,11 +63,11 @@ export default function ListingBoard({
               }`}
             >
               <span className="flex min-w-0 items-center gap-3">
-                <ListingThumb listing={l} className="hidden h-12 w-[4.5rem] sm:block" />
+                <ListingThumb listing={l} className="hidden h-12 w-18 sm:block" />
                 <span className="min-w-0">
                   <span className="flex items-center gap-2">
                     <span className="truncate text-body font-medium text-fg">
-                      {l.brand} {l.model}
+                      {vehicleTitle(l)}
                     </span>
                     {reserved ? (
                       <Badge tone="caution">Reserviert</Badge>
@@ -78,8 +76,7 @@ export default function ListingBoard({
                     )}
                   </span>
                   <span className="block truncate text-small text-fg2">
-                    {l.segment.toLowerCase()} ·{" "}
-                    {l.sellerType === "GARAGE" ? "Garage" : "Privat"} · {l.ort}
+                    {SEGMENT_LABEL[l.segment]} · {SELLER_LABEL[l.sellerType]} · {l.ort}
                     <span className="md:hidden">
                       {" "}
                       · {l.year} · <span className="tabular">{fmtCH(l.km)}</span> km
@@ -102,45 +99,20 @@ export default function ListingBoard({
                 <span className="text-body font-semibold text-fg tabular">
                   {fmtCH(l.price)}
                 </span>
-                {compact && <ChevronRight size={15} className="text-fg3" aria-hidden />}
-                {!compact && <span className="w-[4.75rem]" aria-hidden />}
+                {compact ? (
+                  <ChevronRight size={15} className="text-fg3" aria-hidden />
+                ) : (
+                  /* Platz für die Aktionen, die darüber schweben. */
+                  <span className="w-19" aria-hidden />
+                )}
               </span>
             </a>
 
             {!compact && (
-              <div className="absolute right-4 top-1/2 flex -translate-y-1/2 gap-1.5">
-                <button
-                  onClick={() => toggleFavorite(l.id)}
-                  title={isFav ? "Von der Merkliste entfernen" : "Auf die Merkliste"}
-                  className={`grid h-8 w-8 place-items-center rounded-card border transition-colors ${
-                    isFav
-                      ? "border-accent bg-accent text-on-accent"
-                      : "border-line2 bg-surface text-fg2 hover:text-fg"
-                  }`}
-                >
-                  <Heart size={14} fill={isFav ? "currentColor" : "none"} />
-                  <span className="sr-only">Merken</span>
-                </button>
-                <button
-                  onClick={() => toggleCompare(l.id)}
-                  disabled={reserved}
-                  title={
-                    reserved
-                      ? "Reservierte Inserate lassen sich nicht vergleichen"
-                      : inCompare
-                        ? "Aus dem Vergleich entfernen"
-                        : "Zum Vergleich hinzufügen (max. 3)"
-                  }
-                  className={`grid h-8 w-8 place-items-center rounded-card border transition-colors disabled:opacity-40 ${
-                    inCompare
-                      ? "border-accent bg-accent text-on-accent"
-                      : "border-line2 bg-surface text-fg2 hover:text-fg"
-                  }`}
-                >
-                  <GitCompareArrows size={14} />
-                  <span className="sr-only">Vergleichen</span>
-                </button>
-              </div>
+              <ListingActions
+                listing={l}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+              />
             )}
           </div>
         );

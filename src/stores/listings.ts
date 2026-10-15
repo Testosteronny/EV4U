@@ -25,7 +25,18 @@ export function seedListings(rows: Listing[]): void {
   $listings.set(rows);
 }
 
-export async function refreshListings(): Promise<void> {
+let inFlight: Promise<void> | null = null;
+
+/** Reload the catalogue from the database. Concurrent calls share one
+ *  request — after a mutation, several panels ask at the same moment. */
+export function refreshListings(): Promise<void> {
+  inFlight ??= doRefresh().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function doRefresh(): Promise<void> {
   if (!supabase) return;
   const { data, error } = await supabase
     .from("listings")

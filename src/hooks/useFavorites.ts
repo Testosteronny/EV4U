@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useStore } from "@nanostores/react";
 import { $favorites, loadFavorites, toggleFavoriteDb } from "../stores/favorites";
-import { href } from "../lib/url";
+import { askToLogIn } from "../stores/ui";
 import { useSession } from "./useSession";
 
 /** Account-backed Merkliste. Logged out, a heart click offers the login
@@ -21,8 +21,9 @@ export function useFavorites(): {
   const toggleFavorite = useCallback(
     (slug: string) => {
       if (!session) {
-        if (window.confirm("Die Merkliste gehört zu deinem Konto. Jetzt anmelden?"))
-          window.location.href = href("/konto");
+        askToLogIn(
+          "Die Merkliste gehört zu deinem Konto — so findest du dieses Auto auf jedem Gerät wieder.",
+        );
         return;
       }
       void toggleFavoriteDb(slug, session.user.id);

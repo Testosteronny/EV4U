@@ -33,6 +33,10 @@ npm run fetch:tariffs  # refresh official tariff data (yearly, see below)
 
 Without a `.env` (see `.env.example`) the app runs on the twelve bundled seed
 listings — the whole front end, the cost model and every filter work offline.
+The vehicle catalog lives only in Supabase, though: offline, the sell form
+asks for brand and model as text and the buyer filter offers the brands in
+stock. Copy `.env.example` to `.env` with the project URL and publishable key
+to work against the real catalog.
 
 ## Architecture
 
@@ -63,6 +67,7 @@ src/
     ListingActions.tsx       ← the Merken/Vergleichen pair, used by both
     ListingEditor.tsx        ← edit an own listing (sheet on /konto)
     VehiclePicker.tsx        ← Marke → Modell → Variante (/verkaufen)
+    VehicleFilter.tsx        ← same catalog as the buyer filter (/inserate)
     ui.tsx                   ← Button · Badge · Sheet · Popover · Slider …
   hooks/
     useCockpit.ts            ← the persisted visitor context
@@ -308,6 +313,17 @@ level can be typed in when the car is missing; «Weiss ich nicht genau» keeps
 the model link without guessing specs. Brands + models arrive in one embedded
 select, variants per model on demand.
 
+**Buyer filter** (`VehicleFilter.tsx` on `/inserate`, «Marke & Modell»): the
+same catalog as cascading selects — what's in stock first, with hit counts,
+then every other brand/model, so a buyer can save a search for a car nobody
+offers yet. The URL keeps the brand as a name (`marke=Tesla`; old links and
+the AI search's `TESLA` still match, case and accents ignored) and model and
+variant as catalog slugs (`modell=tesla_model-y`, `variante=…`). Listings
+load with those slugs embedded (`LISTING_SELECT`), so model and variant match
+on the catalog link only — a typed-in car is found by brand and free text,
+never guessed into a model. The search box suggests catalog brands and models
+with their listing count and jumps straight into this filter.
+
 **Nothing is invented.** Values the catalog lacks stay empty (no DC on a
 microcar, unknown curb weight — the tax then uses `REF_WEIGHT_KG`). Only the
 four NOT NULL specs start at neutral `SPEC_PLACEHOLDERS` when no variant is
@@ -331,8 +347,10 @@ sheet. Any error aborts with *Nothing written*. Otherwise it writes:
 - `src/data/vehicleCatalogMeta.json` — counts and edition for the picker's
   footnote.
 
-Apply the seed with `psql "$DATABASE_URL" -f supabase/seed/vehicle_catalog.sql`
-or paste it into the Supabase SQL editor. The schema is
+Apply the seed with `psql "$DATABASE_URL" -f supabase/seed/vehicle_catalog.sql`,
+with the logged-in Supabase CLI (`supabase db query --linked -f
+supabase/seed/vehicle_catalog.sql`, no database password needed) or paste it
+into the Supabase SQL editor. The schema is
 `supabase/migrations/*vehicle_catalog_v2.sql`.
 
 ## Backlog (deliberately not built yet)

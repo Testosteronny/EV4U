@@ -1,7 +1,7 @@
 import { atom } from "nanostores";
 import { LISTINGS as SEED_LISTINGS, type Listing } from "../data/evData";
 import { rowToListing } from "../lib/mappers";
-import { supabase, type ListingRow } from "../lib/supabase";
+import { LISTING_SELECT, supabase, type ListingRow } from "../lib/supabase";
 
 /* ============================================================================
    Listings store — nanostores version of the old ListingsContext, shared
@@ -40,7 +40,7 @@ async function doRefresh(): Promise<void> {
   if (!supabase) return;
   const { data, error } = await supabase
     .from("listings")
-    .select("*")
+    .select(LISTING_SELECT)
     .in("status", ["AKTIV", "RESERVIERT"])
     .order("created_at", { ascending: false });
   if (error) {
@@ -48,7 +48,7 @@ async function doRefresh(): Promise<void> {
     return;
   }
   if (data) {
-    $listings.set((data as ListingRow[]).map(rowToListing));
+    $listings.set((data as unknown as ListingRow[]).map(rowToListing));
     $listingsLive.set(true);
   }
 }

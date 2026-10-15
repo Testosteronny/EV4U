@@ -1,6 +1,6 @@
 import { LISTINGS, type Listing } from "../data/evData";
 import { rowToListing } from "./mappers";
-import type { ListingRow } from "./supabase";
+import { LISTING_SELECT, type ListingRow } from "./supabase";
 
 /* ============================================================================
    Build-time listings snapshot — one fetch per `astro build`, shared by
@@ -19,7 +19,7 @@ export async function fetchBuildListings(): Promise<Listing[]> {
   if (url && key) {
     try {
       const res = await fetch(
-        `${url}/rest/v1/listings?select=*&status=in.(AKTIV,RESERVIERT)&order=created_at.desc`,
+        `${url}/rest/v1/listings?select=${encodeURIComponent(LISTING_SELECT)}&status=in.(AKTIV,RESERVIERT)&order=created_at.desc`,
         { headers: { apikey: key } },
       );
       if (res.ok) {

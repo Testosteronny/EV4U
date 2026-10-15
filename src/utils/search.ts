@@ -11,7 +11,7 @@ import type { Listing } from "../data/evData";
 
 /** Kleinschreibung ohne diakritische Zeichen — «skoda» findet «Škoda»,
  *  «citroen» findet «Citroën». */
-const fold = (s: string): string =>
+export const fold = (s: string): string =>
   s
     .toLowerCase()
     .normalize("NFD")

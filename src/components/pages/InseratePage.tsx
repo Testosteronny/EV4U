@@ -4,6 +4,11 @@ import ListingBoard from "../ListingBoard";
 import ListingCard from "../ListingCard";
 import AutoFinder, { type FinderParams } from "../AutoFinder";
 import SearchBox from "../SearchBox";
+import VehicleFilter, {
+  selectionLabels,
+  useVehicleSelection,
+  type VehicleFilterValue,
+} from "../VehicleFilter";
 import {
   Badge,
   Button,
@@ -32,7 +37,7 @@ import {
   type Filters,
 } from "../../lib/filters";
 import { supabase } from "../../lib/supabase";
-import { SEGMENT_LABEL, SELLER_LABEL, brandName } from "../../utils/format";
+import { SEGMENT_LABEL, SELLER_LABEL } from "../../utils/format";
 import { fmtCH } from "../../utils/swiss";
 import { SEGMENTS, SORTS, type Listing, type Segment, type SortKey } from "../../data/evData";
 
@@ -125,6 +130,24 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
     [sp, setSp],
   );
 
+  /** Marke, Modell und Variante gehen immer zusammen in die URL. */
+  const setVehicle = (v: VehicleFilterValue) => {
+    const next = new URLSearchParams(sp);
+    if (v.marke === "ALLE") next.delete("marke");
+    else next.set("marke", v.marke);
+    for (const key of ["modell", "variante"] as const) {
+      if (v[key]) next.set(key, v[key]);
+      else next.delete(key);
+    }
+    setSp(next);
+    setSearchSaved(false);
+  };
+
+  const vehicle: VehicleFilterValue = { marke: f.marke, modell: f.modell, variante: f.variante };
+  // Den Katalog braucht die Seite erst, wenn ein Modell benannt werden muss.
+  const selection = useVehicleSelection(vehicle, f.modell !== "");
+  const vehicleLabel = selectionLabels(vehicle, selection);
+
   const applyFinder = (p: FinderParams) => {
     const next = new URLSearchParams(sp);
     for (const [key, val] of Object.entries(p)) {
@@ -176,8 +199,20 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
   if (f.marke !== "ALLE")
     chips.push({
       key: "marke",
-      label: brandName(f.marke),
-      clear: () => set("marke", "ALLE", "ALLE"),
+      label: vehicleLabel.brand,
+      clear: () => setVehicle({ marke: "ALLE", modell: "", variante: "" }),
+    });
+  if (f.modell)
+    chips.push({
+      key: "modell",
+      label: vehicleLabel.model,
+      clear: () => setVehicle({ ...vehicle, modell: "", variante: "" }),
+    });
+  if (f.variante)
+    chips.push({
+      key: "variante",
+      label: vehicleLabel.variant,
+      clear: () => setVehicle({ ...vehicle, variante: "" }),
     });
   if (f.anbieter !== "ALLE")
     chips.push({
@@ -308,34 +343,22 @@ export default function InseratePage({ initial }: { initial?: Listing[] }) {
         </Popover>
 
         <Popover
-          label="Marke"
-          summary={f.marke !== "ALLE" ? brandName(f.marke) : undefined}
-          active={f.marke !== "ALLE"}
+          label="Marke & Modell"
+          summary={
+            f.marke !== "ALLE"
+              ? [vehicleLabel.brand, f.modell && vehicleLabel.model].filter(Boolean).join(" ")
+              : undefined
+          }
+          active={f.marke !== "ALLE" || f.modell !== ""}
+          width={320}
         >
-          {(close) => (
-            <>
-              <OptionRow
-                label="Alle Marken"
-                count={facets("marke", "ALLE")}
-                active={f.marke === "ALLE"}
-                onClick={() => {
-                  set("marke", "ALLE", "ALLE");
-                  close();
-                }}
-              />
-              {brands.map((b) => (
-                <OptionRow
-                  key={b}
-                  label={brandName(b)}
-                  count={facets("marke", b)}
-                  active={f.marke === b}
-                  onClick={() => {
-                    set("marke", b, "ALLE");
-                    close();
-                  }}
-                />
-              ))}
-            </>
+          {() => (
+            <VehicleFilter
+              value={vehicle}
+              onChange={setVehicle}
+              count={(key, val) => facets(key, val)}
+              stockBrands={brands}
+            />
           )}
         </Popover>
 

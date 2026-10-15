@@ -16,6 +16,11 @@ export type Listing = {
   /** Catalog variant name, e.g. «Long Range AWD» — shown below the title,
    *  never glued into it (it often repeats the model name). */
   variant?: string;
+  /** Slug of the linked catalog model / variant (vehicle_models.slug,
+   *  vehicle_variants.slug) — what the Modell and Variante filters match.
+   *  Absent for cars typed in outside the catalog. */
+  modelSlug?: string;
+  variantSlug?: string;
   segment: Segment;
   /** First registration year */
   year: number;

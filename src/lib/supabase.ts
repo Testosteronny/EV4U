@@ -56,4 +56,16 @@ export type ListingRow = {
   note: string;
   photos: string[];
   created_at: string;
+  /** Catalog keys, embedded by LISTING_SELECT; absent in reads that use `*` alone. */
+  catalog_model?: { slug: string } | null;
+  catalog_variant?: { slug: string } | null;
 };
+
+/** The public listing read: every column plus the slugs of the linked
+ *  catalog model and variant — the stable keys the Marke → Modell →
+ *  Variante filter puts in the URL. listings → vehicle_variants has two
+ *  FKs (variant_id alone and the composite with model_id), so both embeds
+ *  name theirs. */
+export const LISTING_SELECT =
+  "*,catalog_model:vehicle_models!listings_model_id_fkey(slug)," +
+  "catalog_variant:vehicle_variants!listings_variant_id_fkey(slug)";

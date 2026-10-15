@@ -1,6 +1,7 @@
 ---
 import Info from "../layouts/Info.astro";
 import meta from "../data/tariffMeta.json";
+import { VIDEOS_ENABLED } from "../lib/video";
 
 /* /hilfe — FAQ grouped by Kaufen · Verkaufen · Konto · Kosten (Konzept
    §4.12). Answers describe what the site actually does; the same list
@@ -46,6 +47,12 @@ const GROUPS: { title: string; items: QA[] }[] = [
         a: "Für Private nichts. Du erfasst das Auto in sieben Schritten; zwischendurch speichern wir einen Entwurf.",
       },
       {
+        q: VIDEOS_ENABLED ? "Wie viele Fotos — und geht auch ein Video?" : "Wie viele Fotos kann ich hochladen?",
+        a: VIDEOS_ENABLED
+          ? "Bis 12 Fotos, das erste ist das Titelbild. Dazu ein Video-Rundgang von bis zu 3 Minuten: Dein Gerät verkleinert das Video vor dem Hochladen und entfernt dabei die Standortdaten der Datei."
+          : "Bis 12. Das erste ist das Titelbild; die Reihenfolge änderst du per Ziehen oder mit den Pfeilen.",
+      },
+      {
         q: "Wie lange bleibt mein Inserat online?",
         a: "Bis du es auf «Verkauft» oder «Pausiert» stellst. Reservierte Autos bleiben sichtbar und als reserviert markiert.",
       },
@@ -76,7 +83,7 @@ const GROUPS: { title: string; items: QA[] }[] = [
       },
       {
         q: "Wie lösche ich mein Konto?",
-        a: "Unter Konto › Einstellungen › Konto löschen. Inserate, Fotos, Nachrichten, Suchabos und die Merkliste werden mitgelöscht.",
+        a: `Unter Konto › Einstellungen › Konto löschen. Inserate, Fotos, ${VIDEOS_ENABLED ? "Videos, " : ""}Nachrichten, Suchabos und die Merkliste werden mitgelöscht.`,
       },
     ],
   },

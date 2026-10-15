@@ -1,5 +1,6 @@
 ---
 import Info from "../layouts/Info.astro";
+import { VIDEOS_ENABLED } from "../lib/video";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
@@ -27,7 +28,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   <ul>
     <li>Du inserierst nur Autos, die du verkaufen darfst, und nur Elektroautos.</li>
     <li>Die Angaben stimmen — besonders Batteriezustand (SOH), Batteriegarantie, km-Stand, Unfallfreiheit und MFK. Wer etwas nicht weiss, lässt das Feld leer.</li>
-    <li>Fotos zeigen das inserierte Auto, und du hast die Rechte daran.</li>
+    <li>{VIDEOS_ENABLED ? "Fotos und Videos zeigen" : "Fotos zeigen"} das inserierte Auto, und du hast die Rechte daran.</li>
     <li>Ein Auto steht nur einmal online. Ist es verkauft oder reserviert, stellst du den Status um.</li>
     <li>Der Preis ist ein Gesamtpreis in Franken.</li>
   </ul>

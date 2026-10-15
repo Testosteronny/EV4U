@@ -1,5 +1,6 @@
 ---
 import Info from "../layouts/Info.astro";
+import { VIDEOS_ENABLED } from "../lib/video";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
@@ -29,7 +30,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   <ul>
     <li><strong>Anmeldung:</strong> deine E-Mail-Adresse. Wir schicken dir damit Login-Links und, wenn du willst, Benachrichtigungen. Andere Nutzer sehen sie nie.</li>
     <li><strong>Profil:</strong> Anzeigename und Kontotyp. Bei Garagen zusätzlich, was du für die öffentliche Garagenseite angibst: Adresse, Telefon, UID, Website, Öffnungszeiten, Logo.</li>
-    <li><strong>Inserate:</strong> die Angaben und Fotos deiner Autos. Aktive, reservierte und verkaufte Inserate sind öffentlich, Entwürfe und pausierte nur für dich.</li>
+    <li>
+      <strong>Inserate:</strong> die Angaben{VIDEOS_ENABLED ? ", Fotos und Videos" : " und Fotos"} deiner Autos. Aktive, reservierte und verkaufte Inserate sind öffentlich, Entwürfe und pausierte nur für dich.
+      {VIDEOS_ENABLED && "Aus Videos entfernt dein Gerät vor dem Hochladen die Standortdaten der Datei."}
+    </li>
     <li><strong>Nachrichten:</strong> gespeichert und nur für die beiden Beteiligten sichtbar. Der Hinweis auf typische Betrugsmuster wird in deinem Browser berechnet. Bei einer neuen Nachricht schicken wir eine E-Mail, wenn du das nicht ausgeschaltet hast.</li>
     <li><strong>Suchabos, Merkliste, Fahrprofil:</strong> damit du sie auf allen Geräten hast und wir dich über neue Treffer, Preissenkungen und verkaufte Autos informieren können.</li>
     <li><strong>Meldungen:</strong> Grund und Text einer Meldung zu einem Inserat; bist du angemeldet, mit deinem Konto verknüpft.</li>
@@ -45,6 +49,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   <h2>Wer Daten für uns bearbeitet</h2>
   <ul>
     <li><strong>Supabase</strong> — Datenbank, Fotos und Anmeldung, Rechenzentrum in Zürich.</li>
+    {VIDEOS_ENABLED && <li><strong>Cloudflare</strong> (Cloudflare Inc., USA) — speichert die Videos der Inserate in Westeuropa und liefert sie aus.</li>}
     <li><strong>GitHub Pages</strong> (GitHub Inc., USA) — liefert die Seiten aus und erhält dabei technisch deine IP-Adresse.</li>
     <li><strong>Google Fonts</strong> (Google, USA) — liefert die Schrift aus und erhält dabei deine IP-Adresse.</li>
     <li><strong>E-Mail-Versand</strong> — ein Versanddienst für Login-Links und Benachrichtigungen.</li>

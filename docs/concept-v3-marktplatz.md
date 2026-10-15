@@ -3,6 +3,8 @@
 Status: **Implemented 2026-10-15** (review log in section 11). Not built, by
 decision or for lack of accounts: payments (Boost, Garage-Abo), SMS and automated
 Zefix verification, named partner offers — see the README backlog.
+Changed since: at most 12 photos per listing (§4.8 said 20), plus an optional
+Video-Rundgang of up to 3 minutes stored on Cloudflare R2 (README).
 Replaces as a target state: `docs/ui-revamp-concept.md` («Klartext», implemented 2026-08).
 «Klartext» stays as the record of *why* the current UI looks the way it does.
 

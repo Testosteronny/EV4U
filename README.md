@@ -44,6 +44,8 @@ Without a `.env` (see `.env.example`) the app runs on the twelve bundled seed
 listings — the front end, the cost model and every filter work offline.
 The vehicle catalog, accounts, messaging and the model pages need Supabase:
 copy `.env.example` to `.env` with the project URL and publishable key.
+`PUBLIC_VIDEO_BASE_URL` is optional: without it the video walkthroughs stay
+hidden (see Video-Rundgang below).
 
 ## Architecture
 
@@ -81,7 +83,7 @@ src/
     listing/                 ← ListingCard/Row · Gallery · CostBreakdown ·
                                Financing · ContactSheet · ReportSheet · CarGraphic
     models/                  ← model guide: index, costs, offers
-    sell/                    ← SellWizard · PhotoStep · VehiclePicker ·
+    sell/                    ← SellWizard · PhotoStep · VideoStep · VehiclePicker ·
                                PreisCheckPage · draft.ts (draft ↔ row)
     konto/                   ← KontoLayout + one page per /konto/* route, AdminPage
     garage/                  ← public garage profile
@@ -101,10 +103,12 @@ src/
     vehicleCatalog.ts        ← catalog types, labels, catalog → listing specs
     build*.ts                ← build-time snapshots (listings, catalog, garages)
     supabase.ts · mappers.ts ← client, row types, row → Listing
+    video.ts                 ← video URLs, limits, signed upload to R2
   utils/
     costModel.ts             ← THE calculation (computeCosts)
     format.ts                ← display names, segment/seller/status labels
     search.ts                ← the local instant search
+    image.ts · videoPrepare.ts ← photo resize; video check + conversion (Mediabunny)
     swiss.ts · plzResolver.ts← PLZ → Gemeinde → tariff, fmtCH
   data/
     evData.ts                ← types, 12 offline seed listings, charging cards
@@ -114,7 +118,7 @@ src/
     fuelPrices.json          ← baked BFS pump prices (generated)
 supabase/
   migrations/                ← schema, RLS, triggers, cron
-  functions/                 ← Edge Functions (see Backend)
+  functions/                 ← Edge Functions (see Backend); _shared/r2.ts signs R2 requests
   seed/                      ← vehicle catalog, demo listings
 ```
 
@@ -149,13 +153,13 @@ menu and «Inserieren». Below `md` a bottom tab bar takes over.
 |-------|-----|
 | `/` | Hero search, entry rows (Karosserie, Budget, Themen) with counts, «Neu eingetroffen», cost teaser, popular models, sell teaser, blog, Beratung |
 | `/inserate` | Search: filter sidebar (sheet on mobile) **with hit counts**, grid · list · map, sort incl. «Tiefste Betriebskosten» and «Nächste zuerst», Suchabo. Filters live in the URL (`?seg=SUV&preis=40000&garantie=1`) |
-| `/inserat/:slug` | Gallery, price and contact first; battery & warranty, Alltag, Laden, cost per year with financing example, equipment & condition, specs, price history, the model, seller (garage badge, response time), similar listings, «Inserat melden» |
+| `/inserat/:slug` | Gallery (with the Video-Rundgang, if any), price and contact first; battery & warranty, Alltag, Laden, cost per year with financing example, equipment & condition, specs, price history, the model, seller (garage badge, response time), similar listings, «Inserat melden» |
 | `/merkliste` | Saved cars without login: price changes since saving, sold/reserved, notes |
 | `/vergleich` | Up to 4 listings side by side, specs and computed cost, best value highlighted; `?ids=a,b,c` is adopted into the tray |
 | `/finder` | Six questions → matching listings |
 | `/modelle` · `/modelle/[marke]` · `/modelle/[marke]/[modell]` | The catalog as a model guide: variants, range, charging, warranty, list price, running costs, used offers |
 | `/kosten` | Cost calculator against your current car, «Umsteigen» mode, financing example (`/rechenwerk` redirects here) |
-| `/verkaufen` · `/verkaufen/neu` · `/verkaufen/preis-check` | Sell landing; 7-step wizard with autosave and quality meter (`?id=` edits); free valuation |
+| `/verkaufen` · `/verkaufen/neu` · `/verkaufen/preis-check` | Sell landing; 7-step wizard with autosave, up to 12 photos plus an optional video, quality meter (`?id=` edits); free valuation |
 | `/garagen` · `/garagen/[slug]` | Offer for garages; public garage page with inventory |
 | `/blog` · `/blog/[slug]` · `/blog/kategorie/[kategorie]` · `/rss.xml` | Dated posts (MDX) |
 | `/ratgeber` · `/ratgeber/[slug]` · `/ratgeber/ladekarten` | Evergreen guides; interactive charging-card comparison |
@@ -228,7 +232,7 @@ database; the few things a browser must not do run as Edge Functions.
 
 | Table | Policies |
 |-------|----------|
-| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable` |
+| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable`, at most 12 `photos`, one video (`video_path / _seconds / _poster`, files in the owner's folder) |
 | `listing_price_history` | every price, logged by trigger — «Preis gesenkt», Merkliste changes, the price chart |
 | `listing_events` | views / contacts / saves per day; written only through `track_listing_event()`, read by owner and admins (account stats). `listing_save_count()` is the one public number |
 | `reports` | «Inserat melden»: anyone may insert, only admins read. Three distinct logged-in reporters set `hidden_at` (trigger) until an admin looks |
@@ -275,6 +279,7 @@ the key they log and exit cleanly), `GEMINI_API_KEY` (`suche`) and
   client; RLS does the guarding.
 - **Production checklist**: set the Auth *Site URL* + redirect allow-list to
   your domain, configure custom SMTP, set the function secrets above,
+  set up R2 for videos with a custom domain instead of r2.dev (below),
   enable Point-in-Time Recovery, fill in the operator details on
   `/impressum`, `/datenschutz` and `/agb` (marked as drafts) and have them
   reviewed, **remove the demo listings** (below).

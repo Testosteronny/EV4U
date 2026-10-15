@@ -23,18 +23,30 @@ import {
 
 export type LoadStatus = "loading" | "ready" | "error" | "offline";
 
-const MODEL_COLUMNS =
+export const MODEL_COLUMNS =
   "id,slug,name,segment,body_type,availability,market_launch,launch_year,end_year,remark";
 
-const VARIANT_COLUMNS =
+export const VARIANT_COLUMNS =
   "id,slug,name,vehicle_class,seats,drive,motors,power_kw,power_ps,accel_0_100_s,top_speed_kmh," +
   "battery_gross_kwh,battery_net_kwh,cell_chemistry,system_voltage_v,range_wltp_km," +
   "consumption_kwh_100km,dc_max_kw,dc_10_80_min,ac_max_kw,charge_port,v2l,trunk_l,frunk_l," +
-  "towing_kg,curb_weight_kg,battery_warranty_years,battery_warranty_km," +
+  "towing_kg,curb_weight_kg,length_mm,width_mm,height_mm,battery_warranty_years,battery_warranty_km," +
   "battery_warranty_conditional,battery_warranty_soh_pct,price_new_chf";
 
 /** `numeric` kann je nach Treiber als String kommen. */
 const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+
+/** Numerische Spalten einer Variante als Zahlen. */
+export function normalizeVariant(v: CatalogVariant): CatalogVariant {
+  return {
+    ...v,
+    accel_0_100_s: num(v.accel_0_100_s),
+    battery_gross_kwh: num(v.battery_gross_kwh),
+    battery_net_kwh: num(v.battery_net_kwh),
+    consumption_kwh_100km: num(v.consumption_kwh_100km),
+    ac_max_kw: Number(v.ac_max_kw),
+  };
+}
 
 /* ---------- Marken + Modelle ---------------------------------------------- */
 
@@ -92,14 +104,7 @@ export function loadVehicleVariants(modelId: string): void {
       .select(VARIANT_COLUMNS)
       .eq("model_id", modelId);
     if (error) throw error;
-    const rows = (data as unknown as CatalogVariant[]).map((v) => ({
-      ...v,
-      accel_0_100_s: num(v.accel_0_100_s),
-      battery_gross_kwh: num(v.battery_gross_kwh),
-      battery_net_kwh: num(v.battery_net_kwh),
-      consumption_kwh_100km: num(v.consumption_kwh_100km),
-      ac_max_kw: Number(v.ac_max_kw),
-    }));
+    const rows = (data as unknown as CatalogVariant[]).map(normalizeVariant);
     rows.sort(byEntryLevel);
     $vehicleVariants.setKey(modelId, { rows, status: "ready" });
   })()

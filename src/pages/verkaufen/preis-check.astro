@@ -1,0 +1,14 @@
+---
+import Base from "../../layouts/Base.astro";
+import PreisCheckPage from "../../components/sell/PreisCheckPage";
+import { fetchBuildListings } from "../../lib/buildListings";
+
+const listings = await fetchBuildListings();
+---
+
+<Base
+  title="Preis-Check: Was ist mein E-Auto wert? | EV4U"
+  description="Gratis und ohne Konto: Preisspanne für dein gebrauchtes E-Auto aus vergleichbaren Schweizer Inseraten, mit Jahrgang, Kilometerstand und Batteriezustand."
+>
+  <PreisCheckPage client:load initial={listings} />
+</Base>

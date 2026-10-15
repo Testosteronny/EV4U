@@ -1,0 +1,334 @@
+---
+import Base from "../../../layouts/Base.astro";
+import ModelOffers from "../../../components/models/ModelOffers";
+import ModelCosts, { type CostVariant } from "../../../components/models/ModelCosts";
+import { Breadcrumbs } from "../../../components/ui";
+import { fetchBuildCatalog, modelPart, span, type FullBrand, type FullModel } from "../../../lib/buildCatalog";
+import { fetchBuildListings } from "../../../lib/buildListings";
+import { jsonLd } from "../../../lib/jsonLd";
+import { toListingSegment, warrantyLabel, type CatalogVariant } from "../../../lib/vehicleCatalog";
+import { fmtCH } from "../../../utils/swiss";
+
+/* /modelle/[marke]/[modell] (Konzept §4.6) — one model: variants, everyday
+   data, battery and the manufacturer's warranty as published, running costs
+   with the visitor's Fahrprofil, and the used offers. The largest SEO
+   surface of the site: it answers «Model Y Reichweite», «Enyaq
+   Anhängelast», «ID.4 Batteriegarantie». */
+export async function getStaticPaths() {
+  const catalog = await fetchBuildCatalog();
+  return catalog.flatMap((brand) =>
+    brand.models.map((model) => ({
+      params: { marke: brand.slug, modell: modelPart(model) },
+      props: { brand, model },
+    })),
+  );
+}
+
+const { brand, model } = Astro.props as { brand: FullBrand; model: FullModel };
+const catalog = await fetchBuildCatalog();
+const listings = await fetchBuildListings();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const canonical = new URL(`${base}/modelle/${brand.slug}/${modelPart(model)}`, Astro.site).href;
+const title = `${brand.name} ${model.name}`;
+const v = model.variants;
+const offers = listings.filter((l) => l.modelSlug === model.slug);
+
+const fmtSpan = (s: [number, number] | null, unit = "", dec = 0) =>
+  !s ? "—" : s[0] === s[1] ? `${fmtCH(s[0], dec)}${unit}` : `${fmtCH(s[0], dec)}–${fmtCH(s[1], dec)}${unit}`;
+const range = span(v, (x) => x.range_wltp_km);
+const battery = span(v, (x) => x.battery_net_kwh);
+const dc = span(v, (x) => x.dc_max_kw);
+const price = span(v, (x) => x.price_new_chf);
+const towing = span(v, (x) => x.towing_kg);
+const trunk = span(v, (x) => x.trunk_l);
+const frunk = span(v, (x) => x.frunk_l);
+const seats = span(v, (x) => x.seats);
+const accel = span(v, (x) => x.accel_0_100_s);
+const entry = v[0] as CatalogVariant | undefined;
+const chemistries = [...new Set(v.map((x) => x.cell_chemistry).filter(Boolean))];
+const voltages = [...new Set(v.map((x) => x.system_voltage_v))].sort((a, b) => a - b);
+const warranties = [...new Set(v.map((x) => warrantyLabel(x)).filter((x): x is string => Boolean(x)))];
+const warrantySoh = [...new Set(v.map((x) => x.battery_warranty_soh_pct).filter((x): x is number => x !== null))];
+const anyV2l = v.some((x) => x.v2l);
+
+const AVAILABILITY: Record<FullModel["availability"], string> = {
+  LIEFERBAR: "neu erhältlich",
+  IMPORT: "nur als Import",
+  AUSLAUF: "läuft aus",
+  OCCASION: "nicht mehr neu erhältlich",
+  ANGEKUENDIGT: "angekündigt",
+};
+
+const facts: [string, string][] = [
+  ["Reichweite WLTP", fmtSpan(range, " km")],
+  ["Batterie netto", fmtSpan(battery, " kWh", 1)],
+  ["Schnellladen", dc ? `bis ${fmtCH(dc[1])} kW` : "—"],
+  ["Anhängelast", towing ? `bis ${fmtCH(towing[1])} kg` : "—"],
+  ["Batteriegarantie", warranties.length ? warranties.join(" · ") : "—"],
+  ["Neupreis", price ? `CHF ${fmtSpan(price)}` : "—"],
+];
+
+const costVariants: CostVariant[] = v
+  .filter((x) => x.consumption_kwh_100km !== null)
+  .map((x) => ({
+    slug: x.slug,
+    name: x.name,
+    consumption: x.consumption_kwh_100km!,
+    weightKg: x.curb_weight_kg,
+    battery: x.battery_net_kwh ?? 0,
+    range: x.range_wltp_km ?? 0,
+    seats: x.seats,
+  }));
+
+// Related: the same catalog segment, other models — those in stock first,
+// then by list price nearest to this one.
+const mid = price ? (price[0] + price[1]) / 2 : null;
+const related = catalog
+  .flatMap((b) => b.models.map((m) => ({ b, m })))
+  .filter(({ m }) => m.slug !== model.slug && m.segment === model.segment && m.availability !== "ANGEKUENDIGT")
+  .map(({ b, m }) => {
+    const p = span(m.variants, (x) => x.price_new_chf);
+    const n = listings.filter((l) => l.modelSlug === m.slug).length;
+    return { b, m, n, dist: mid && p ? Math.abs((p[0] + p[1]) / 2 - mid) : Infinity };
+  })
+  .sort((a, b) => Number(b.n > 0) - Number(a.n > 0) || a.dist - b.dist)
+  .slice(0, 6);
+
+const description =
+  `${title}: ${fmtSpan(range, " km")} Reichweite (WLTP), ${fmtSpan(battery, " kWh", 1)} Batterie` +
+  (dc ? `, bis ${fmtCH(dc[1])} kW DC` : "") +
+  (towing ? `, Anhängelast bis ${fmtCH(towing[1])} kg` : "") +
+  (warranties.length ? `, Batteriegarantie ${warranties[0]}` : "") +
+  (offers.length ? `. ${offers.length} Occasionen ab CHF ${fmtCH(Math.min(...offers.map((l) => l.price)))}.` : ".");
+
+const modelLd = jsonLd({
+  "@context": "https://schema.org",
+  "@type": "ProductModel",
+  name: title,
+  url: canonical,
+  description,
+  category: "Elektroauto",
+  brand: { "@type": "Brand", name: brand.name },
+  ...(offers.length > 0 && {
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "CHF",
+      lowPrice: Math.min(...offers.map((l) => l.price)),
+      highPrice: Math.max(...offers.map((l) => l.price)),
+      offerCount: offers.length,
+      itemCondition: "https://schema.org/UsedCondition",
+    },
+  }),
+});
+const breadcrumbLd = jsonLd({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "EV4U", item: new URL(`${base}/`, Astro.site).href },
+    { "@type": "ListItem", position: 2, name: "Modelle", item: new URL(`${base}/modelle`, Astro.site).href },
+    { "@type": "ListItem", position: 3, name: brand.name, item: new URL(`${base}/modelle/${brand.slug}`, Astro.site).href },
+    { "@type": "ListItem", position: 4, name: model.name, item: canonical },
+  ],
+});
+const dims = entry?.length_mm && entry.width_mm && entry.height_mm ? entry : null;
+---
+
+<Base title={`${title}: Reichweite, Batterie, Garantie, Occasionen | EV4U`} description={description.slice(0, 300)}>
+  <Fragment slot="head">
+    <script is:inline type="application/ld+json" set:html={modelLd} />
+    <script is:inline type="application/ld+json" set:html={breadcrumbLd} />
+  </Fragment>
+
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <Breadcrumbs
+      items={[
+        { label: "Start", href: `${base}/` },
+        { label: "Modelle", href: `${base}/modelle` },
+        { label: brand.name, href: `${base}/modelle/${brand.slug}` },
+        { label: model.name },
+      ]}
+    />
+    <header class="mt-3">
+      <h1 class="text-display font-bold text-fg sm:text-display-lg">{title}</h1>
+      <p class="mt-1 text-body text-fg2">
+        {model.segment} · {model.body_type} · {AVAILABILITY[model.availability]}
+        {model.market_launch && ` · Marktstart ${model.market_launch}`}
+      </p>
+      <div class="mt-5">
+        <ModelOffers client:load modelSlug={model.slug} brand={brand.name} title={title} mode="summary" initial={listings} />
+      </div>
+    </header>
+
+    <dl class="card mt-8 grid grid-cols-2 gap-x-6 gap-y-4 p-5 sm:grid-cols-3">
+      {
+        facts.map(([k, val]) => (
+          <div>
+            <dt class="text-small text-fg2">{k}</dt>
+            <dd class="text-h3 font-bold text-fg tabular">{val}</dd>
+          </div>
+        ))
+      }
+    </dl>
+    {model.remark && <p class="tip mt-4 px-4 py-3 text-body text-fg">{model.remark}</p>}
+
+    {
+      v.length > 0 && (
+        <section class="mt-12">
+          <h2 class="text-h2 font-bold text-fg">
+            {v.length} {v.length === 1 ? "Variante" : "Varianten"}
+          </h2>
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full min-w-[52rem] text-left text-body">
+              <thead>
+                <tr class="border-b border-line text-small text-fg2">
+                  <th class="py-2 pr-4 font-semibold">Variante</th>
+                  <th class="py-2 pr-4 text-right font-semibold">Batterie</th>
+                  <th class="py-2 pr-4 text-right font-semibold">Leistung</th>
+                  <th class="py-2 pr-4 font-semibold">Antrieb</th>
+                  <th class="py-2 pr-4 text-right font-semibold">WLTP</th>
+                  <th class="py-2 pr-4 text-right font-semibold">DC · 10–80 %</th>
+                  <th class="py-2 pr-4 text-right font-semibold">AC</th>
+                  <th class="py-2 pr-4 text-right font-semibold">0–100</th>
+                  <th class="py-2 text-right font-semibold">Neupreis</th>
+                </tr>
+              </thead>
+              <tbody>
+                {v.map((x) => (
+                  <tr class="border-b border-line last:border-b-0">
+                    <td class="py-2.5 pr-4 font-semibold text-fg">{x.name}</td>
+                    <td class="py-2.5 pr-4 text-right tabular">{x.battery_net_kwh ? `${fmtCH(x.battery_net_kwh, 1)} kWh` : "—"}</td>
+                    <td class="py-2.5 pr-4 text-right tabular">{x.power_kw ? `${x.power_kw} kW` : "—"}</td>
+                    <td class="py-2.5 pr-4">{{ FWD: "Front", RWD: "Heck", AWD: "Allrad" }[x.drive]}</td>
+                    <td class="py-2.5 pr-4 text-right tabular">{x.range_wltp_km ? `${fmtCH(x.range_wltp_km)} km` : "—"}</td>
+                    <td class="py-2.5 pr-4 text-right tabular">
+                      {x.dc_max_kw ? `${x.dc_max_kw} kW${x.dc_10_80_min ? ` · ${x.dc_10_80_min} min` : ""}` : "—"}
+                    </td>
+                    <td class="py-2.5 pr-4 text-right tabular">{fmtCH(x.ac_max_kw, 1)} kW</td>
+                    <td class="py-2.5 pr-4 text-right tabular">{x.accel_0_100_s ? `${fmtCH(x.accel_0_100_s, 1)} s` : "—"}</td>
+                    <td class="py-2.5 text-right tabular">{x.price_new_chf ? `CHF ${fmtCH(x.price_new_chf)}` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-2 text-small text-fg3">Neupreise: Schweizer Listenpreis ohne Optionen — Referenz, kein Angebot.</p>
+        </section>
+      )
+    }
+
+    <div class="mt-12 grid gap-8 md:grid-cols-2">
+      <section>
+        <h2 class="text-h2 font-bold text-fg">Alltag</h2>
+        <dl class="mt-4">
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">Kofferraum</dt>
+            <dd class="font-semibold tabular">
+              {trunk ? `${fmtSpan(trunk)} l` : "—"}{frunk && ` + ${fmtSpan(frunk)} l vorne`}
+            </dd>
+          </div>
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">Anhängelast</dt>
+            <dd class="font-semibold tabular">{towing ? `${fmtSpan(towing)} kg` : "nicht zugelassen"}</dd>
+          </div>
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">Sitze</dt>
+            <dd class="font-semibold tabular">{fmtSpan(seats)}</dd>
+          </div>
+          {
+            dims && (
+              <div class="flex justify-between gap-4 border-b border-line py-2.5">
+                <dt class="text-fg2">Länge × Breite × Höhe</dt>
+                <dd class="font-semibold tabular">
+                  {fmtCH(dims.length_mm! / 1000, 2)} × {fmtCH(dims.width_mm! / 1000, 2)} × {fmtCH(dims.height_mm! / 1000, 2)} m
+                </dd>
+              </div>
+            )
+          }
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">0–100 km/h</dt>
+            <dd class="font-semibold tabular">{accel ? `${fmtSpan(accel, " s", 1)}` : "—"}</dd>
+          </div>
+          <div class="flex justify-between gap-4 py-2.5">
+            <dt class="text-fg2">Strom abgeben (V2L)</dt>
+            <dd class="font-semibold">{anyV2l ? "Ja" : "Nein"}</dd>
+          </div>
+        </dl>
+      </section>
+      <section>
+        <h2 class="text-h2 font-bold text-fg">Batterie & Garantie</h2>
+        <dl class="mt-4">
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">Zellchemie</dt>
+            <dd class="font-semibold">{chemistries.join(" / ") || "—"}</dd>
+          </div>
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">Systemspannung</dt>
+            <dd class="font-semibold tabular">{voltages.map((x) => `${x} V`).join(" / ")}</dd>
+          </div>
+          <div class="flex justify-between gap-4 border-b border-line py-2.5">
+            <dt class="text-fg2">Herstellergarantie Batterie</dt>
+            <dd class="text-right font-semibold">{warranties.join(" · ") || "nicht publiziert"}</dd>
+          </div>
+          {
+            warrantySoh.length > 0 && (
+              <div class="flex justify-between gap-4 py-2.5">
+                <dt class="text-fg2">Garantierte Kapazität</dt>
+                <dd class="font-semibold tabular">min. {warrantySoh.join(" / ")} %</dd>
+              </div>
+            )
+          }
+        </dl>
+        <p class="mt-3 text-small text-fg3">
+          Wie vom Hersteller publiziert. Bei einer Occasion zählt, was der Verkäufer im Inserat angibt: Startdatum und
+          Kilometer laufen ab der ersten Zulassung.
+        </p>
+      </section>
+    </div>
+
+    {
+      costVariants.length > 0 && (
+        <section class="mt-12">
+          <h2 class="text-h2 font-bold text-fg">Was kostet der {model.name} im Betrieb?</h2>
+          <div class="card mt-4 p-5">
+            <ModelCosts
+              client:visible
+              brand={brand.name}
+              model={model.name}
+              segment={toListingSegment(model)}
+              variants={costVariants}
+            />
+          </div>
+        </section>
+      )
+    }
+
+    <section class="mt-12">
+      <h2 class="text-h2 font-bold text-fg">{title} Occasionen</h2>
+      <div class="mt-4">
+        <ModelOffers client:visible modelSlug={model.slug} brand={brand.name} title={title} mode="grid" initial={listings} />
+      </div>
+    </section>
+
+    {
+      related.length > 0 && (
+        <section class="mt-12">
+          <h2 class="text-h2 font-bold text-fg">Ähnliche Modelle</h2>
+          <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {related.map(({ b, m, n }) => (
+              <li>
+                <a href={`${base}/modelle/${b.slug}/${modelPart(m)}`} class="card card-hover flex items-center justify-between gap-3 p-4">
+                  <span class="min-w-0 truncate text-body font-semibold text-fg">
+                    {b.name} {m.name}
+                  </span>
+                  <span class={`shrink-0 text-small ${n > 0 ? "font-semibold text-accent" : "text-fg3"}`}>
+                    {n > 0 ? `${n} im Angebot` : m.body_type}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</Base>

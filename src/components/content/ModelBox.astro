@@ -1,0 +1,57 @@
+---
+import ModelOffers from "../models/ModelOffers";
+import { fetchBuildCatalog, modelPart, span } from "../../lib/buildCatalog";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { warrantyLabel } from "../../lib/vehicleCatalog";
+import { fmtCH } from "../../utils/swiss";
+
+/* <ModelBox model="kia_ev3" /> — MDX embed (Konzept §4.10): a catalog model
+   with its key data and the live offers, so a post leads into the
+   marketplace. A slug that is not in the catalog fails the build (typo
+   guard) — unless the catalog itself is unavailable (offline build). */
+interface Props {
+  /** Catalog model slug, e.g. "kia_ev3". */
+  model: string;
+}
+
+const { model: slug } = Astro.props;
+const catalog = await fetchBuildCatalog();
+const listings = await fetchBuildListings();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const brand = catalog.find((b) => b.models.some((m) => m.slug === slug));
+const model = brand?.models.find((m) => m.slug === slug);
+if (catalog.length > 0 && !model) throw new Error(`<ModelBox model="${slug}" />: not in the vehicle catalog`);
+
+const range = model ? span(model.variants, (v) => v.range_wltp_km) : null;
+const battery = model ? span(model.variants, (v) => v.battery_net_kwh) : null;
+const dc = model ? span(model.variants, (v) => v.dc_max_kw) : null;
+const warranty = model?.variants.map(warrantyLabel).find(Boolean);
+const fmt = (s: [number, number] | null, unit: string, dec = 0) =>
+  !s ? null : s[0] === s[1] ? `${fmtCH(s[0], dec)} ${unit}` : `${fmtCH(s[0], dec)}–${fmtCH(s[1], dec)} ${unit}`;
+const facts = [fmt(range, "km WLTP"), fmt(battery, "kWh", 1), dc && `bis ${fmtCH(dc[1])} kW DC`, warranty && `Garantie ${warranty}`].filter(
+  Boolean,
+);
+---
+
+{
+  brand && model && (
+    <aside class="not-prose card my-8 p-5">
+      <p class="eyebrow text-accent">Modell</p>
+      <a href={`${base}/modelle/${brand.slug}/${modelPart(model)}`} class="mt-1 block text-h2 font-bold text-fg hover:text-accent">
+        {brand.name} {model.name}
+      </a>
+      <p class="mt-1 text-small text-fg2">{facts.join(" · ")}</p>
+      <div class="mt-4">
+        <ModelOffers
+          client:visible
+          modelSlug={model.slug}
+          brand={brand.name}
+          title={`${brand.name} ${model.name}`}
+          mode="summary"
+          initial={listings}
+        />
+      </div>
+    </aside>
+  )
+}

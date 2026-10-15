@@ -1,0 +1,43 @@
+---
+import Base from "./Base.astro";
+import { Breadcrumbs } from "../components/ui";
+
+/* Plain text pages — help, safety, about, contact and the legal pages:
+   breadcrumbs, title, lead, prose at reading width. `draft` marks a text
+   that still needs the operator's details or a legal review before launch,
+   visibly, instead of pretending to be final. */
+interface Props {
+  title: string;
+  description: string;
+  lead?: string;
+  updated?: string;
+  draft?: string;
+  noindex?: boolean;
+}
+
+const { title, description, lead, updated, draft, noindex = false } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title={`${title} | EV4U`} description={description} noindex={noindex}>
+  <slot name="head" slot="head" />
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <Breadcrumbs items={[{ label: "Start", href: `${base}/` }, { label: title }]} />
+    <header class="mt-6 max-w-3xl">
+      <h1 class="text-display font-bold text-fg sm:text-display-lg">{title}</h1>
+      {lead && <p class="mt-3 text-h3 font-normal text-fg2">{lead}</p>}
+      {updated && <p class="mt-3 text-small text-fg3">Stand: {updated}</p>}
+    </header>
+    {
+      draft && (
+        <p role="note" class="mt-6 max-w-3xl rounded-control bg-caution-bg px-4 py-3 text-small text-caution">
+          {draft}
+        </p>
+      )
+    }
+    <div class="prose-ev mt-8 max-w-3xl">
+      <slot />
+    </div>
+    <slot name="after" />
+  </div>
+</Base>

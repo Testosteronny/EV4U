@@ -1,0 +1,77 @@
+---
+import Base from "./Base.astro";
+import { Breadcrumbs, type Crumb } from "../components/ui";
+import { fmtLongDate } from "../lib/content";
+
+/* The reading layout for blog posts and Ratgeber guides: eyebrow, title,
+   meta line, a table of contents for longer texts, prose at ~68ch, and an
+   `after` slot for what leads back into the marketplace. */
+interface Props {
+  title: string;
+  description: string;
+  crumbs: Crumb[];
+  eyebrow: { label: string; href?: string };
+  /** Published (blog) or last updated (Ratgeber). */
+  date: Date;
+  dateLabel: "Veröffentlicht" | "Aktualisiert";
+  updated?: Date;
+  minutes: number;
+  author?: string;
+  headings: { depth: number; slug: string; text: string }[];
+  ld: string;
+}
+
+const { title, description, crumbs, eyebrow, date, dateLabel, updated, minutes, author, headings, ld } = Astro.props;
+const toc = headings.filter((h) => h.depth === 2);
+---
+
+<Base title={`${title} | EV4U`} description={description} ogType="article">
+  <script is:inline type="application/ld+json" set:html={ld} slot="head" />
+  <article class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <Breadcrumbs items={crumbs} />
+    <header class="mt-6 max-w-3xl">
+      {
+        eyebrow.href ? (
+          <a href={eyebrow.href} class="eyebrow text-accent hover:underline">
+            {eyebrow.label}
+          </a>
+        ) : (
+          <p class="eyebrow text-accent">{eyebrow.label}</p>
+        )
+      }
+      <h1 class="mt-2 text-display font-bold text-fg sm:text-display-lg">{title}</h1>
+      <p class="mt-3 text-h3 font-normal text-fg2">{description}</p>
+      <p class="mt-4 text-small text-fg3">
+        {dateLabel} <time datetime={date.toISOString()}>{fmtLongDate(date)}</time>
+        {updated && <> · aktualisiert {fmtLongDate(updated)}</>} · {minutes} Min. Lesezeit
+        {author && <> · {author}</>}
+      </p>
+    </header>
+
+    <div class="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <div class="prose-ev min-w-0">
+        <slot />
+      </div>
+      {
+        toc.length >= 3 && (
+          <nav aria-label="Inhalt" class="order-first lg:order-none">
+            <div class="lg:sticky lg:top-24">
+              <p class="eyebrow">Inhalt</p>
+              <ol class="mt-3 space-y-2 border-l border-line pl-4 text-small">
+                {toc.map((h) => (
+                  <li>
+                    <a href={`#${h.slug}`} class="text-fg2 hover:text-accent">
+                      {h.text}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </nav>
+        )
+      }
+    </div>
+
+    <slot name="after" />
+  </article>
+</Base>

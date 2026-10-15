@@ -1,0 +1,47 @@
+---
+import Info from "../layouts/Info.astro";
+import MonatsbriefBox from "../components/content/MonatsbriefBox";
+import MonatsbriefStatus from "../components/content/MonatsbriefStatus";
+import { getPosts } from "../lib/content";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const latest = (await getPosts()).slice(0, 3);
+---
+
+<Info
+  title="Der Monatsbrief"
+  description="Einmal im Monat per E-Mail: neue Beiträge, neue Modelle und was sich am Schweizer Markt für gebrauchte E-Autos tut."
+  lead="Einmal im Monat, was sich bei gebrauchten E-Autos in der Schweiz bewegt. Kein Spam, abmelden mit einem Klick."
+>
+  <div class="not-prose space-y-4">
+    <MonatsbriefStatus client:load />
+    <MonatsbriefBox client:load />
+  </div>
+
+  <h2>Was drinsteht</h2>
+  <ul>
+    <li>Neue Beiträge aus dem <a href={`${base}/blog`}>Blog</a> und dem <a href={`${base}/ratgeber`}>Ratgeber</a>.</li>
+    <li>Modelle, die neu in unseren Katalog kommen, und was sie laden und kosten.</li>
+    <li>Was sich bei Stromtarifen, Ladekarten und Preisen von Occasionen tut.</li>
+  </ul>
+
+  <h2>Datenschutz</h2>
+  <p>
+    Du bekommst zuerst eine E-Mail mit einem Bestätigungslink; erst danach schicken wir den Monatsbrief. Jede Ausgabe
+    enthält einen Link zum Abmelden, der deine Adresse löscht. Mehr unter <a href={`${base}/datenschutz`}>Datenschutz</a>.
+  </p>
+
+  {
+    latest.length > 0 && (
+      <>
+        <h2>Zuletzt im Blog</h2>
+        <ul>
+          {latest.map((p) => (
+            <li>
+              <a href={`${base}/blog/${p.id}`}>{p.data.title}</a>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+</Info>

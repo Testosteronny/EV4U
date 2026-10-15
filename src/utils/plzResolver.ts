@@ -139,3 +139,9 @@ export function resolveZip(raw: string): GemeindeInfo | null {
     estimated: true,
   };
 }
+
+/** Every address PLZ with its LV95 coordinates — the dot map of
+ *  Switzerland behind the results map. */
+export function allPlzPoints(): { e: number; n: number }[] {
+  return Object.values(PLZ_MAP).map(([, , , e, n]) => ({ e, n }));
+}

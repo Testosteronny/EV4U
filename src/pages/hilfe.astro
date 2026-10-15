@@ -1,0 +1,153 @@
+---
+import Info from "../layouts/Info.astro";
+import meta from "../data/tariffMeta.json";
+
+/* /hilfe — FAQ grouped by Kaufen · Verkaufen · Konto · Kosten (Konzept
+   §4.12). Answers describe what the site actually does; the same list
+   feeds the FAQPage structured data. */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+type QA = { q: string; a: string };
+const GROUPS: { title: string; items: QA[] }[] = [
+  {
+    title: "Kaufen",
+    items: [
+      {
+        q: "Brauche ich ein Konto, um Autos zu merken?",
+        a: "Nein. Die Merkliste funktioniert ohne Konto und wird auf deinem Gerät gespeichert. Mit Konto ist sie auf allen Geräten gleich, und wir können dir melden, wenn ein gemerktes Auto günstiger oder verkauft wird.",
+      },
+      {
+        q: "Wie schreibe ich einem Anbieter?",
+        a: "Auf dem Inserat «Anbieter kontaktieren» wählen. Dafür brauchst du ein Konto — die Anmeldung geht ohne Passwort per E-Mail-Link. Antworten findest du unter Konto › Nachrichten.",
+      },
+      {
+        q: "Was bedeutet SOH?",
+        a: "State of Health: die nutzbare Kapazität der Batterie im Vergleich zu neu, in Prozent. Der Wert stammt vom Anbieter. Lass dir einen aktuellen Batteriebericht zeigen, bevor du kaufst.",
+      },
+      {
+        q: "Woher kommt die Batteriegarantie im Inserat?",
+        a: "Der Anbieter trägt sie ein: gültig bis (Monat und Jahr), bis zu welchem km-Stand und — falls bekannt — die garantierte Kapazität. Die Bedingungen stehen in den Garantieunterlagen des Herstellers; lass sie dir zeigen.",
+      },
+      {
+        q: "Was ist ein Demo-Inserat?",
+        a: "Ein Beispielauto von EV4U, mit dem wir die Seite vor dem Start zeigen. Es ist nicht zu kaufen und als «Demo» markiert.",
+      },
+      {
+        q: "Was ist ein Suchabo?",
+        a: "Eine gespeicherte Suche. Wir melden dir neue passende Autos per E-Mail — sofort, täglich oder wöchentlich, wie du willst. Verwalten kannst du sie unter Konto › Suchabos.",
+      },
+    ],
+  },
+  {
+    title: "Verkaufen",
+    items: [
+      {
+        q: "Was kostet ein Inserat?",
+        a: "Für Private nichts. Du erfasst das Auto in sieben Schritten; zwischendurch speichern wir einen Entwurf.",
+      },
+      {
+        q: "Wie lange bleibt mein Inserat online?",
+        a: "Bis du es auf «Verkauft» oder «Pausiert» stellst. Reservierte Autos bleiben sichtbar und als reserviert markiert.",
+      },
+      {
+        q: "Was ist die Inserat-Qualität?",
+        a: "Ein Wert von 0 bis 100 %, der zeigt, wie vollständig dein Inserat ist: Variante aus dem Katalog, Fotos, Beschreibung, Batteriegarantie, MFK, Zustand und Ausstattung. Jeder Punkt beantwortet eine Frage, die Käufer sonst per Nachricht stellen.",
+      },
+      {
+        q: "Wie finde ich den richtigen Preis?",
+        a: "Der Preis-Check vergleicht dein Auto mit ähnlichen Inseraten — gleiches Modell, ähnlicher Jahrgang und km-Stand — und zeigt eine Spanne.",
+      },
+      {
+        q: "Ich bin eine Garage — was ist anders?",
+        a: "Unter Einstellungen stellst du das Konto auf «Garage». Dann bekommst du eine eigene Garagenseite, Statistiken und den Export deiner Anfragen. Nach einer Prüfung der UID tragen deine Inserate das Abzeichen «Verifizierte Garage».",
+      },
+    ],
+  },
+  {
+    title: "Konto",
+    items: [
+      {
+        q: "Wie melde ich mich an?",
+        a: "Mit deiner E-Mail-Adresse. Wir schicken dir einen Link, der dich anmeldet — ohne Passwort. Beim ersten Mal entsteht das Konto automatisch.",
+      },
+      {
+        q: "Wer sieht meine E-Mail-Adresse?",
+        a: "Niemand. Käufer und Anbieter schreiben sich über das Postfach auf EV4U; sichtbar ist nur dein Anzeigename.",
+      },
+      {
+        q: "Wie lösche ich mein Konto?",
+        a: "Unter Konto › Einstellungen › Konto löschen. Inserate, Fotos, Nachrichten, Suchabos und die Merkliste werden mitgelöscht.",
+      },
+    ],
+  },
+  {
+    title: "Kosten",
+    items: [
+      {
+        q: "Wie rechnet EV4U die Betriebskosten?",
+        a: `Strom zum Tarif deiner Gemeinde (zuhause) und zu einem Durchschnittspreis unterwegs, Unterhalt und die Verkehrssteuer deines Kantons — pro Jahr gerechnet und durch zwölf geteilt. Ohne PLZ rechnen wir mit dem Schweizer Median von ${meta.chMedianRp.toFixed(2)} Rp./kWh.`,
+      },
+      {
+        q: "Woher kommen die Stromtarife?",
+        a: `Von der Eidgenössischen Elektrizitätskommission ElCom, Tarife ${meta.period}, Verbrauchsprofil ${meta.category} (Haushalt), exklusive Mehrwertsteuer. Für ${meta.plzCount.toLocaleString("de-CH")} Postleitzahlen.`,
+      },
+      {
+        q: "Wie genau ist die Verkehrssteuer?",
+        a: "Sie ist eine Näherung aus den kantonalen Regeln (Leistung, Gewicht, Rabatte für E-Autos). Massgebend ist die Rechnung deines Strassenverkehrsamts.",
+      },
+      {
+        q: "Was ist das Fahrprofil?",
+        a: "Deine PLZ, wie viel du fährst, dein heutiges Auto und wie du laden würdest. Damit rechnen alle persönlichen Zahlen auf EV4U. Ändern kannst du es jederzeit über die PLZ oben im Kopf der Seite.",
+      },
+    ],
+  },
+];
+
+const ld = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: GROUPS.flatMap((g) =>
+    g.items.map((i) => ({ "@type": "Question", name: i.q, acceptedAnswer: { "@type": "Answer", text: i.a } })),
+  ),
+});
+---
+
+<Info
+  title="Hilfe"
+  description="Antworten zu Kaufen, Verkaufen, Konto und Kosten auf EV4U, dem Schweizer Marktplatz für gebrauchte E-Autos."
+  lead="Die häufigsten Fragen — kurz beantwortet."
+>
+  <script is:inline type="application/ld+json" set:html={ld} slot="head" />
+  <nav aria-label="Themen" class="not-prose flex flex-wrap gap-2">
+    {
+      GROUPS.map((g) => (
+        <a href={`#${g.title.toLowerCase()}`} class="rounded-full border border-line2 px-3.5 py-1.5 text-small font-semibold text-fg2 hover:border-fg3 hover:text-fg">
+          {g.title}
+        </a>
+      ))
+    }
+  </nav>
+  {
+    GROUPS.map((g) => (
+      <section>
+        <h2 id={g.title.toLowerCase()}>{g.title}</h2>
+        <div class="not-prose divide-y divide-line rounded-card border border-line bg-surface">
+          {g.items.map((i) => (
+            <details class="group px-4 py-3">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-body font-semibold text-fg [&::-webkit-details-marker]:hidden">
+                {i.q}
+                <span aria-hidden="true" class="text-fg3 transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p class="mt-2 text-body text-fg2">{i.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+    ))
+  }
+  <h2>Nicht gefunden?</h2>
+  <p>
+    Schreib uns an <a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a> oder <a href={`${base}/beratung`}>buch eine kostenlose Beratung</a>.
+    Wie du Betrug erkennst: <a href={`${base}/sicherheit`}>Sicher kaufen und verkaufen</a>.
+  </p>
+</Info>

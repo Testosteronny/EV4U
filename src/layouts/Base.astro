@@ -1,29 +1,44 @@
 ---
 import "../index.css";
-import Header from "../components/Header";
-import ContextBar from "../components/ContextBar";
-import AccountSync from "../components/AccountSync";
-import CompareTray from "../components/CompareTray";
-import Footer from "../components/Footer.astro";
+import { getCollection } from "astro:content";
+import { BLOG_CATEGORIES } from "../content.config";
+import Header, { Wordmark } from "../components/layout/Header";
+import BottomTabBar from "../components/layout/BottomTabBar";
+import AccountSync from "../components/layout/AccountSync";
+import CompareTray from "../components/layout/CompareTray";
+import Footer from "../components/layout/Footer.astro";
 
 interface Props {
   title?: string;
   description?: string;
   /** Absolute URL of a page-specific preview image (og:image). */
   image?: string;
+  /** "minimal": logo-only header, no footer or tab bar — the sell wizard. */
+  chrome?: "full" | "minimal";
+  /** Keep the page out of search engines (account pages, 404, demo cars). */
+  noindex?: boolean;
+  /** og:type — "article" for blog posts and guides. */
+  ogType?: "website" | "article";
 }
 
 const {
-  title = "EV4U — Der Schweizer E-Auto-Marktplatz",
-  description = "EV4U — Der Schweizer E-Auto-Marktplatz für Private & Garagen. Jedes Inserat durchgerechnet: dein Stromtarif, dein Solardach, deine Kilometer. The Future is electric.",
+  title = "EV4U — Gebrauchte E-Autos in der Schweiz",
+  description = "Der Schweizer Marktplatz für gebrauchte E-Autos: Batteriegarantie, Ladezeiten und Betriebskosten für deine Gemeinde auf jedem Inserat. Für Private und Garagen.",
   image,
+  chrome = "full",
+  noindex = false,
+  ogType = "website",
 } = Astro.props;
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-// Canonical URL for SEO + link previews (site is set in astro.config.mjs).
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
-// Preconnect to Supabase (listing data + photos) when a project is configured.
 const supabaseOrigin = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined;
+
+// The three newest posts for the «Wissen» menu.
+const posts = (await getCollection("blog"))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3)
+  .map((p) => ({ title: p.data.title, href: `${base}/blog/${p.id}`, category: BLOG_CATEGORIES[p.data.category] }));
 ---
 
 <!doctype html>
@@ -31,25 +46,26 @@ const supabaseOrigin = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined
   <head>
     <meta charset="UTF-8" />
     <script is:inline>
-      // Hell ist der Default. Eine explizite Wahl gewinnt, sonst entscheidet
-      // die Systempräferenz. Läuft vor dem ersten Paint — kein Flash.
+      // Light is the default. An explicit choice wins, otherwise the system
+      // preference decides. Runs before the first paint — no flash.
       try {
         var saved = localStorage.getItem("ev4u.theme");
         var dark =
-          saved === "dark" ||
-          (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
         if (dark) document.documentElement.classList.add("dark");
       } catch (e) {}
     </script>
     <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#FBFBFA" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0E0F0E" media="(prefers-color-scheme: dark)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0D0C" media="(prefers-color-scheme: dark)" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex,follow" />}
     <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title="EV4U Blog" href={`${base}/rss.xml`} />
     <meta property="og:site_name" content="EV4U" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:locale" content="de_CH" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -59,10 +75,6 @@ const supabaseOrigin = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} crossorigin />}
-    {/* Eine Familie, vier Schnitte. Vorher: Archivo über die volle
-        Breiten-Achse (wdth 62..125) PLUS Spline Sans Mono — beide sind
-        entfallen, weil es keine stretch-*-Klassen mehr gibt und Archivo
-        selbst Tabellenziffern mitbringt (font-variant-numeric: tabular-nums). */}
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap"
       rel="stylesheet"
@@ -73,23 +85,30 @@ const supabaseOrigin = import.meta.env.PUBLIC_SUPABASE_URL as string | undefined
   <body class="bg-canvas text-fg antialiased">
     <a
       href="#main"
-      class="fixed left-4 top-4 z-100 -translate-y-24 rounded-card bg-accent px-4 py-2 text-small font-medium text-on-accent transition-transform focus:translate-y-0"
+      class="fixed left-4 top-4 z-100 -translate-y-24 rounded-control bg-accent px-4 py-2 text-small font-semibold text-on-accent transition-transform focus:translate-y-0"
     >
       Zum Inhalt springen
     </a>
     <div class="flex min-h-screen flex-col overflow-x-clip">
-      {/* Header und Kontextleiste bilden einen sticky Block: die Werte, mit
-          denen jede Zahl auf der Seite gerechnet wird, bleiben sichtbar. */}
-      <div class="sticky top-0 z-50 border-b border-line bg-canvas/95 backdrop-blur-xs">
-        <Header client:load />
-        <ContextBar client:load />
-      </div>
-      <main id="main" class="flex-1">
+      {
+        chrome === "full" ? (
+          <Header client:load posts={posts} />
+        ) : (
+          <header class="sticky top-0 z-50 border-b border-line bg-surface">
+            <div class="mx-auto flex h-16 max-w-page items-center justify-between gap-4 px-4 sm:px-6">
+              <Wordmark />
+              <slot name="minimal-actions" />
+            </div>
+          </header>
+        )
+      }
+      <main id="main" class:list={["flex-1", chrome === "full" && "pb-4"]}>
         <slot />
       </main>
       <AccountSync client:load />
-      <CompareTray client:load />
-      <Footer />
+      {chrome === "full" && <CompareTray client:idle />}
+      {chrome === "full" && <BottomTabBar client:load />}
+      {chrome === "full" && <Footer />}
     </div>
   </body>
 </html>

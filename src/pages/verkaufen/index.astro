@@ -1,0 +1,143 @@
+---
+import Base from "../../layouts/Base.astro";
+import ListingCard from "../../components/listing/ListingCard";
+import { Breadcrumbs } from "../../components/ui";
+import { fetchBuildListings } from "../../lib/buildListings";
+
+/* /verkaufen — the sell landing (Konzept §4.8): why here, how it works,
+   what buyers see, what it costs, the questions sellers ask. The wizard
+   itself is /verkaufen/neu. */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const listings = await fetchBuildListings();
+const example =
+  listings.find((l) => l.photos?.length && l.warranty && l.spec) ?? listings.find((l) => l.photos?.length) ?? listings[0];
+
+const STEPS = [
+  {
+    title: "Fahrzeug wählen",
+    text: "Marke, Modell, Variante aus dem Katalog — Reichweite, Batterie, Ladeleistung und Neupreis füllen wir vor.",
+  },
+  {
+    title: "Batterie und Zustand",
+    text: "SOH, Batteriegarantie, MFK, Ausstattung. Genau die Fragen, die Käufer sonst per Nachricht stellen.",
+  },
+  {
+    title: "Fotos und Preis",
+    text: "Bis 20 Fotos mit Shot-Liste, Preisvorschlag aus vergleichbaren Inseraten. Zwischendurch speichern wir als Entwurf.",
+  },
+];
+
+const FAQ = [
+  {
+    q: "Was kostet das?",
+    a: "Für Private nichts. Dein Inserat bleibt online, bis du es auf «verkauft» stellst.",
+  },
+  {
+    q: "Sieht jemand meine E-Mail-Adresse?",
+    a: "Nein. Käufer schreiben dir über das Postfach auf EV4U; neue Nachrichten melden wir dir per E-Mail.",
+  },
+  {
+    q: "Ich kenne den Batteriezustand nicht.",
+    a: "Viele Autos zeigen ihn im Bordcomputer oder in der Hersteller-App. Sonst macht jede Markengarage einen Batterietest — Käufer fragen fast immer danach.",
+  },
+  {
+    q: "Kann ich das Inserat später ändern?",
+    a: "Jederzeit: Preis, Fotos, Beschreibung, Status. Unter Konto › Meine Inserate › Bearbeiten.",
+  },
+];
+---
+
+<Base
+  title="E-Auto verkaufen — gratis inserieren | EV4U"
+  description="Verkauf dein gebrauchtes E-Auto an Leute, die E-Autos suchen: gratis für Private, mit Batteriegarantie, Ladeleistung und Preis-Check."
+>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <Breadcrumbs items={[{ label: "Start", href: `${base}/` }, { label: "Verkaufen" }]} />
+
+    <section class="forest mt-6 grid gap-8 rounded-card p-6 sm:p-10 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+      <div>
+        <h1 class="text-display font-bold sm:text-display-lg">Verkauf dein E-Auto an Leute, die E-Autos suchen.</h1>
+        <p class="mt-3 max-w-prose text-h3 font-normal text-on-forest2">
+          Gratis für Private. Batterie, Garantie und Ladeleistung stehen dort, wo Käufer zuerst hinschauen — und jede
+          Käuferin sieht, was dein Auto sie mit ihrem Stromtarif kostet.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href={`${base}/verkaufen/neu`} class="inline-flex h-12 items-center justify-center gap-2 rounded-control bg-volt px-6 text-body font-semibold text-forest hover:bg-on-forest">
+            Inserat aufgeben
+          </a>
+          <a href={`${base}/verkaufen/preis-check`} class="inline-flex h-12 items-center px-3 text-body font-semibold text-on-forest hover:underline">
+            Erst den Preis prüfen →
+          </a>
+        </div>
+      </div>
+      {
+        example && (
+          <div class="mx-auto w-full max-w-xs" inert>
+            <p class="mb-2 text-small font-semibold text-on-forest2">So sieht ein Inserat in der Liste aus</p>
+            <ListingCard listing={example} />
+          </div>
+        )
+      }
+    </section>
+
+    <section class="mt-14">
+      <h2 class="text-h2 font-bold text-fg">In sieben Schritten online</h2>
+      <ol class="mt-5 grid gap-4 md:grid-cols-3">
+        {
+          STEPS.map((s, i) => (
+            <li class="card p-5">
+              <span class="grid h-8 w-8 place-items-center rounded-full bg-soft text-small font-bold text-accent tabular">{i + 1}</span>
+              <h3 class="mt-3 text-h3 font-bold text-fg">{s.title}</h3>
+              <p class="mt-1 text-body text-fg2">{s.text}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="mt-14 grid gap-4 md:grid-cols-2">
+      <div class="card p-6">
+        <p class="eyebrow">Privat</p>
+        <p class="mt-1 text-display font-bold text-fg">Gratis</p>
+        <ul class="mt-4 space-y-2 text-body text-fg2">
+          <li>Online, bis das Auto verkauft ist</li>
+          <li>Bis 20 Fotos, Preis-Check, Inserat-Qualität</li>
+          <li>Postfach mit Betrugswarnung, E-Mail bei neuen Anfragen</li>
+          <li>Aufrufe, Anfragen und «gemerkt» der letzten 30 Tage</li>
+        </ul>
+        <a href={`${base}/verkaufen/neu`} class="link mt-5 inline-block text-body font-semibold">Inserat aufgeben →</a>
+      </div>
+      <div class="card p-6">
+        <p class="eyebrow">Garage</p>
+        <p class="mt-1 text-display font-bold text-fg">Garagenkonto</p>
+        <ul class="mt-4 space-y-2 text-body text-fg2">
+          <li>Eigene Garagenseite mit Logo, Adresse und Öffnungszeiten</li>
+          <li>Abzeichen «Verifizierte Garage» nach Prüfung der UID</li>
+          <li>Statistiken und Lead-Export als CSV</li>
+        </ul>
+        <a href={`${base}/garagen`} class="link mt-5 inline-block text-body font-semibold">Für Garagen →</a>
+      </div>
+    </section>
+
+    <section class="mt-14 max-w-3xl">
+      <h2 class="text-h2 font-bold text-fg">Häufige Fragen</h2>
+      <div class="mt-4 divide-y divide-line rounded-card border border-line bg-surface">
+        {
+          FAQ.map((f) => (
+            <details class="group px-4 py-3">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 text-body font-semibold text-fg [&::-webkit-details-marker]:hidden">
+                {f.q}
+                <span aria-hidden="true" class="text-fg3 transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p class="mt-2 text-body text-fg2">{f.a}</p>
+            </details>
+          ))
+        }
+      </div>
+      <p class="mt-4 text-small text-fg2">
+        Mehr Antworten in der <a href={`${base}/hilfe`} class="link">Hilfe</a>, Tipps für gute Fotos im
+        <a href={`${base}/ratgeber/verkaufen-fotos`} class="link">Ratgeber</a>.
+      </p>
+    </section>
+  </div>
+</Base>

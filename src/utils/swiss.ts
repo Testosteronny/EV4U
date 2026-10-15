@@ -60,6 +60,11 @@ export function loadPlzResolver(): Promise<ZipResolver> {
   return loading;
 }
 
+/** All PLZ coordinates (loads the same lazy chunk as the resolver). */
+export async function loadPlzPoints(): Promise<{ e: number; n: number }[]> {
+  return (await import("./plzResolver")).allPlzPoints();
+}
+
 /** Resolve a Swiss 4-digit ZIP, loading the PLZ map first if needed. */
 export async function resolveZip(raw: string): Promise<GemeindeInfo | null> {
   return (await loadPlzResolver())(raw);

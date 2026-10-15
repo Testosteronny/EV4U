@@ -1,0 +1,67 @@
+---
+import Info from "../layouts/Info.astro";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Info
+  title="Datenschutz"
+  description="Welche Daten EV4U bearbeitet, wozu, bei wem sie liegen und welche Rechte du hast (revDSG)."
+  lead="Was wir über dich speichern, wozu — und was nicht."
+  updated="Oktober 2026"
+  draft="Entwurf nach dem Schweizer Datenschutzgesetz (revDSG). Die Angaben zum Verantwortlichen werden vor dem Start ergänzt; der Text wird vor dem Start juristisch geprüft."
+>
+  <h2>Verantwortlich</h2>
+  <p>EV4U, Betreiber wird vor dem Start ergänzt. Fragen zum Datenschutz: <a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a>.</p>
+
+  <h2>Ohne Konto</h2>
+  <p>
+    Dein Fahrprofil (PLZ, Kilometer pro Jahr, heutiges Auto, wie du laden würdest), deine Merkliste, die Autos im
+    Vergleich und die Wahl zwischen hellem und dunklem Modus speichern wir <strong>nur in deinem Browser</strong>
+    (localStorage). Sie gehen erst an uns, wenn du ein Konto anlegst.
+  </p>
+  <p>
+    Wir setzen keine Werbe- oder Analyse-Cookies und keine Tracking-Werkzeuge ein. Pro Inserat zählen wir Aufrufe,
+    Anfragen und «gemerkt» als Tageszahl — ohne Bezug zu deiner Person. Damit ein Aufruf nur einmal zählt, merkt sich
+    dein Browser für die Dauer der Sitzung, welche Inserate du schon gesehen hast.
+  </p>
+
+  <h2>Mit Konto</h2>
+  <ul>
+    <li><strong>Anmeldung:</strong> deine E-Mail-Adresse. Wir schicken dir damit Login-Links und, wenn du willst, Benachrichtigungen. Andere Nutzer sehen sie nie.</li>
+    <li><strong>Profil:</strong> Anzeigename und Kontotyp. Bei Garagen zusätzlich, was du für die öffentliche Garagenseite angibst: Adresse, Telefon, UID, Website, Öffnungszeiten, Logo.</li>
+    <li><strong>Inserate:</strong> die Angaben und Fotos deiner Autos. Aktive, reservierte und verkaufte Inserate sind öffentlich, Entwürfe und pausierte nur für dich.</li>
+    <li><strong>Nachrichten:</strong> gespeichert und nur für die beiden Beteiligten sichtbar. Der Hinweis auf typische Betrugsmuster wird in deinem Browser berechnet. Bei einer neuen Nachricht schicken wir eine E-Mail, wenn du das nicht ausgeschaltet hast.</li>
+    <li><strong>Suchabos, Merkliste, Fahrprofil:</strong> damit du sie auf allen Geräten hast und wir dich über neue Treffer, Preissenkungen und verkaufte Autos informieren können.</li>
+    <li><strong>Meldungen:</strong> Grund und Text einer Meldung zu einem Inserat; bist du angemeldet, mit deinem Konto verknüpft.</li>
+  </ul>
+
+  <h2>Beratung und Monatsbrief</h2>
+  <p>
+    Für einen <a href={`${base}/beratung`}>Beratungstermin</a> speichern wir Termin, Telefonnummer oder E-Mail und
+    gegebenenfalls das Inserat, um das es geht — nur für den Rückruf. Für den Monatsbrief speichern wir deine
+    E-Mail-Adresse, sobald du die Anmeldung bestätigt hast; abmelden kannst du dich mit dem Link in jeder Ausgabe.
+  </p>
+
+  <h2>Wer Daten für uns bearbeitet</h2>
+  <ul>
+    <li><strong>Supabase</strong> — Datenbank, Fotos und Anmeldung, Rechenzentrum in Zürich.</li>
+    <li><strong>GitHub Pages</strong> (GitHub Inc., USA) — liefert die Seiten aus und erhält dabei technisch deine IP-Adresse.</li>
+    <li><strong>Google Fonts</strong> (Google, USA) — liefert die Schrift aus und erhält dabei deine IP-Adresse.</li>
+    <li><strong>E-Mail-Versand</strong> — ein Versanddienst für Login-Links und Benachrichtigungen.</li>
+    <li><strong>KI-Suche</strong> — wenn du eine Suche in eigenen Worten beschreibst, geht dieser Text an ein Sprachmodell (Google Gemini), das ihn in Filter übersetzt. Ohne Bezug zu deinem Konto.</li>
+  </ul>
+
+  <h2>Wie lange</h2>
+  <p>
+    Konto, Inserate, Nachrichten, Suchabos und Merkliste, bis du sie löschst oder dein Konto löschst. Meldungen und
+    Beratungstermine, solange sie für die Bearbeitung nötig sind.
+  </p>
+
+  <h2>Deine Rechte</h2>
+  <p>
+    Du kannst Auskunft über deine Daten verlangen, sie berichtigen oder löschen lassen und sie in einem gängigen Format
+    erhalten. Dein Konto mit allen Daten löschst du selbst unter Konto › Einstellungen. Für alles andere:
+    <a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a>. Beschweren kannst du dich beim Eidgenössischen Datenschutz- und
+    Öffentlichkeitsbeauftragten (EDÖB).
+  </p>
+</Info>

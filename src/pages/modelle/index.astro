@@ -1,0 +1,41 @@
+---
+import Base from "../../layouts/Base.astro";
+import ModelIndex, { type BrandSummary } from "../../components/models/ModelIndex";
+import { PageHeader } from "../../components/ui";
+import { fetchBuildCatalog } from "../../lib/buildCatalog";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { CATALOG_META, catalogEdition } from "../../lib/vehicleCatalog";
+
+/* /modelle — the model guide's entry: every brand of the catalog. */
+const catalog = await fetchBuildCatalog();
+const listings = await fetchBuildListings();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const brands: BrandSummary[] = catalog.map((b) => ({
+  slug: b.slug,
+  name: b.name,
+  models: b.models.map((m) => m.name),
+}));
+---
+
+<Base
+  title="Alle E-Auto-Modelle: Reichweite, Batterie, Preise | EV4U"
+  description={`${CATALOG_META.brands} Marken und ${CATALOG_META.models} Elektroauto-Modelle mit Reichweite, Batterie, Ladeleistung, Anhängelast, Batteriegarantie und allen Occasionen in der Schweiz.`}
+>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <PageHeader
+      crumbs={[{ label: "Start", href: `${base}/` }, { label: "Modelle" }]}
+      title="Alle E-Auto-Modelle"
+      lead={`${CATALOG_META.brands} Marken, ${CATALOG_META.models} Modelle, ${CATALOG_META.variants} Varianten — mit Daten, Garantie und den Occasionen, die gerade im Angebot sind. Katalog-Ausgabe ${catalogEdition()}.`}
+    />
+    <div class="mt-8">
+      {
+        brands.length > 0 ? (
+          <ModelIndex client:load brands={brands} initial={listings} />
+        ) : (
+          <p class="card p-6 text-body text-fg2">Der Fahrzeugkatalog ist gerade nicht erreichbar.</p>
+        )
+      }
+    </div>
+  </div>
+</Base>

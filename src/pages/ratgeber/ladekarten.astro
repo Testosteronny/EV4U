@@ -1,0 +1,28 @@
+---
+import Base from "../../layouts/Base.astro";
+import Ladekarten from "../../components/content/Ladekarten";
+import { PageHeader } from "../../components/ui";
+import { CARDS_AS_OF } from "../../data/evData";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base
+  title="Ladekarten vergleichen: welche lohnt sich für dich? | EV4U"
+  description={`TCS eCharge, MOVE flex, IONITY Passport: was Laden unterwegs pro Jahr kostet — gerechnet mit deinen Kilometern. Tarife Stand ${CARDS_AS_OF}.`}
+>
+  <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
+    <PageHeader
+      crumbs={[
+        { label: "Start", href: `${base}/` },
+        { label: "Ratgeber", href: `${base}/ratgeber` },
+        { label: "Ladekarten" },
+      ]}
+      title="Welche Ladekarte lohnt sich?"
+      lead="Eine Ladekarte ohne Grundgebühr ist bei wenig Strom unterwegs fast immer die richtige. Ein Abo lohnt sich erst ab einer bestimmten Menge — hier siehst du, ab welcher."
+    />
+    <div class="mt-8">
+      <Ladekarten client:load />
+    </div>
+  </div>
+</Base>

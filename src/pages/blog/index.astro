@@ -1,0 +1,86 @@
+---
+import Base from "../../layouts/Base.astro";
+import PostCard from "../../components/content/PostCard.astro";
+import MonatsbriefBox from "../../components/content/MonatsbriefBox";
+import { Chip, PageHeader } from "../../components/ui";
+import { getGuides, getPosts, usedCategories } from "../../lib/content";
+
+/* /blog (Konzept §4.10): featured post on top, category chips (only those
+   with posts), all posts, the Monatsbrief box and the Ratgeber. */
+const posts = await getPosts();
+const guides = (await getGuides()).slice(0, 4);
+const categories = usedCategories(posts);
+const featured = posts.find((p) => p.data.featured) ?? posts[0];
+const rest = posts.filter((p) => p !== featured);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base
+  title="Blog: E-Autos, Laden und Strompreise in der Schweiz | EV4U"
+  description="Beiträge zu Strompreisen, Laden, Batterien und neuen Modellen — mit Zahlen aus der Schweiz und den Daten aus unserem Fahrzeugkatalog."
+>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <PageHeader
+      crumbs={[{ label: "Start", href: `${base}/` }, { label: "Blog" }]}
+      title="Blog"
+      lead="Strompreise, Laden, Batterien und neue Modelle — mit Schweizer Zahlen."
+    >
+      <a href={`${base}/rss.xml`} class="link text-small font-semibold">RSS-Feed</a>
+    </PageHeader>
+
+    {
+      categories.length > 1 && (
+        <div class="mt-6 flex flex-wrap gap-2">
+          <Chip active href={`${base}/blog`} count={posts.length}>
+            Alle
+          </Chip>
+          {categories.map((c) => (
+            <Chip href={`${base}/blog/kategorie/${c.key}`} count={c.count}>
+              {c.label}
+            </Chip>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      featured ? (
+        <>
+          <div class="mt-8">
+            <PostCard post={featured} large />
+          </div>
+          {rest.length > 0 && (
+            <div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {rest.map((p) => (
+                <PostCard post={p} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <p class="card mt-8 p-6 text-body text-fg2">Der erste Beitrag erscheint in Kürze.</p>
+      )
+    }
+
+    <div class="mt-12 grid gap-8 lg:grid-cols-2">
+      <MonatsbriefBox client:visible />
+      {
+        guides.length > 0 && (
+          <section>
+            <h2 class="text-h2 font-bold text-fg">Ratgeber</h2>
+            <p class="mt-1 text-body text-fg2">Anleitungen, die nicht veralten — laufend nachgeführt.</p>
+            <ul class="mt-4 grid gap-2">
+              {guides.map((g) => (
+                <li>
+                  <a href={`${base}/ratgeber/${g.id}`} class="link text-body font-semibold">
+                    {g.data.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
+      }
+    </div>
+  </div>
+</Base>

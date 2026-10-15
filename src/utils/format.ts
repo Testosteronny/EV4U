@@ -113,12 +113,29 @@ export const SELLER_LABEL: Record<Listing["sellerType"], string> = {
 };
 
 /** Alle Zustände, die ein Inserat in der Datenbank annehmen kann. */
-export const LISTING_STATI = ["ENTWURF", "AKTIV", "RESERVIERT", "VERKAUFT"] as const;
+export const LISTING_STATI = ["ENTWURF", "AKTIV", "RESERVIERT", "PAUSIERT", "VERKAUFT"] as const;
 export type ListingStatusFull = (typeof LISTING_STATI)[number];
 
 export const STATUS_LABEL: Record<ListingStatusFull, string> = {
   ENTWURF: "Entwurf",
   AKTIV: "Aktiv",
   RESERVIERT: "Reserviert",
+  PAUSIERT: "Pausiert",
   VERKAUFT: "Verkauft",
 };
+
+/** «vor 3 Tagen», «heute» — für Inserate, Nachrichten, Suchabos. */
+export function daysAgo(days: number): string {
+  if (days <= 0) return "heute";
+  if (days === 1) return "gestern";
+  if (days < 7) return `vor ${days} Tagen`;
+  if (days < 14) return "vor einer Woche";
+  if (days < 60) return `vor ${Math.floor(days / 7)} Wochen`;
+  return `vor ${Math.floor(days / 30)} Monaten`;
+}
+
+/** «15.10.2026» */
+export function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+}

@@ -1,0 +1,44 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PostCard from "../../../components/content/PostCard.astro";
+import { Chip, PageHeader } from "../../../components/ui";
+import { BLOG_CATEGORIES, type BlogCategory } from "../../../content.config";
+import { getPosts, usedCategories, type Post } from "../../../lib/content";
+
+/* Category archive — only for categories that have posts. */
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  return usedCategories(posts).map((c) => ({
+    params: { kategorie: c.key },
+    props: { category: c.key, posts: posts.filter((p) => p.data.category === c.key), all: posts },
+  }));
+}
+
+const { category, posts, all } = Astro.props as { category: BlogCategory; posts: Post[]; all: Post[] };
+const label = BLOG_CATEGORIES[category];
+const categories = usedCategories(all);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title={`${label} — Blog | EV4U`} description={`Alle Beiträge zum Thema ${label} im EV4U-Blog.`}>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <PageHeader
+      crumbs={[{ label: "Start", href: `${base}/` }, { label: "Blog", href: `${base}/blog` }, { label }]}
+      title={label}
+      lead={`${posts.length} ${posts.length === 1 ? "Beitrag" : "Beiträge"}`}
+    />
+    <div class="mt-6 flex flex-wrap gap-2">
+      <Chip href={`${base}/blog`} count={all.length}>Alle</Chip>
+      {
+        categories.map((c) => (
+          <Chip href={`${base}/blog/kategorie/${c.key}`} count={c.count} active={c.key === category}>
+            {c.label}
+          </Chip>
+        ))
+      }
+    </div>
+    <div class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {posts.map((p) => <PostCard post={p} />)}
+    </div>
+  </div>
+</Base>

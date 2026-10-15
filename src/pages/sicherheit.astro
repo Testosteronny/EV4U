@@ -1,0 +1,41 @@
+---
+import Info from "../layouts/Info.astro";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Info
+  title="Sicher kaufen und verkaufen"
+  description="Wie du Betrug bei Auto-Inseraten erkennst: keine Vorauszahlung, Probefahrt mit Ausweis, Papiere prüfen, bezahlen bei der Übergabe."
+  lead="Fast jeder Betrug bei Auto-Inseraten folgt denselben Mustern. Wer sie kennt, ist sicher."
+>
+  <h2>Fünf Regeln für Käufer</h2>
+  <ol>
+    <li><strong>Nie im Voraus zahlen.</strong> Keine Anzahlung, keine Kaution, keine «Reservationsgebühr» — auch nicht einen kleinen Betrag, um das Auto «zu sichern».</li>
+    <li><strong>Das Auto ansehen und Probe fahren.</strong> Vor Ort, bei Tageslicht. Lass dir den Fahrzeugausweis zeigen: Steht dort der Name der Person, die verkauft?</li>
+    <li><strong>Papiere prüfen.</strong> Fahrzeugausweis, letzter MFK-Bericht, Serviceheft und — bei einem E-Auto besonders wichtig — ein aktueller Batteriebericht mit dem Batteriezustand (SOH). Die Batteriegarantie lässt du dir mit Unterlagen belegen.</li>
+    <li><strong>Bezahlen bei der Übergabe.</strong> Geld gegen Schlüssel und Papiere, mit Quittung.</li>
+    <li><strong>Schriftlich abschliessen.</strong> Ein einfacher Kaufvertrag mit Fahrgestellnummer, km-Stand, Preis und den zugesicherten Eigenschaften. Vorlagen gibt es zum Beispiel beim TCS.</li>
+  </ol>
+
+  <h2>Typische Betrugsmuster</h2>
+  <ul>
+    <li>Der Preis liegt deutlich unter vergleichbaren Inseraten — der <a href={`${base}/verkaufen/preis-check`}>Preis-Check</a> zeigt, was üblich ist.</li>
+    <li>Die verkaufende Person ist «gerade im Ausland» und will das Auto per Spedition oder über einen Treuhanddienst liefern.</li>
+    <li>Bezahlt werden soll über Geldtransfer-Dienste, Gutscheine, Krypto oder «PayPal an Freunde».</li>
+    <li>Das Gespräch soll sofort auf WhatsApp oder Telegram weitergehen.</li>
+    <li>Ein Link, auf dem du «die Zahlung bestätigen» oder Kartendaten eingeben sollst. EV4U fragt nie nach Kartendaten oder Passwörtern.</li>
+  </ul>
+  <p>EV4U prüft eingehende Nachrichten auf diese Muster und zeigt im Postfach eine Warnung. Eine Warnung ist kein Beweis — aber ein guter Moment, kurz innezuhalten.</p>
+
+  <h2>Für Verkäufer</h2>
+  <ul>
+    <li><strong>Überzahlung ist ein Trick.</strong> Wer «aus Versehen» mehr überweist und die Differenz zurück will, zahlt meist mit Geld, das später zurückgebucht wird.</li>
+    <li><strong>Schlüssel erst nach Zahlungseingang.</strong> Bei einer Überweisung, wenn das Geld nachweislich auf deinem Konto ist.</li>
+    <li><strong>Probefahrt nur mit Ausweis.</strong> Fahr mit, und notiere dir Name und Ausweisnummer.</li>
+    <li><strong>Keine Ausweiskopien verschicken.</strong> Wer «zur Sicherheit» eine Kopie deines Passes will, braucht sie selten für den Autokauf.</li>
+    <li><strong>Kontrollschilder abschrauben.</strong> In der Schweiz gehören sie dir, nicht dem Auto. Gib sie dem Strassenverkehrsamt zurück oder übertrage sie aufs nächste Auto.</li>
+  </ul>
+
+  <h2>Etwas stimmt nicht?</h2>
+  <p>Jedes Inserat hat unten den Link «Inserat melden». Wir prüfen Meldungen von Hand und blenden verdächtige Inserate aus. Bei einem Betrugsversuch mit Schaden: Anzeige bei der Polizei. Fragen an uns: <a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a>.</p>
+</Info>

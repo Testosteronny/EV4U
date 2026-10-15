@@ -1,0 +1,86 @@
+---
+import { render } from "astro:content";
+import Article from "../../layouts/Article.astro";
+import PostCard from "../../components/content/PostCard.astro";
+import MonatsbriefBox from "../../components/content/MonatsbriefBox";
+import PostListings from "../../components/content/PostListings";
+import { BLOG_CATEGORIES } from "../../content.config";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { getPosts, readingMinutes, type Post } from "../../lib/content";
+import { jsonLd } from "../../lib/jsonLd";
+
+/* A blog post. Ends with matching listings, related posts and the
+   Monatsbrief box — never a dead end. */
+export async function getStaticPaths() {
+  const posts = await getPosts();
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post, all: posts } }));
+}
+
+const { post, all } = Astro.props as { post: Post; all: Post[] };
+const { Content, headings } = await render(post);
+const listings = await fetchBuildListings();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const url = new URL(`${base}/blog/${post.id}`, Astro.site).href;
+const category = BLOG_CATEGORIES[post.data.category];
+const related = all
+  .filter((p) => p !== post)
+  .sort((a, b) => Number(b.data.category === post.data.category) - Number(a.data.category === post.data.category))
+  .slice(0, 3);
+
+const ld = jsonLd({
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.date.toISOString(),
+  ...(post.data.updated && { dateModified: post.data.updated.toISOString() }),
+  author: { "@type": "Organization", name: post.data.author },
+  publisher: { "@type": "Organization", name: "EV4U" },
+  mainEntityOfPage: url,
+  articleSection: category,
+  keywords: post.data.tags.join(", "),
+});
+---
+
+<Article
+  title={post.data.title}
+  description={post.data.description}
+  crumbs={[
+    { label: "Start", href: `${base}/` },
+    { label: "Blog", href: `${base}/blog` },
+    { label: category, href: `${base}/blog/kategorie/${post.data.category}` },
+  ]}
+  eyebrow={{ label: category, href: `${base}/blog/kategorie/${post.data.category}` }}
+  date={post.data.date}
+  dateLabel="Veröffentlicht"
+  updated={post.data.updated}
+  minutes={readingMinutes(post.body)}
+  author={post.data.author}
+  headings={headings}
+  ld={ld}
+>
+  <Content />
+  <Fragment slot="after">
+    <section class="mt-14">
+      <h2 class="text-h2 font-bold text-fg">Passende Inserate</h2>
+      <div class="mt-4">
+        <PostListings client:visible models={post.data.models} initial={listings} />
+      </div>
+    </section>
+    {
+      related.length > 0 && (
+        <section class="mt-12">
+          <h2 class="text-h2 font-bold text-fg">Weiterlesen</h2>
+          <div class="mt-4 grid gap-4 md:grid-cols-3">
+            {related.map((p) => (
+              <PostCard post={p} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+    <div class="mt-12">
+      <MonatsbriefBox client:visible />
+    </div>
+  </Fragment>
+</Article>

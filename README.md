@@ -2,24 +2,28 @@
 
 > **The Future is electric.**
 
-EV4U is a **classifieds platform** for EVs — private second-hand sellers and
-garages — with a cost calculation attached to every listing. Not a generic
-"from CHF 0.04/km" figure: *your* municipal electricity tariff, *your*
-annual mileage, *your* charging mix, *your* canton's vehicle tax.
+EV4U is a **classifieds platform** for used EVs — private sellers and
+garages — that knows what matters for an electric car: battery state of
+health, battery warranty, charging power, and what the car costs per month
+at *your* municipal electricity tariff, *your* mileage and *your* canton's
+vehicle tax.
 
-The interface follows the **«Klartext»** concept (`docs/ui-revamp-concept.md`):
-mixed case, one accent colour, nothing below 13 px, one visible context bar
-that owns every personalised number, and motion only where it explains state.
+The interface follows concept v3 **«Ladestand»**
+(`docs/concept-v3-marktplatz.md`): a tinted canvas with white cards, deep
+«Waldgrün» brand surfaces, the 10-segment *Ladebalken* as the one recurring
+EV motif, and the price as the loudest text on every card. The previous
+concept («Klartext», `docs/ui-revamp-concept.md`) stays as the record of
+the readability rules v3 builds on.
 
 ## Stack
 - **Astro 7 (static) + React 19 islands + TypeScript** (Node ≥ 22.12) — every page is real
   prerendered HTML (SEO/GEO), interactivity hydrates as islands
+- **MDX content collections** for the blog and the Ratgeber
 - **nanostores** (`persistent`) — cross-island, cross-page state
-- **Tailwind CSS 4** (Vite plugin, no JS config) — `@theme` token set in `src/index.css` (`canvas`, `surface`,
-  `line`, `fg`, `accent`, `caution`)
-- **Archivo**, one family, four weights. No second face, no width axis —
-  Archivo carries tabular figures itself (`.tabular`).
-- No animation library. CSS transitions only.
+- **Tailwind CSS 4** (Vite plugin, no JS config) — `@theme` token set in `src/index.css`
+- **Archivo**, one family, four weights. Archivo carries tabular figures
+  itself (`.tabular`).
+- **lucide-react** icons. No animation library — CSS transitions only.
 
 ## Getting started
 
@@ -28,106 +32,137 @@ npm install
 npm run dev            # http://localhost:4321
 npm run build          # astro check (type-check) + production bundle
 npm run typecheck      # types only
+npm run sitemap        # regenerate public/sitemap.xml from the live database
 npm run fetch:tariffs  # refresh official tariff data (yearly, see below)
+npm run fetch:fuel     # refresh BFS pump prices (CI does this monthly)
+npm run alerts:plz     # PLZ coordinates for the alerts function (after fetch:tariffs)
+npm run catalog:import -- <workbook.xlsx>   # vehicle catalog, see below
 ```
 
 Without a `.env` (see `.env.example`) the app runs on the twelve bundled seed
-listings — the whole front end, the cost model and every filter work offline.
-The vehicle catalog lives only in Supabase, though: offline, the sell form
-asks for brand and model as text and the buyer filter offers the brands in
-stock. Copy `.env.example` to `.env` with the project URL and publishable key
-to work against the real catalog.
+listings — the front end, the cost model and every filter work offline.
+The vehicle catalog, accounts, messaging and the model pages need Supabase:
+copy `.env.example` to `.env` with the project URL and publishable key.
 
 ## Architecture
 
-`src/pages/*.astro` are thin shells around React page islands in
-`src/components/pages/*`; `src/layouts/Base.astro` carries head/meta, the
-sticky Header + ContextBar, the AccountSync and CompareTray islands and the
-static Footer.
+`src/pages/**/*.astro` are thin shells around React islands;
+`src/layouts/Base.astro` carries head/meta, the Header (with the Fahrprofil
+chip), the AccountSync, CompareTray and BottomTabBar islands and the static
+Footer. `chrome="minimal"` (the sell wizard) drops all of it for a
+wordmark and a close link. Content pages (Hilfe, Sicherheit, legal) use
+`src/layouts/Info.astro`.
 
-**`/inserat/[slug]` is prerendered at build time from the live database** —
-per-listing `<title>`, OG tags and schema.org JSON-LD in the initial HTML.
-Listings created after the last build are served by `404.astro`, which reads
-the slug from the URL and renders the detail island client-side; a rebuild
-(push, `workflow_dispatch`, or the Supabase webhook) promotes them to static
-pages.
+**Prerendered from the live database at build time:** every listing
+(`/inserat/[slug]`), every catalog brand and model (`/modelle/…`) and every
+garage page (`/garagen/[slug]`) — per-page `<title>`, OG tags and
+schema.org JSON-LD in the initial HTML. Listings and garage pages created
+after the last build are served by `404.astro`, which reads the slug from the
+URL and renders the island client-side; a rebuild (push,
+`workflow_dispatch`, or the Supabase webhook) promotes them to static pages.
+
+Account pages are static shells too: the conversation and the listing being
+edited come from query parameters (`/konto/nachrichten?c=…`,
+`/verkaufen/neu?id=…`), so no server is needed.
 
 ### Where things live
 
 ```
 src/
-  pages/*.astro              ← shells: meta, JSON-LD, build-time snapshot
-  layouts/Base.astro         ← head, sticky header block, footer
+  pages/**/*.astro           ← shells: meta, JSON-LD, build-time snapshots
+  layouts/                   ← Base (site chrome) · Info (content pages)
+  content/                   ← blog/*.mdx · ratgeber/*.mdx (content.config.ts)
   components/
-    Header.tsx               ← wordmark · search · Merkliste/Vergleich/Konto
-    ContextBar.tsx           ← «Deine Werte» + the sheet that sets them
-    pages/*.tsx              ← one island per route
-    EngineCore.tsx           ← the cost breakdown, embeddable
-    ListingCard/Board.tsx    ← grid and list view of the catalogue
-    ListingActions.tsx       ← the Merken/Vergleichen pair, used by both
-    ListingEditor.tsx        ← edit an own listing (sheet on /konto)
-    VehiclePicker.tsx        ← Marke → Modell → Variante (/verkaufen)
-    VehicleFilter.tsx        ← same catalog as the buyer filter (/inserate)
-    ui.tsx                   ← Button · Badge · Sheet · Popover · Slider …
-  hooks/
-    useCockpit.ts            ← the persisted visitor context
-    useCosts.ts              ← context + listing → the numbers
-    useListings/Session/…    ← store-backed reads
-    useVehicleCatalog.ts     ← catalog reads + the resolved picker choice
-  stores/                    ← nanostores: cockpit · listings · favorites ·
+    layout/                  ← Header · Fahrprofil (chip + sheet) · BottomTabBar ·
+                               CompareTray · AccountSync · ThemeToggle · Footer
+    search/                  ← QuickSearch · SearchBox · FilterSidebar ·
+                               VehicleFilter · ResultsMap · SaveSearch
+    listing/                 ← ListingCard/Row · Gallery · CostBreakdown ·
+                               Financing · ContactSheet · ReportSheet · CarGraphic
+    models/                  ← model guide: index, costs, offers
+    sell/                    ← SellWizard · PhotoStep · VehiclePicker ·
+                               PreisCheckPage · draft.ts (draft ↔ row)
+    konto/                   ← KontoLayout + one page per /konto/* route, AdminPage
+    garage/                  ← public garage profile
+    content/                 ← MDX building blocks (ModelBox, SearchTeaser, …),
+                               Monatsbrief box, charging-card comparison
+    pages/*.tsx              ← the remaining one-island routes
+    ui.tsx                   ← Button · Chip · Sheet · Stepper · ChargeBar · …
+  hooks/                     ← useCockpit (Fahrprofil) · useCosts · useListings ·
+                               useMerkliste · useMarket · useSession · useProfile ·
+                               useUnread · useAccountSettings · useVehicleCatalog …
+  stores/                    ← nanostores: cockpit · listings · merkliste ·
                                session · ui · vehicleCatalog
   lib/
-    filters.ts               ← what a catalogue URL parameter means
+    filters.ts               ← what a search URL parameter means; sorting
+    priceCheck.ts            ← Preis-Check: comparables → range
+    quality.ts               ← Inserat-Qualität 0–100 % and next steps
     vehicleCatalog.ts        ← catalog types, labels, catalog → listing specs
-    costModel.ts → utils/    ← see below
+    build*.ts                ← build-time snapshots (listings, catalog, garages)
+    supabase.ts · mappers.ts ← client, row types, row → Listing
   utils/
     costModel.ts             ← THE calculation (computeCosts)
     format.ts                ← display names, segment/seller/status labels
     search.ts                ← the local instant search
-    swiss.ts                 ← ZIP→Gemeinde resolver, fmtCH
+    swiss.ts · plzResolver.ts← PLZ → Gemeinde → tariff, fmtCH
   data/
-    evData.ts                ← 12 seed listings, charging cards, Gabriel
+    evData.ts                ← types, 12 offline seed listings, charging cards
     tariffs.json             ← baked ElCom × swisstopo lookup (generated,
                                loaded lazily via utils/plzResolver.ts)
     tariffMeta.json          ← its metadata, bundled on every page
     fuelPrices.json          ← baked BFS pump prices (generated)
+supabase/
+  migrations/                ← schema, RLS, triggers, cron
+  functions/                 ← Edge Functions (see Backend)
+  seed/                      ← vehicle catalog, demo listings
 ```
 
 ### Two rules that keep it honest
 
 1. **One calculation.** `computeCosts()` in `src/utils/costModel.ts` is the
-   only implementation of the cost model. The engine, the price box on a
-   listing page and the compare table all call it through `useCosts`. When
-   this lived in three places they had already drifted: the sidebar forced
-   the cheapest charging card while the engine used the one the visitor had
-   picked, so the headline could contradict the breakdown right below it.
+   only implementation of the cost model. The «Betrieb» figure on a card,
+   the cost breakdown on a listing, `/kosten`, the model pages and the
+   compare table all call it through `useCosts`.
 2. **One display name.** `vehicleTitle()` in `src/utils/format.ts` renders
    every brand/model. Legacy all-caps rows are normalised on the way out, so
    an imported `VW ID.7 TOURER PRO S` still reads `VW ID.7 Tourer Pro S`.
 
 ### Shared, persisted state
-ZIP/tariff, annual km, the visitor's current car, charging mix, PV and the
-compare tray are global and persisted to `localStorage` (`ev4u.cockpit.v1`).
-A returning visitor lands pre-personalised; every number on the site is
-computed from the values shown in the context bar, and that bar is the only
-place they are set.
+- **Fahrprofil** (`ev4u.cockpit.v1`): PLZ → municipality and tariff, km per
+  year, the car driven today, home charger, share charged on the road,
+  solar, plus the compare tray (up to 4). Set in one sheet, opened from the
+  header chip, from every «für dich →» link and inline on
+  `/konto/einstellungen`; logged-in users get it synced to their private
+  `account_settings` row.
+- **Merkliste** (`ev4u.merkliste.v1`): local-first, no login needed. Each
+  entry keeps the price at saving time and a note; on login it merges into
+  `favorites`, which is what the alert e-mails watch.
 
 ## Site structure
 
-Navigation carries **two destinations** — Inserate (buy) and Verkaufen (sell)
-— plus personal state on the right: Merkliste, Vergleich (appears only when
-it holds something), Konto. Rechenwerk and Vergleich are states, not
-destinations; both keep their URLs and are reachable from the footer.
+The header carries the menus **Kaufen · Verkaufen · Modelle · Wissen**,
+the search box, the Fahrprofil chip, Merkliste, Nachrichten, the account
+menu and «Inserieren». Below `md` a bottom tab bar takes over.
 
 | Route | Job |
 |-------|-----|
-| `/` | Hero + search, the freshest listings as photo cards, how EV4U calculates, brands in stock, consultation strip |
-| `/inserate` | The catalogue. Full-text search, filter popovers **with a hit count per option**, grid or list view. Filters and sort live in the URL (`?seg=SUV&preis=40000`): shareable, bookmarkable, reload-safe |
-| `/inserat/:slug` | One listing: gallery and price/contact first, then description, specs, the embedded cost breakdown, the seller, similar listings |
-| `/rechenwerk` | «Was kostet mich ein E-Auto?» — the engine against any open listing, funnelling back into the catalogue |
-| `/vergleich` | Up to 3 open listings side by side, specs *and* computed annual cost. Shareable via `?ids=a,b,c`, which is **adopted** into your own compare tray |
-| `/verkaufen` | Sell side: three steps, honest pricing, a 3-step capture wizard with a live preview of the listing card |
-| `/konto` | Seller dashboard in tabs: Inserate (status, edit, photos) · Suchen · Nachrichten · Profil |
+| `/` | Hero search, entry rows (Karosserie, Budget, Themen) with counts, «Neu eingetroffen», cost teaser, popular models, sell teaser, blog, Beratung |
+| `/inserate` | Search: filter sidebar (sheet on mobile) **with hit counts**, grid · list · map, sort incl. «Tiefste Betriebskosten» and «Nächste zuerst», Suchabo. Filters live in the URL (`?seg=SUV&preis=40000&garantie=1`) |
+| `/inserat/:slug` | Gallery, price and contact first; battery & warranty, Alltag, Laden, cost per year with financing example, equipment & condition, specs, price history, the model, seller (garage badge, response time), similar listings, «Inserat melden» |
+| `/merkliste` | Saved cars without login: price changes since saving, sold/reserved, notes |
+| `/vergleich` | Up to 4 listings side by side, specs and computed cost, best value highlighted; `?ids=a,b,c` is adopted into the tray |
+| `/finder` | Six questions → matching listings |
+| `/modelle` · `/modelle/[marke]` · `/modelle/[marke]/[modell]` | The catalog as a model guide: variants, range, charging, warranty, list price, running costs, used offers |
+| `/kosten` | Cost calculator against your current car, «Umsteigen» mode, financing example (`/rechenwerk` redirects here) |
+| `/verkaufen` · `/verkaufen/neu` · `/verkaufen/preis-check` | Sell landing; 7-step wizard with autosave and quality meter (`?id=` edits); free valuation |
+| `/garagen` · `/garagen/[slug]` | Offer for garages; public garage page with inventory |
+| `/blog` · `/blog/[slug]` · `/blog/kategorie/[kategorie]` · `/rss.xml` | Dated posts (MDX) |
+| `/ratgeber` · `/ratgeber/[slug]` · `/ratgeber/ladekarten` | Evergreen guides; interactive charging-card comparison |
+| `/beratung` · `/monatsbrief` | Call-back booking with Gabriel; the monthly newsletter (double opt-in) |
+| `/konto` · `/konto/{inserate,nachrichten,suchabos,einstellungen,garage}` | Dashboard, my listings with stats, inbox (`?c=`), search alerts, settings (Fahrprofil, notifications, delete account), garage profile and leads |
+| `/login` · `/admin` | Magic link (`?next=`); moderation: reports, garage verification, listings |
+| `/hilfe` · `/sicherheit` · `/ueber-uns` · `/kontakt` · `/impressum` · `/datenschutz` · `/agb` | Help (FAQ JSON-LD), safety, about, legal |
+
 
 ## The cost model
 
@@ -181,48 +216,63 @@ TCS eCharge (no base fee, ~0.57 typ. DC) + Swisscharge · MOVE flex
 (CHF 19.90/mt incl. 45 kWh, 0.59 at GOFAST/Fastned partner HPC) · IONITY
 Passport (CHF 11.99/mt, 0.46 CHF/kWh at CH IONITY) + Supercharger app.
 
-Insurance and depreciation are **not** in the model, and the engine says so.
+Insurance and depreciation are **not** in the model, and every cost view says so;
+financing is shown separately as an example (with the KKG notice).
 
 ## Backend (Supabase)
 
 The only backend is a Supabase project (Postgres, region **Zürich /
-eu-central-2**). No server code — all authorization is **Row Level
-Security** in the database:
+eu-central-2**). All authorization is **Row Level Security** in the
+database; the few things a browser must not do run as Edge Functions.
 
 | Table | Policies |
 |-------|----------|
-| `listings` | published rows public; ENTWURF visible to owner only; insert/update/delete restricted to `owner = auth.uid()` |
-| `profiles` | public read; users manage their own row; auto-created on signup by trigger |
-| `bookings` | **write-only**: validated anonymous insert, no select policy |
+| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable` |
+| `listing_price_history` | every price, logged by trigger — «Preis gesenkt», Merkliste changes, the price chart |
+| `listing_events` | views / contacts / saves per day; written only through `track_listing_event()`, read by owner and admins (account stats). `listing_save_count()` is the one public number |
+| `reports` | «Inserat melden»: anyone may insert, only admins read. Three distinct logged-in reporters set `hidden_at` (trigger) until an admin looks |
+| `profiles` | public read (seller name, garage page: slug, address, hours, logo, …); `verified` is admin-only (trigger); auto-created on signup |
+| `account_settings` | private, owner-only: the Fahrprofil and the notification switches (`notify_messages`, `notify_alerts`) |
+| `favorites` | the synced Merkliste: note, `saved_price`, and what the last alert reported |
+| `saved_searches` | the filter URL as-is, plus alert `frequency` (SOFORT · TAEGLICH · WOECHENTLICH · AUS) and `last_notified_at` / `last_opened_at` |
+| `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed. `seller_response_minutes()` gives the «antwortet meist innert …» badge |
+| `newsletter_subscribers` | the Monatsbrief, double opt-in; RLS without policies — only the `newsletter` function touches it |
+| `bookings` | Beratung call-backs: **write-only**, validated anonymous insert |
 | `canton_taxes` | **operator config**, weight-based: `rate_per_100kg` + `ev_discount_pct` + `tax_year`. Public read, no client write; bundled fallback when offline |
-| `favorites` | the Merkliste — owner-only, which is why a heart click needs a login |
-| `saved_searches` | the filter URL stored as-is, owner-only |
-| `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed |
-| `vehicle_brands` / `vehicle_models` / `vehicle_variants` | **reference data**, the EV catalog (see below): public read, no client write. Drives the /verkaufen picker & prefill |
-| `user_roles` | **admin flag**; `private.is_admin()` (security definer, in a schema the API doesn't expose) backs the admin branch of the listings RLS policies. The UI only decides what to *show* |
-| storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder |
+| `vehicle_brands` / `vehicle_models` / `vehicle_variants` | **reference data**, the EV catalog (see below): public read, no client write |
+| `user_roles` | **admin flag**; `private.is_admin()` (security definer, in a schema the API doesn't expose) backs the admin branches of the RLS policies. The UI only decides what to *show* |
+| storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder (listing photos, garage logo) |
 
-- **Auth**: passwordless magic links (`signInWithOtp`). One session fetch and
-  one `onAuthStateChange` subscription per page (`src/stores/session.ts`) —
-  not one per component that happens to need it.
-- **Messaging**: contact form on every listing; the shared inbox lives on
-  `/konto`. Read receipts via a column-level grant drive the unread badge.
-- **E-mail notifications**: a pg_net trigger on message insert calls the
-  `notify-message` Edge Function (Resend). Without `RESEND_API_KEY` it logs
-  and exits cleanly.
-- **AI search**: the `suche` Edge Function turns a description
-  («familientauglicher Kombi bis 40'000») into the same URL filters the
-  filter row writes — the result is a normal, shareable, adjustable search,
-  and what the model set appears as removable chips. Times out after 8 s and
-  falls back to plain text search; the site is fully functional without it.
-- **Image processing**: photos are downscaled client-side before upload
-  (max 1600 px, JPEG ~82 % — `src/utils/image.ts`), max 6 per listing.
+**Edge Functions** (`supabase/functions/`, all behind the JWT gateway):
+
+| Function | Job |
+|----------|-----|
+| `notify-message` | called by a pg_net trigger on message insert; mails the other participant a link into the thread — not when they switched it off, and only once per unread burst (30 min) |
+| `alerts` | **pg_cron every 30 min** (`ev4u-alerts`): new hits for due saved searches (frequency, max 5 per mail; the «Umkreis» filter uses `alerts/plz.json`) and Merkliste changes (price cut, reserved, sold, offline, available again) |
+| `newsletter` | Monatsbrief subscribe → confirmation mail, confirm, unsubscribe; one answer for every case, rate-limited |
+| `delete-account` | removes the caller's photos, then the auth user; everything else cascades |
+| `suche` | AI search: a description («familientauglicher Kombi bis 40'000») becomes the same URL filters the sidebar writes. 8 s timeout, falls back to text search; the site works without it |
+
+Secrets: `RESEND_API_KEY`, `MAIL_FROM`, `SITE_URL` (mail functions — without
+the key they log and exit cleanly) and `GEMINI_API_KEY` (`suche`). Deploy with
+`supabase functions deploy <name> --project-ref <ref> --use-api`.
+
+- **Auth**: passwordless magic links (`signInWithOtp`) on `/login?next=…`.
+  One session fetch and one `onAuthStateChange` subscription per page
+  (`src/stores/session.ts`).
+- **Sell wizard**: the draft autosaves to `localStorage` until every
+  required field is valid (`canPersist` — the row has NOT NULL specs and
+  price), then to an ENTWURF row on every step; publishing needs a photo. Photos are
+  downscaled client-side (max 1600 px, JPEG ~82 % — `src/utils/image.ts`),
+  max 20, reorderable; the first is the cover.
 - **Client**: `src/lib/supabase.ts` with `PUBLIC_SUPABASE_URL` +
   `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The publishable key is safe in the
   client; RLS does the guarding.
 - **Production checklist**: set the Auth *Site URL* + redirect allow-list to
-  your domain, configure custom SMTP, enable Point-in-Time Recovery,
-  **remove the demo listings** (below).
+  your domain, configure custom SMTP, set the function secrets above,
+  enable Point-in-Time Recovery, fill in the operator details on
+  `/impressum`, `/datenschutz` and `/agb` (marked as drafts) and have them
+  reviewed, **remove the demo listings** (below).
 
 ### Demo listings
 
@@ -257,14 +307,18 @@ The `is_demo` column can stay; once no row carries it, it changes nothing.
 
 ## SEO & GEO
 
-- `public/robots.txt` + `public/sitemap.xml` (regenerate with
-  `npm run sitemap` — pulls live listing slugs from Supabase).
-- `public/llms.txt` for generative engines.
-- Per-listing **schema.org Car/Offer + BreadcrumbList JSON-LD**, an
-  **ItemList** on `/inserate`, canonical + OG on every page — all in the
-  prerendered HTML, not injected by JS.
+- `public/sitemap.xml`, regenerated in CI before every build by
+  `npm run sitemap`: the indexable pages, blog posts and categories, guides,
+  every catalog brand and model, garage pages and live (non-demo) listings.
+  IndexNow gets the list after each deploy (`scripts/submit-indexnow.mjs`).
+- `public/robots.txt` keeps `/konto`, `/admin` and `/login` out;
+  `noindex` on Merkliste, Vergleich, the sell wizard and demo listings.
+- `public/llms.txt` for generative engines; `/rss.xml` for the blog.
+- **JSON-LD in the prerendered HTML**: Car/Offer + BreadcrumbList per
+  listing, ItemList on `/inserate`, ProductModel + AggregateOffer per model,
+  BlogPosting / Article, AutoDealer per garage, FAQPage on `/hilfe`.
 - `404.astro` is `noindex,follow`: it doubles as the client fallback for
-  listings newer than the last build, so it can answer under arbitrary URLs.
+  listings and garage pages newer than the last build.
 
 ## Real tariff data
 
@@ -306,8 +360,8 @@ trigger redeploys right after the BFS publication.
    data. They are numbered inside their municipality's PLZ range, so the
    resolver applies Post numbering convention: near a hundred base
    (`xx00–xx15`) → the base municipality; otherwise a distance-weighted vote
-   of the address PLZ within ±40. The context sheet shows which delivery PLZ
-   the tariff came from.
+   of the address PLZ within ±40. The Fahrprofil shows which delivery PLZ the
+   tariff came from.
 3. **CH median**, flagged **geschätzt** — only for PLZ nothing is near.
 
 Input is PLZ-level, so residents of a small municipality sharing its PLZ with
@@ -337,7 +391,7 @@ all specs in its own columns (the seller can still correct them) and links
 composite FK guarantees the variant belongs to the model. Dropping a car from
 the catalog never changes a published listing.
 
-**Picker** (`VehiclePicker.tsx`, state shared via `stores/vehicleCatalog.ts`):
+**Picker** (`sell/VehiclePicker.tsx`, state shared via `stores/vehicleCatalog.ts`):
 native selects for brand and model — models grouped into current, no longer
 sold new and announced — and the variant as radio cards with battery, power,
 drive, range and list price. A model with one variant preselects it. Every
@@ -345,7 +399,7 @@ level can be typed in when the car is missing; «Weiss ich nicht genau» keeps
 the model link without guessing specs. Brands + models arrive in one embedded
 select, variants per model on demand.
 
-**Buyer filter** (`VehicleFilter.tsx` on `/inserate`, «Marke & Modell»): the
+**Buyer filter** (`search/VehicleFilter.tsx` on `/inserate`, «Marke & Modell»): the
 same catalog as cascading selects — what's in stock first, with hit counts,
 then every other brand/model, so a buyer can save a search for a car nobody
 offers yet. The URL keeps the brand as a name (`marke=Tesla`; old links and
@@ -387,17 +441,20 @@ into the Supabase SQL editor. The schema is
 
 ## Backlog (deliberately not built yet)
 
-1. **Search-alert e-mails** — daily pg_cron + Edge Function over
-   `saved_searches`; needs the same Resend setup as message notifications.
-2. **Trust & safety** — "Inserat melden" (write-only `reports` table),
-   auto-hide at N reports, garage verification via Zefix, phone verification.
-3. **Certified SOH** — today the SOH is the seller's statement and is labelled
-   as such. A `soh_verified_at` column plus the partner check turns it into a
-   claim EV4U can stand behind.
-4. **Payments** — Stripe Checkout via Edge Function + webhook for the CHF 29
-   boost and the Garage-Abo.
-5. **Market price intelligence** — comparable-listings statistics once
-   inventory is large enough; framed positively, never as an ad rating.
+1. **Payments** — Stripe Checkout via Edge Function + webhook for «Boost»
+   and the Garage-Abo. `/garagen` and `/verkaufen` show the plans; nothing
+   is charged yet.
+2. **Verification** — phone (SMS) verification for private sellers and an
+   automated Zefix lookup for garages. Today an admin checks the UID by hand
+   on `/admin` (Zefix link) and sets «Verifizierte Garage».
+3. **Certified SOH** — today the SOH is the seller's statement and is
+   labelled as such. A `soh_verified_at` column plus a partner check turns
+   it into a claim EV4U can stand behind.
+4. **Partner offers** — insurance and financing are shown as labelled
+   estimates (KKG notice), not as offers from a named partner.
+5. **Orphaned photos** — an admin deleting someone else's listing leaves its
+   photos in storage (storage policies are owner-only); a scheduled sweep
+   with the service role would clean them up.
 6. **FR/IT localization** — Romandie/Ticino.
 7. **Analytics** — privacy-friendly (Plausible), one script tag.
 8. **OG image** — a designed share card (currently text-only OG tags).
@@ -405,33 +462,31 @@ into the Supabase SQL editor. The schema is
 ## Design tokens
 
 All colours are CSS variables (`--c-*` RGB triplets in `src/index.css`).
-Light is the default; an explicit choice wins, otherwise the system
-preference decides, applied pre-paint by an inline script (no flash).
+Light is the default; an explicit choice (footer, account menu, settings)
+wins, otherwise the system preference decides, applied pre-paint by an
+inline script (no flash).
 
-| Token | Light | Dark |
-|-------|-------|------|
-| `canvas` page | `#FBFBFA` | `#0E0F0E` |
-| `surface` card | `#FFFFFF` | `#161816` |
-| `fg` / `fg2` / `fg3` | `#141513` / `#5C5E59` / `#70726C` | `#EDEEEB` / `#9EA19B` / `#82857F` |
-| `accent` | `#0F7A43` | `#3BD683` |
-| `caution` | `#9A6400` | `#E0A63C` |
+| Token | Light | Job |
+|-------|-------|-----|
+| `canvas` | `#F3F5F2` | tinted page; white `surface` cards sit on it without a frame |
+| `forest` | `#062A19` | hero, footer, brand panels (`on-forest` text) |
+| `accent` | `#0F7A43` | buttons, links, active state, focus ring |
+| `volt` | `#3BD683` | highlights on dark surfaces, «Neu» — never text on light |
+| `bar` | `#1A9E58` | Ladebalken fill (volt fails 3:1 on white) |
+| `soft` / `faint` | `#DDF3E6` / `#EEF8F2` | positive badges, selected chips / tip boxes, the monthly-cost box |
+| `caution` | `#A86200` | warnings, «geschätzt» |
 
-`fg3` is deliberately darker than the obvious choice: `micro`/`small` text in
-`fg3` has to reach WCAG AA against the card.
-
-The accent carries exactly four jobs — primary button, active state, focus
-ring, link — plus the one editorial exception: a saving is the brand promise,
-so a saving may be green. Icons are neutral. Uppercase appears only in
+Dark mode redefines every token under `html.dark`. Uppercase appears only in
 `.eyebrow`.
 
 ## Mobile
-Grids stack to one column, the list view collapses to Inserat · Preis, touch
-targets stay ≥ 44 px, filter popovers become bottom sheets. Below `sm` the
-nav collapses to a full-screen menu, rendered outside the sticky header so
-its backdrop-filter cannot clip the overlay.
+Grids stack to one column, the filter sidebar becomes a sheet behind a
+sticky «Filter · Sortieren · Suchabo» bar, touch targets stay ≥ 44 px, and a
+bottom tab bar (Suchen · Merkliste · Inserieren · Nachrichten · Konto)
+replaces the header menus below `md`.
 
 ## Placeholders & Bilder
 Every listing shows a visual: the seller's first photo when uploaded,
 otherwise a technical side-elevation line drawing of the segment
-(`CarGraphic.tsx`, Kompakt/Limousine/Kombi/SUV). Detail pages without photos
-get a full "Fotos folgen" drawing panel instead of nothing.
+(`listing/CarGraphic.tsx`). The gallery shows the drawing instead of an
+empty frame.

@@ -1,0 +1,26 @@
+---
+import Info from "../layouts/Info.astro";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Info
+  title="Impressum"
+  description="Impressum von EV4U, dem Schweizer Marktplatz für gebrauchte E-Autos."
+  draft="Entwurf: Name, Adresse und gegebenenfalls UID des Betreibers werden vor dem öffentlichen Start ergänzt."
+>
+  <h2>Betreiber</h2>
+  <p>
+    EV4U<br />
+    Betreiber: wird vor dem Start ergänzt<br />
+    E-Mail: <a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a>
+  </p>
+
+  <h2>Inhalte der Inserate</h2>
+  <p>Für Inserate und Nachrichten sind die jeweiligen Anbieter verantwortlich. EV4U prüft gemeldete Inserate und blendet sie aus, wenn sie gegen die <a href={`${base}/agb`}>Nutzungsbedingungen</a> verstossen.</p>
+
+  <h2>Berechnungen</h2>
+  <p>Betriebskosten, Ladezeiten und Preisspannen sind Schätzungen auf Basis öffentlicher Daten (ElCom, kantonale Steuerregeln, Herstellerangaben) und der Angaben im Inserat. Sie ersetzen keine Offerte und keine verbindliche Auskunft.</p>
+
+  <h2>Urheberrecht</h2>
+  <p>Texte, Grafiken und Berechnungen auf EV4U sind urheberrechtlich geschützt. Fotos in Inseraten gehören den Anbietern.</p>
+</Info>

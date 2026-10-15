@@ -1,15 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
-import NotFoundFallback from "../components/NotFoundFallback";
+import NotFoundPage from "../components/pages/NotFoundPage";
 
-/* Diese Seite ist zwei Dinge zugleich: die ehrliche Fehlseite UND der
-   Client-Fallback für Inserate, die nach dem letzten Build entstanden sind
-   (GitHub Pages liefert 404.html für alles Nicht-Vorgerenderte). Genau
-   deshalb darf sie nicht in den Index: sonst steht eine Seite ohne Inhalt
-   unter allen möglichen URLs in den Suchergebnissen. */
+/* Two things at once: the honest error page AND the client fallback for
+   listings and garage profiles newer than the last build (GitHub Pages
+   serves 404.html for everything not prerendered). That is why it must
+   stay out of the index. */
 ---
 
-<Base title="Seite nicht gefunden — EV4U" description="Diese Seite gibt es nicht.">
-  <meta name="robots" content="noindex,follow" slot="head" />
-  <NotFoundFallback client:only="react" />
+<Base title="Seite nicht gefunden — EV4U" description="Diese Seite gibt es nicht." noindex>
+  <NotFoundPage client:only="react" />
 </Base>

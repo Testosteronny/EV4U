@@ -1,6 +1,7 @@
 /* ============================================================================
-   Shared cost-model constants — used by the EngineCore and /vergleich so
-   every number on the site agrees.
+   The one cost model — CostBreakdown, /kosten, /vergleich, the cards'
+   «Betrieb/Mt.» and the model pages all compute with it, so every number on
+   the site agrees.
    ============================================================================ */
 
 import fuelPrices from "../data/fuelPrices.json";
@@ -383,4 +384,28 @@ export function computeCosts(listing: Listing, ctx: CostContext): CostResult {
     currentIsEv,
     weightKg,
   };
+}
+
+/* ============================================================================
+   Finanzierung (F4) — an example, not an offer.
+
+   Plain annuity: the financed amount (price − down payment) repaid in
+   equal monthly instalments, no balloon payment. The
+   rate is an assumption the visitor can change; EV4U brokers no credit.
+   Swiss law (KKG Art. 36a) requires the over-indebtedness warning
+   wherever consumer credit is advertised — the UI shows it with every
+   result.
+   ============================================================================ */
+
+export const FINANCING_DEFAULTS = { ratePct: 5.9, months: 48, downPct: 20 };
+export const FINANCING_TERMS = [24, 36, 48, 60, 72];
+export const KKG_WARNING = "Die Kreditvergabe ist verboten, falls sie zur Überschuldung der Konsumentin oder des Konsumenten führt.";
+
+export type FinancingResult = { financed: number; monthly: number; interest: number };
+
+export function financing(price: number, down: number, months: number, ratePct: number): FinancingResult {
+  const financed = Math.max(0, price - down);
+  const r = ratePct / 100 / 12;
+  const monthly = financed === 0 ? 0 : r === 0 ? financed / months : (financed * r) / (1 - Math.pow(1 + r, -months));
+  return { financed, monthly, interest: Math.max(0, monthly * months - financed) };
 }

@@ -1,0 +1,10 @@
+---
+import Base from "../../layouts/Base.astro";
+import SellWizard from "../../components/sell/SellWizard";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title="Inserat aufgeben — EV4U" description="Dein E-Auto in sieben Schritten inserieren: Fahrzeug, Zustand, Batterie, Ausstattung, Fotos, Preis, Vorschau." chrome="minimal" noindex>
+  <a slot="minimal-actions" href={`${base}/konto/inserate`} class="text-body font-semibold text-fg2 hover:text-fg">Schliessen</a>
+  <SellWizard client:load />
+</Base>

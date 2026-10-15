@@ -1,31 +1,48 @@
 # EV4U — Der Schweizer E-Auto-Marktplatz
 
-> Swiss classifieds marketplace for electric vehicles (private sellers and
-> garages), with an integrated cost engine: every listing is computed against
-> the buyer's official municipal electricity tariff (ElCom), solar setup and
-> annual mileage. Motto: "The Future is electric."
+> Swiss classifieds marketplace for used electric vehicles (private sellers
+> and garages). Every listing shows battery state of health, the seller's
+> battery warranty, charging power, and the monthly running cost at the
+> visitor's own municipal electricity tariff (ElCom), mileage and canton.
+> Motto: "The Future is electric."
 
 ## What makes EV4U distinct
-- Every listing shows real energy cost per 100 km at the visitor's local
-  Swiss electricity tariff (official ElCom data, all ~2'100 municipalities).
-- Listings include the battery state of health (SOH) — stated by the seller,
-  or certified when a partner check was done.
-- Second-hand prices are shown against the Swiss list price when new
-  ("Neupreis-Vergleich"), so buyers see the saving.
-- The cost model compares petrol/diesel vs. electricity including
-  charging-card subscriptions (TCS eCharge, MOVE, IONITY), maintenance and
-  the cantonal vehicle tax (weight-based, incl. each canton's EV discount),
-  plus optional home solar. Insurance and depreciation are excluded, stated.
-- Pump prices are the official BFS national monthly average, refreshed by CI.
+- «Betrieb pro Monat» on every listing: electricity at the visitor's local
+  Swiss tariff (official ElCom data, all ~2'100 municipalities), maintenance
+  and the cantonal vehicle tax (weight-based, incl. each canton's EV
+  discount). Financing is shown separately as an example; insurance and
+  depreciation are excluded, stated.
+- Battery facts: state of health (SOH, stated by the seller and labelled as
+  such) and the battery warranty (until when, km limit, guaranteed capacity),
+  entered by the seller — never computed.
+- Filters an EV buyer needs: battery warranty, SOH, WLTP range, DC charging
+  power, 800 V, 22 kW AC, V2L, heat pump, tow hitch, trunk volume, distance
+  from a postcode; sort by lowest monthly cost or nearest.
+- Price context: the Swiss list price when new, price cuts and price
+  history, and a free valuation (Preis-Check) from comparable listings.
+- Saved cars (Merkliste) without login; e-mail alerts for saved searches and
+  for price cuts or sales of saved cars.
+- A model guide built from a catalog of 87 brands, 357 models and 743
+  variants (range, battery, charging, warranty, Swiss list price).
 
 ## Key pages
-- /inserate : all listings; free-text search plus filters for body, brand,
-  price, range, DC charging power, seats, provider and bidirectional charging.
-  Filters live in the URL (?seg=SUV&preis=40000), so any search is shareable.
-- /inserat/{slug} : one listing with full specs and the embedded cost engine
-- /rechenwerk : standalone cost calculator (petrol vs. electric, solar, cards)
-- /vergleich : up to three listings side by side, incl. computed annual cost
-- /verkaufen : post a listing (private or garage)
+- /inserate : all listings with filters; every filter lives in the URL
+  (?seg=SUV&preis=40000&garantie=1), so any search is shareable.
+- /inserat/{slug} : one listing — photos, battery and warranty, condition,
+  equipment, monthly cost, specs, seller
+- /modelle , /modelle/{brand} , /modelle/{brand}/{model} : model guide with
+  variants, data and the used offers of that model
+- /kosten : cost calculator (your current car vs. an EV, solar, charging
+  cards, financing example)
+- /finder : six questions to the matching listings
+- /vergleich : up to four listings side by side
+- /verkaufen , /verkaufen/preis-check : selling (free for private sellers)
+  and the free valuation
+- /garagen , /garagen/{slug} : offer for garages and public garage pages
+- /blog , /ratgeber : dated news and evergreen guides (checking a used EV,
+  battery health, battery warranty, charging at home in a rented flat,
+  charging cards at /ratgeber/ladekarten)
+- /hilfe , /sicherheit : FAQ and safe buying (scam patterns, payment)
 
 ## Data sources
 - Electricity tariffs: ElCom (Swiss federal electricity regulator) via
@@ -36,3 +53,5 @@
 - Cantonal vehicle tax: researched per canton (rate per 100 kg + EV
   discount), year shown in the UI.
 - Charging-card prices: published provider offers, dated in the UI.
+- Vehicle catalog: EV4U workbook «Elektroauto-Varianten Europa», edition
+  shown on /modelle.

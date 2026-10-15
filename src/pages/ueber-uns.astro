@@ -1,0 +1,30 @@
+---
+import Info from "../layouts/Info.astro";
+import meta from "../data/tariffMeta.json";
+import catalogMeta from "../data/vehicleCatalogMeta.json";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Info
+  title="Über EV4U"
+  description="EV4U ist der Schweizer Marktplatz nur für gebrauchte E-Autos — mit Batteriegarantie, Ladezeiten und Betriebskosten für deine Gemeinde."
+  lead="Ein Marktplatz nur für gebrauchte E-Autos — und für die Fragen, die man bei einem E-Auto stellt."
+>
+  <h2>Warum ein eigener Marktplatz?</h2>
+  <p>Bei einem Benziner reichen Jahrgang, Kilometer und Preis. Bei einem E-Auto will man mehr wissen: Wie gesund ist die Batterie, und wie lange ist sie noch garantiert? Wie schnell lädt es — an der Wallbox in der Garage und unterwegs? Was kostet der Strom dort, wo ich wohne?</p>
+  <p>Auf den grossen Plattformen stehen diese Antworten selten im Inserat. Bei EV4U stehen sie auf jedem.</p>
+
+  <h2>Was wir anders machen</h2>
+  <ul>
+    <li><strong>Kosten für deine Gemeinde.</strong> Wir rechnen mit dem Stromtarif deiner Gemeinde ({meta.municipalities.toLocaleString("de-CH")} Gemeinden, ElCom {meta.period}) und der Verkehrssteuer deines Kantons. Wie, steht im <a href={`${base}/kosten`}>Kostenrechner</a>.</li>
+    <li><strong>Technik aus dem Katalog.</strong> Jedes Inserat kann mit einer Variante aus unserem Fahrzeugkatalog verknüpft werden — Ladeleistung, Batteriechemie, Spannung und Kofferraum kommen dann von dort, nicht aus dem Gedächtnis des Verkäufers.</li>
+    <li><strong>Batteriegarantie im Inserat.</strong> Verkäufer tragen Datum, Kilometer und garantierte Kapazität ein; du siehst auf einen Blick, wie lange die Batterie noch abgesichert ist.</li>
+    <li><strong>Merkliste ohne Konto.</strong> Herz drücken geht immer. Ein Konto brauchst du erst, wenn du jemandem schreibst oder selbst verkaufst.</li>
+  </ul>
+
+  <h2>Daten</h2>
+  <p>Stromtarife: {meta.sources.join(", ")}. Fahrzeugkatalog: {catalogMeta.variants} Varianten von {catalogMeta.models} Modellen, Ausgabe {catalogMeta.edition.split("-").reverse().join(".")}. Wo wir schätzen, steht es dabei.</p>
+
+  <h2>Kontakt</h2>
+  <p><a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a> · <a href={`${base}/kontakt`}>alle Wege zu uns</a></p>
+</Info>

@@ -25,3 +25,7 @@ pnpm-debug.log*
 
 # Written by `astro preview`
 .astro/preview.json
+
+# Supabase CLI link state, Deno test lockfile
+supabase/.temp/
+deno.lock

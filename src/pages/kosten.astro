@@ -1,0 +1,16 @@
+---
+import Base from "../layouts/Base.astro";
+import KostenPage from "../components/pages/KostenPage";
+import { fetchBuildListings } from "../lib/buildListings";
+
+// The snapshot goes into the island, so the first client render sees the
+// same stock as the prerendered HTML.
+const listings = await fetchBuildListings();
+---
+
+<Base
+  title="Was kostet ein E-Auto? Kostenrechner für deine Gemeinde | EV4U"
+  description="Strom zu deinem Gemeindetarif, Wartung und kantonale Verkehrssteuer gegen dein heutiges Auto — gerechnet an echten Inseraten. Mit Umsteige-Modus und Finanzierungsbeispiel."
+>
+  <KostenPage client:load initial={listings} />
+</Base>

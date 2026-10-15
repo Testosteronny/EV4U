@@ -1,6 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
-import InseratDetailPage from "../../components/pages/InseratDetailPage";
+import ListingPage from "../../components/pages/ListingPage";
 import { fetchBuildListings } from "../../lib/buildListings";
 import { jsonLd } from "../../lib/jsonLd";
 import { photoUrl } from "../../lib/supabase";
@@ -9,10 +9,10 @@ import { fmtCH } from "../../utils/swiss";
 import type { Listing } from "../../data/evData";
 
 /* Prerendered at build time from the live database — every published
-   listing gets real HTML, its own <title>/OG tags and JSON-LD (the SEO/GEO
-   payoff of the Astro migration). Listings created AFTER the last build
-   are served by the 404.astro client fallback until the rebuild webhook
-   redeploys (see docs/listing-rebuild-webhook.md). */
+   listing gets real HTML, its own <title>/OG tags and JSON-LD. Listings
+   created after the last build (and sold ones) are served by the 404.astro
+   client fallback until the rebuild webhook redeploys
+   (see docs/listing-rebuild-webhook.md). */
 export async function getStaticPaths() {
   const listings = await fetchBuildListings();
   return listings.map((l) => ({ params: { slug: l.id }, props: { listing: l } }));
@@ -86,20 +86,11 @@ const breadcrumbLd = jsonLd({
 });
 ---
 
-<Base title={title} description={description} image={images[0]}>
+<Base title={title} description={description} image={images[0]} noindex={listing.isDemo}>
   <Fragment slot="head">
     {/* Demo cars aren't for sale: no index entry, no Offer markup. */}
-    {listing.isDemo ? (
-      <meta name="robots" content="noindex,follow" />
-    ) : (
-      <script is:inline type="application/ld+json" set:html={carLd} />
-    )}
+    {!listing.isDemo && <script is:inline type="application/ld+json" set:html={carLd} />}
     <script is:inline type="application/ld+json" set:html={breadcrumbLd} />
   </Fragment>
-  <InseratDetailPage
-    client:load
-    slug={listing.id}
-    initial={listing}
-    all={allListings}
-  />
+  <ListingPage client:load slug={listing.id} initial={listing} all={allListings} />
 </Base>

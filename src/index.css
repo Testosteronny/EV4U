@@ -2,6 +2,26 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================================
+   EV4U — Design language «Ladestand» (docs/concept-v3-marktplatz.md §6).
+
+   A clear market with an electric pulse: tinted canvas, white cards, deep
+   «Waldgrün» brand surfaces, one recurring EV motif (the Ladebalken), icons
+   that carry facts, and prices as the loudest text on any card.
+
+   Green is a scale now, not a single accent:
+     forest  — hero, footer, brand panels
+     accent  — buttons, links, active, focus (unchanged #0F7A43)
+     volt    — highlights on dark surfaces, «Neu»; never text on light
+     bar     — Ladebalken fill (volt fails 3:1 on white)
+     soft    — positive badges, selected chips
+     faint   — tip boxes, hover rows, the monthly-cost box
+
+   Light is the default; `.dark` on <html> switches (theme toggle in the
+   footer and account menu, persisted, system preference as the start).
+   `--c-*` are RGB triplets for Tailwind's alpha modifier.
+   ============================================================================ */
+
 @theme {
   --color-canvas: rgb(var(--c-canvas));
   --color-surface: rgb(var(--c-surface));
@@ -14,9 +34,19 @@
 
   --color-accent: rgb(var(--c-accent));
   --color-accent-hover: rgb(var(--c-accent-hover));
-
   --color-on-accent: rgb(var(--c-on-accent));
+  --color-soft: rgb(var(--c-soft));
+  --color-faint: rgb(var(--c-faint));
+  --color-volt: rgb(var(--c-volt));
+  --color-bar: rgb(var(--c-bar));
+
+  --color-forest: rgb(var(--c-forest));
+  --color-on-forest: rgb(var(--c-on-forest));
+  --color-on-forest2: rgb(var(--c-on-forest2));
+
   --color-caution: rgb(var(--c-caution));
+  --color-caution-bg: rgb(var(--c-caution-bg));
+  --color-danger: rgb(var(--c-danger));
 
   --font-sans: 'Archivo', system-ui, sans-serif;
 
@@ -33,18 +63,20 @@
   --text-h2--letter-spacing: -0.02em;
   --text-display: 2rem;
   --text-display--line-height: 2.375rem;
-  --text-display--letter-spacing: -0.02em;
-  --text-display-lg: 2.5rem;
-  --text-display-lg--line-height: 2.75rem;
-  --text-display-lg--letter-spacing: -0.022em;
+  --text-display--letter-spacing: -0.022em;
+  --text-display-lg: 3rem;
+  --text-display-lg--line-height: 3.25rem;
+  --text-display-lg--letter-spacing: -0.028em;
 
-  --radius-card: 10px;
-  --radius-chip: 6px;
-  --radius-overlay: 14px;
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-overlay: 16px;
 
+  --shadow-lift: 0 6px 20px -8px rgb(6 42 25 / 0.18);
   --shadow-overlay: var(--overlay-shadow);
 
   --container-prose: 68ch;
+  --container-page: 80rem;
 
   --animate-fade-in: fade-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
@@ -60,50 +92,225 @@
   }
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
+  :root {
+    color-scheme: light;
+
+    --c-canvas: 243 245 242;
+    --c-surface: 255 255 255;
+    --c-surface2: 247 248 246;
+    --c-line: 227 231 226;
+    --c-line2: 205 211 204;
+    --c-fg: 18 22 19;
+    --c-fg2: 78 86 80;
+    --c-fg3: 107 115 109;
+
+    --c-accent: 15 122 67;
+    --c-accent-hover: 11 98 54;
+    --c-on-accent: 255 255 255;
+    --c-soft: 221 243 230;
+    --c-faint: 238 248 242;
+    --c-volt: 59 214 131;
+    --c-bar: 26 158 88;
+
+    --c-forest: 6 42 25;
+    --c-on-forest: 238 248 242;
+    --c-on-forest2: 170 200 183;
+
+    --c-caution: 168 98 0;
+    --c-caution-bg: 255 243 220;
+    --c-danger: 180 35 24;
+
+    /* Light cards sit on the tinted canvas without a frame; the hairline
+       only keeps white-on-white overlaps (photos, menus) apart. */
+    --card-edge: 0 0 0 1px rgb(var(--c-line) / 0.55);
+    --overlay-shadow: 0 16px 48px -16px rgb(6 42 25 / 0.28);
+  }
+
+  html.dark {
+    color-scheme: dark;
+
+    --c-canvas: 11 13 12;
+    --c-surface: 21 24 22;
+    --c-surface2: 28 31 29;
+    --c-line: 39 43 40;
+    --c-line2: 56 62 58;
+    --c-fg: 238 241 238;
+    --c-fg2: 163 171 165;
+    --c-fg3: 133 141 135;
+
+    --c-accent: 59 214 131;
+    --c-accent-hover: 47 191 114;
+    --c-on-accent: 8 20 13;
+    --c-soft: 20 56 38;
+    --c-faint: 15 33 24;
+    --c-volt: 91 232 154;
+    --c-bar: 59 214 131;
+
+    --c-forest: 13 38 25;
+    --c-on-forest: 238 248 242;
+    --c-on-forest2: 160 196 176;
+
+    --c-caution: 232 169 62;
+    --c-caution-bg: 42 33 18;
+    --c-danger: 240 119 108;
+
+    --card-edge: 0 0 0 1px rgb(var(--c-line));
+    --overlay-shadow: 0 16px 48px -16px rgb(0 0 0 / 0.7);
+  }
+
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    border-color: rgb(var(--c-line));
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body {
+    background: rgb(var(--c-canvas));
+  }
+
+  /* The sticky header is 64 px; every jump target lands below it. Pages
+     with a second sticky row (section tabs on a listing) add their own
+     scroll-margin on the targets. */
+  html {
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
+/* ---------- Surfaces --------------------------------------------------------- */
+
 @utility card {
-  /* --- Flächen -----------------------------------------------------------
-     Karten grenzen sich durch Fläche + Haarlinie ab, nicht durch Schatten.
-     Schatten bleibt den Overlays vorbehalten. */
   background: rgb(var(--c-surface));
-  border: 1px solid rgb(var(--c-line));
-  border-radius: 10px;
+  border-radius: 12px;
+  box-shadow: var(--card-edge);
 }
 
-@utility card-flush {
-  background: rgb(var(--c-surface));
-  border: 1px solid rgb(var(--c-line));
-  border-radius: 10px;
-  overflow: hidden;
+@utility card-hover {
+  /* Cards that are links lift 2 px — the only hover motion on the site. */
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      var(--card-edge),
+      0 6px 20px -8px rgb(6 42 25 / 0.18);
+  }
 }
 
 @utility overlay-card {
   background: rgb(var(--c-surface));
   border: 1px solid rgb(var(--c-line));
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--overlay-shadow);
 }
 
+@utility tip {
+  /* Tip boxes, the monthly-cost box, «what you get» notes. */
+  background: rgb(var(--c-faint));
+  border-radius: 12px;
+}
+
+@utility forest {
+  /* Deep green brand surface: hero, footer, sell CTA, garage banner. */
+  background: rgb(var(--c-forest));
+  color: rgb(var(--c-on-forest));
+}
+
+/* ---------- Ladebalken ------------------------------------------------------- */
+
+@utility chargebar {
+  /* Ten segments; `--fill` (0–10, fractional allowed) is set inline. The bar
+     is static on purpose: an animated bar starts from a wrong value. */
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+}
+
+/* ---------- Inputs ----------------------------------------------------------- */
+
+@utility field {
+  width: 100%;
+  background: rgb(var(--c-surface));
+  border: 1px solid rgb(var(--c-line2));
+  border-radius: 10px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  color: rgb(var(--c-fg));
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+  &::placeholder {
+    color: rgb(var(--c-fg3));
+  }
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--c-accent));
+    box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.16);
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+@utility select-field {
+  cursor: pointer;
+  padding-right: 2.25rem;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgb(var(--c-fg2)) 50%),
+    linear-gradient(135deg, rgb(var(--c-fg2)) 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) calc(50% + 1px),
+    calc(100% - 12px) calc(50% + 1px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
 @utility slider {
-  /* --- Slider ------------------------------------------------------------
-     Ersetzt den Mischpult-Fader: runder Thumb, dünne Spur, keine Ticks. */
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -124,9 +331,9 @@
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
-    margin-top: -6px;
+    width: 18px;
+    height: 18px;
+    margin-top: -7px;
     border-radius: 999px;
     background: rgb(var(--c-surface));
     border: 2px solid rgb(var(--c-accent));
@@ -146,56 +353,15 @@
     background: rgb(var(--c-accent));
   }
   &::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 999px;
     background: rgb(var(--c-surface));
     border: 2px solid rgb(var(--c-accent));
   }
 }
 
-@utility field {
-  /* --- Formularfelder ----------------------------------------------------- */
-  width: 100%;
-  background: rgb(var(--c-surface));
-  border: 1px solid rgb(var(--c-line2));
-  border-radius: 10px;
-  padding: 0.625rem 0.875rem;
-  font-size: 0.9375rem;
-  line-height: 1.5rem;
-  color: rgb(var(--c-fg));
-  transition:
-    border-color 0.12s ease,
-    box-shadow 0.12s ease;
-  &::placeholder {
-    color: rgb(var(--c-fg3));
-  }
-  &:focus {
-    outline: none;
-    border-color: rgb(var(--c-accent));
-    box-shadow: 0 0 0 3px rgb(var(--c-accent) / 0.14);
-  }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  &select {
-    cursor: pointer;
-    padding-right: 2rem;
-    appearance: none;
-    background-image:
-      linear-gradient(45deg, transparent 50%, rgb(var(--c-fg2)) 50%),
-      linear-gradient(135deg, rgb(var(--c-fg2)) 50%, transparent 50%);
-    background-position:
-      calc(100% - 16px) calc(50% + 1px),
-      calc(100% - 11px) calc(50% + 1px);
-    background-size:
-      5px 5px,
-      5px 5px;
-    background-repeat: no-repeat;
-  }
-}
+/* ---------- Text ------------------------------------------------------------- */
 
 @utility no-scrollbar {
   &::-webkit-scrollbar {
@@ -206,12 +372,11 @@
 }
 
 @utility tabular {
-  /* Ziffern in Tabellen und Readouts richten sich aneinander aus. */
   font-variant-numeric: tabular-nums;
 }
 
 @utility eyebrow {
-  /* Regel 1: Versalien ausschliesslich hier — Eyebrow über einem Abschnitt. */
+  /* The only uppercase on the site. */
   font-size: 0.6875rem;
   line-height: 1rem;
   font-weight: 600;
@@ -220,122 +385,101 @@
   color: rgb(var(--c-fg3));
 }
 
-/* ============================================================================
-   EV4U — Design system «Klartext»
-   Ruhig, redaktionell, ein Akzent. Die Zahl ist der Held, das Chrom
-   verschwindet. Siehe docs/ui-revamp-concept.md.
-
-   Hell ist der Default; `.dark` auf <html> schaltet um (Header-Toggle,
-   persistiert, System-Präferenz als Ausgangswert).
-
-   `--c-*` sind RGB-Tripel für Tailwinds <alpha-value>. `--fg`, `--fg2`,
-   `--accent`, `--canvas` sind fertige Farben für inline-SVG-Attribute.
-   ============================================================================ */
-
-@layer base {
-  :root {
-    color-scheme: light;
-
-    --c-canvas: 251 251 250; /* Seitenhintergrund — warmes Papier */
-    --c-surface: 255 255 255; /* Karte, Panel */
-    --c-surface2: 244 244 242; /* raised / hover */
-    --c-line: 230 230 227; /* Haarlinie */
-    --c-line2: 214 214 210; /* betonte Kante */
-    --c-fg: 20 21 19; /* Primärtext */
-    --c-fg2: 92 94 89; /* Sekundärtext */
-    /* Tertiär (Platzhalter, Fussnoten, Icons). Bewusst dunkler als die
-       naheliegende Wahl: `micro`/`small` in fg3 muss AA erreichen — bei
-       rgb(139 141 135) waren es nur 3.4:1 gegen die Karte. */
-    --c-fg3: 112 114 108;
-
-    --c-accent: 15 122 67; /* Button, aktiv, Fokus, Link, Ersparnis */
-    --c-accent-hover: 12 100 55;
-    --c-on-accent: 255 255 255;
-    --c-caution: 154 100 0; /* reserviert, geschätzt, Fehler */
-
-    --fg: rgb(var(--c-fg));
-    --fg2: rgb(var(--c-fg2));
-    --fg3: rgb(var(--c-fg3));
-    --accent: rgb(var(--c-accent));
-    --canvas: rgb(var(--c-canvas));
-
-    --overlay-shadow: 0 8px 32px -12px rgb(0 0 0 / 0.18);
+@utility link {
+  color: rgb(var(--c-accent));
+  text-underline-offset: 2px;
+  &:hover {
+    color: rgb(var(--c-accent-hover));
+    text-decoration: underline;
   }
+}
 
-  html.dark {
-    color-scheme: dark;
+/* ---------- Prose (blog, Ratgeber, legal pages) ------------------------------ */
 
-    --c-canvas: 14 15 14;
-    --c-surface: 22 24 22;
-    --c-surface2: 30 32 30;
-    --c-line: 40 42 39;
-    --c-line2: 56 59 55;
-    --c-fg: 237 238 235;
-    --c-fg2: 158 161 155;
-    --c-fg3: 130 133 127; /* siehe hell: muss AA gegen die Karte erreichen */
+@utility prose-ev {
+  max-width: 68ch;
+  color: rgb(var(--c-fg));
+  font-size: 1rem;
+  line-height: 1.7;
 
-    --c-accent: 59 214 131;
-    --c-accent-hover: 86 226 152;
-    --c-on-accent: 10 20 14;
-    --c-caution: 224 166 60;
-
-    --overlay-shadow: 0 8px 32px -12px rgb(0 0 0 / 0.6);
+  & > * + * {
+    margin-top: 1.1em;
   }
-
-  * {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  & :where(h2):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 2em;
+    font-size: 1.375rem;
+    line-height: 1.75rem;
+    font-weight: 650;
+    scroll-margin-top: 5.5rem;
   }
-
-  html,
-  body {
-    background: rgb(var(--c-canvas));
+  & :where(h3):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 1.6em;
+    font-size: 1.0625rem;
+    line-height: 1.5rem;
+    font-weight: 650;
+    scroll-margin-top: 5.5rem;
   }
-
-  /* Header (56 px) + Kontextleiste (36 px) kleben oben. Ohne diese Angabe
-     landet jedes Sprungziel — «#kosten», «#kontakt», «#beratung», der
-     Skip-Link — unter der Leiste. Vorher stand an jedem Ziel einzeln ein
-     `scroll-mt-*`, in drei verschiedenen Werten und nie am richtigen. */
-  html {
-    scroll-padding-top: 6.5rem;
+  & :where(h2 + *):not(:where(.not-prose, .not-prose *)),
+  & :where(h3 + *):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 0.6em;
   }
-
-  /* Regel 3: nichts unter 13 px ausser Rechtlichem. Die Basis ist 15/24 —
-     das Arbeitspferd, das dem alten System komplett fehlte. */
-  body {
+  & :where(a):not(:where(.not-prose, .not-prose *)) {
+    color: rgb(var(--c-accent));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  & :where(a:hover):not(:where(.not-prose, .not-prose *)) {
+    color: rgb(var(--c-accent-hover));
+  }
+  & :where(strong):not(:where(.not-prose, .not-prose *)) {
+    font-weight: 650;
+  }
+  & :where(ul):not(:where(.not-prose, .not-prose *)),
+  & :where(ol):not(:where(.not-prose, .not-prose *)) {
+    padding-left: 1.25em;
+  }
+  & :where(ul):not(:where(.not-prose, .not-prose *)) {
+    list-style: disc;
+  }
+  & :where(ol):not(:where(.not-prose, .not-prose *)) {
+    list-style: decimal;
+  }
+  & :where(li + li):not(:where(.not-prose, .not-prose *)) {
+    margin-top: 0.35em;
+  }
+  & :where(li):not(:where(.not-prose, .not-prose *))::marker {
+    color: rgb(var(--c-fg3));
+  }
+  & :where(blockquote):not(:where(.not-prose, .not-prose *)) {
+    border-left: 3px solid rgb(var(--c-bar));
+    padding-left: 1em;
+    color: rgb(var(--c-fg2));
+  }
+  & :where(hr):not(:where(.not-prose, .not-prose *)) {
+    border: 0;
+    border-top: 1px solid rgb(var(--c-line));
+    margin: 2em 0;
+  }
+  & :where(table):not(:where(.not-prose, .not-prose *)) {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 0.9375rem;
-    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
   }
-
-  h1,
-  h2,
-  h3,
-  h4 {
-    letter-spacing: -0.015em;
-    text-wrap: balance;
+  & :where(th):not(:where(.not-prose, .not-prose *)),
+  & :where(td):not(:where(.not-prose, .not-prose *)) {
+    text-align: left;
+    padding: 0.5em 0.75em 0.5em 0;
+    border-bottom: 1px solid rgb(var(--c-line));
   }
-
-  p {
-    text-wrap: pretty;
+  & :where(th):not(:where(.not-prose, .not-prose *)) {
+    font-weight: 600;
+    color: rgb(var(--c-fg2));
   }
-
-  /* Der Ring folgt dem border-radius des Elements von selbst. Hier zusätzlich
-     `border-radius: 4px` zu setzen — wie es vorher stand — verformt jeden
-     fokussierten Button und jede fokussierte Karte im Moment des Fokus von
-     10 px auf 4 px: eine sichtbare Delle genau dort, wo die Tastatur
-     gerade steht. */
-  :focus-visible {
-    outline: 2px solid rgb(var(--c-accent));
-    outline-offset: 2px;
-  }
-
-  /* Nur noch reduzierte Bewegung respektieren — es gibt kaum mehr welche. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
+  & :where(code):not(:where(.not-prose, .not-prose *)) {
+    font-size: 0.875em;
+    background: rgb(var(--c-surface2));
+    border-radius: 6px;
+    padding: 0.1em 0.35em;
   }
 }

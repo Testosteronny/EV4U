@@ -1,13 +1,27 @@
 ---
+import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
-import HomePage from "../components/pages/HomePage";
+import HomePage, { type HomePost } from "../components/pages/HomePage";
+import { BLOG_CATEGORIES } from "../content.config";
 import { fetchBuildListings } from "../lib/buildListings";
 
-// Build-time snapshot → the "Frische Inserate" section prerenders with the
-// real inventory instead of the bundled seed.
+// Build-time snapshot → «Neu eingetroffen», the entry counts and the
+// popular models prerender with the real inventory.
 const listings = await fetchBuildListings();
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const posts: HomePost[] = (await getCollection("blog"))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3)
+  .map((p) => ({
+    title: p.data.title,
+    href: `${base}/blog/${p.id}`,
+    category: BLOG_CATEGORIES[p.data.category],
+    date: p.data.date.toISOString(),
+    description: p.data.description,
+  }));
 ---
 
 <Base>
-  <HomePage client:load initial={listings} />
+  <HomePage client:load initial={listings} posts={posts} />
 </Base>

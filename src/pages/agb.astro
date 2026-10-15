@@ -1,0 +1,70 @@
+---
+import Info from "../layouts/Info.astro";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Info
+  title="Nutzungsbedingungen"
+  description="Die Regeln für Inserate, Nachrichten und Konten auf EV4U."
+  lead="Die Regeln, damit sich Käufer und Verkäufer auf EV4U verlassen können."
+  updated="Oktober 2026"
+  draft="Entwurf: Betreiber und Gerichtsstand werden vor dem Start ergänzt; der Text wird vor dem Start juristisch geprüft."
+>
+  <h2>1. Was EV4U ist</h2>
+  <p>
+    EV4U ist ein Marktplatz für gebrauchte Elektroautos in der Schweiz. Wir bringen Käufer und Anbieter zusammen. Ein
+    Kaufvertrag kommt ausschliesslich zwischen Käufer und Anbieter zustande; EV4U ist nicht Vertragspartei und
+    übernimmt keine Garantie für Fahrzeuge, Angaben oder Zahlungen.
+  </p>
+
+  <h2>2. Konto</h2>
+  <p>
+    Ein Konto gehört einer Person oder einer Garage. Du meldest dich mit deiner E-Mail-Adresse an und sorgst dafür, dass
+    nur du Zugriff auf dieses Postfach hast. Garagen geben ihren richtigen Firmennamen an.
+  </p>
+
+  <h2>3. Inserate</h2>
+  <ul>
+    <li>Du inserierst nur Autos, die du verkaufen darfst, und nur Elektroautos.</li>
+    <li>Die Angaben stimmen — besonders Batteriezustand (SOH), Batteriegarantie, km-Stand, Unfallfreiheit und MFK. Wer etwas nicht weiss, lässt das Feld leer.</li>
+    <li>Fotos zeigen das inserierte Auto, und du hast die Rechte daran.</li>
+    <li>Ein Auto steht nur einmal online. Ist es verkauft oder reserviert, stellst du den Status um.</li>
+    <li>Der Preis ist ein Gesamtpreis in Franken.</li>
+  </ul>
+
+  <h2>4. Nachrichten</h2>
+  <p>
+    Das Postfach dient dem Kauf und Verkauf des jeweiligen Autos. Werbung, Massennachrichten und Belästigung sind nicht
+    erlaubt. Wie du Betrug erkennst, steht unter <a href={`${base}/sicherheit`}>Sicher kaufen und verkaufen</a>.
+  </p>
+
+  <h2>5. Moderation</h2>
+  <p>
+    Wir prüfen gemeldete Inserate. Bei Verstössen gegen diese Regeln oder bei Verdacht auf Betrug dürfen wir Inserate
+    ausblenden oder löschen und Konten sperren.
+  </p>
+
+  <h2>6. Kosten</h2>
+  <p>
+    Inserieren ist für Private kostenlos. Kostenpflichtige Zusatzleistungen kündigen wir vorher mit Preis an; ohne deine
+    ausdrückliche Bestellung entstehen keine Kosten.
+  </p>
+
+  <h2>7. Berechnungen</h2>
+  <p>
+    Betriebskosten, Ladezeiten, Preisspannen und Finanzierungsbeispiele sind Schätzungen auf Basis öffentlicher Daten und
+    der Angaben im Inserat. Sie sind unverbindlich; Finanzierungsbeispiele sind kein Kreditangebot. Die Kreditvergabe ist
+    verboten, falls sie zur Überschuldung der Konsumentin oder des Konsumenten führt.
+  </p>
+
+  <h2>8. Haftung</h2>
+  <p>
+    Für Inhalte der Anbieter und für Geschäfte zwischen Nutzern haften wir nicht. Im Übrigen haften wir nur für
+    absichtlich oder grobfahrlässig verursachte Schäden, soweit das Gesetz es zulässt.
+  </p>
+
+  <h2>9. Änderungen und Recht</h2>
+  <p>
+    Ändern sich diese Bedingungen, informieren wir angemeldete Nutzer per E-Mail. Es gilt Schweizer Recht.
+  </p>
+</Info>

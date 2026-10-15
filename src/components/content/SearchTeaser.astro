@@ -1,0 +1,15 @@
+---
+import SearchTeaserCard from "./SearchTeaserCard";
+import { fetchBuildListings } from "../../lib/buildListings";
+
+/* MDX wrapper: hands the build snapshot to the island, so the prerendered
+   count matches the first client render. */
+interface Props {
+  filter: string;
+  title?: string;
+}
+const { filter, title } = Astro.props;
+const listings = await fetchBuildListings();
+---
+
+<SearchTeaserCard client:visible filter={filter} title={title} initial={listings} />

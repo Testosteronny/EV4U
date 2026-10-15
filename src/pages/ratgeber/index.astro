@@ -1,0 +1,61 @@
+---
+import Base from "../../layouts/Base.astro";
+import { PageHeader } from "../../components/ui";
+import { fmtLongDate, getGuides } from "../../lib/content";
+
+/* /ratgeber — evergreen guides, plus the tools that answer the same
+   questions interactively. */
+const guides = await getGuides();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const TOOLS = [
+  { href: `${base}/ratgeber/ladekarten`, title: "Ladekarten vergleichen", text: "Welche Karte für wie viel Strom unterwegs?" },
+  { href: `${base}/kosten`, title: "Kostenrechner", text: "Was kostet ein E-Auto mit deinem Stromtarif?" },
+  { href: `${base}/finder`, title: "E-Auto-Finder", text: "Sechs Fragen, passende Inserate." },
+  { href: `${base}/beratung`, title: "Beratung", text: "Zwanzig Minuten am Telefon, kostenlos." },
+];
+---
+
+<Base
+  title="Ratgeber: E-Auto-Occasion kaufen, laden, verkaufen | EV4U"
+  description="Checklisten und Anleitungen für gebrauchte E-Autos: Batteriezustand, Batteriegarantie, Laden zuhause, Fotos fürs Inserat."
+>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <PageHeader
+      crumbs={[{ label: "Start", href: `${base}/` }, { label: "Ratgeber" }]}
+      title="Ratgeber"
+      lead="Was du vor dem Kauf, beim Laden und beim Verkauf wissen musst — laufend nachgeführt."
+    />
+
+    <ul class="mt-8 grid gap-4 md:grid-cols-2">
+      {
+        guides.map((g) => (
+          <li>
+            <a href={`${base}/ratgeber/${g.id}`} class="card card-hover flex h-full flex-col p-5">
+              <span class="eyebrow text-accent">{g.data.audience}</span>
+              <span class="mt-2 text-h3 font-bold text-fg">{g.data.title}</span>
+              <span class="mt-1 text-body text-fg2">{g.data.description}</span>
+              <span class="mt-auto pt-3 text-small text-fg3">Aktualisiert {fmtLongDate(g.data.updated)}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <section class="mt-12">
+      <h2 class="text-h2 font-bold text-fg">Werkzeuge</h2>
+      <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          TOOLS.map((t) => (
+            <li>
+              <a href={t.href} class="card card-hover block h-full p-4">
+                <span class="block text-h3 font-bold text-fg">{t.title}</span>
+                <span class="mt-1 block text-small text-fg2">{t.text}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</Base>

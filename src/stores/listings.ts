@@ -59,3 +59,20 @@ export function ensureListings(): void {
   started = true;
   void refreshListings();
 }
+
+/** Listings by slug in ANY status the visitor may see — the store above
+ *  only holds what is for sale, but a saved or linked car may be sold by
+ *  now, and that is exactly what the Merkliste and the detail page must
+ *  say. RLS decides: sold listings are public, drafts only for the owner. */
+export async function fetchListingsBySlugs(slugs: string[]): Promise<Listing[] | null> {
+  if (!supabase || slugs.length === 0) return supabase ? [] : null;
+  const { data, error } = await supabase
+    .from("listings")
+    .select(LISTING_SELECT)
+    .in("slug", slugs.slice(0, 200));
+  if (error) {
+    console.warn("[ev4u] listings by slug failed:", error.message);
+    return null;
+  }
+  return (data as unknown as ListingRow[]).map(rowToListing);
+}

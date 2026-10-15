@@ -1,0 +1,144 @@
+---
+import ThemeToggle from "./ThemeToggle";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { modelPath } from "../../lib/listingFacts";
+import { BODY_ENTRIES, TOPIC_ENTRIES, searchHref } from "../../lib/entries";
+import { CATALOG_META, catalogEdition } from "../../lib/vehicleCatalog";
+import { FUEL_PRICES_ASOF } from "../../utils/costModel";
+import { vehicleTitle } from "../../utils/format";
+import { TARIFF_META, fmtCH } from "../../utils/swiss";
+
+/* The footer is the sitemap: every page is reachable from here. Dark
+   «Waldgrün» brand surface (Konzept v3 §3.1). */
+const year = new Date().getFullYear();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const to = (p: string) => `${base}${p}`;
+
+// Top models = most listings in stock right now, from the build snapshot.
+const listings = await fetchBuildListings();
+const byModel = new Map<string, { name: string; slug: string; n: number }>();
+for (const l of listings) {
+  if (!l.modelSlug) continue;
+  const e = byModel.get(l.modelSlug) ?? { name: vehicleTitle(l), slug: l.modelSlug, n: 0 };
+  e.n += 1;
+  byModel.set(l.modelSlug, e);
+}
+const topModels = [...byModel.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)).slice(0, 6);
+
+const GROUPS = [
+  {
+    title: "Kaufen",
+    links: [
+      { href: to("/inserate"), label: "Alle Inserate" },
+      ...BODY_ENTRIES.slice(0, 4).map((e) => ({ href: searchHref(e.filter), label: `${e.label} Occasionen` })),
+      ...TOPIC_ENTRIES.slice(2, 3).map((e) => ({ href: searchHref(e.filter), label: e.label })),
+      { href: to("/finder"), label: "E-Auto-Finder" },
+      { href: to("/merkliste"), label: "Merkliste" },
+      { href: to("/vergleich"), label: "Vergleich" },
+    ],
+  },
+  {
+    title: "Verkaufen",
+    links: [
+      { href: to("/verkaufen/neu"), label: "Inserat aufgeben" },
+      { href: to("/verkaufen/preis-check"), label: "Gratis Preis-Check" },
+      { href: to("/verkaufen"), label: "So funktioniert's" },
+      { href: to("/garagen"), label: "Für Garagen" },
+      { href: to("/konto/inserate"), label: "Meine Inserate" },
+    ],
+  },
+  {
+    title: "Top-Modelle",
+    links: [
+      ...topModels.map((m) => ({ href: to(modelPath(m.slug)), label: m.name })),
+      { href: to("/modelle"), label: "Alle Modelle" },
+    ],
+  },
+  {
+    title: "Wissen",
+    links: [
+      { href: to("/blog"), label: "Blog" },
+      { href: to("/ratgeber"), label: "Ratgeber" },
+      { href: to("/kosten"), label: "Kostenrechner" },
+      { href: to("/ratgeber/ladekarten"), label: "Ladekarten-Vergleich" },
+      { href: to("/beratung"), label: "Beratung" },
+      { href: to("/monatsbrief"), label: "Monatsbrief" },
+    ],
+  },
+  {
+    title: "EV4U",
+    links: [
+      { href: to("/ueber-uns"), label: "Über uns" },
+      { href: to("/hilfe"), label: "Hilfe & FAQ" },
+      { href: to("/sicherheit"), label: "Sicher kaufen & verkaufen" },
+      { href: to("/kontakt"), label: "Kontakt" },
+    ],
+  },
+];
+
+const LEGAL = [
+  { href: to("/impressum"), label: "Impressum" },
+  { href: to("/datenschutz"), label: "Datenschutz" },
+  { href: to("/agb"), label: "AGB" },
+];
+---
+
+<footer class="forest mt-24 pb-16 md:pb-0">
+  <div class="mx-auto max-w-page px-4 pt-14 sm:px-6">
+    <div class="grid gap-10 pb-12 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
+      <div>
+        <a href={to("/")} class="flex items-center gap-2" aria-label="EV4U — Startseite">
+          <span class="grid h-8 w-8 place-items-center rounded-[9px] bg-volt" aria-hidden="true">
+            <span class="relative block h-3.5 w-3.5">
+              <span class="absolute left-0 top-1.5 h-0.5 w-3.5 rounded-full bg-forest"></span>
+              <span class="absolute left-1.5 top-0 h-3.5 w-0.5 rounded-full bg-forest"></span>
+            </span>
+          </span>
+          <span class="text-h3 font-bold text-on-forest">EV4U</span>
+        </a>
+        <p class="mt-4 max-w-xs text-body text-on-forest2">
+          Der Schweizer Marktplatz für gebrauchte E-Autos. Jedes Inserat durchgerechnet für deine Gemeinde.
+        </p>
+        <a
+          href="mailto:hallo@ev4u.ch"
+          class="mt-4 inline-block text-body font-semibold text-volt hover:underline">hallo@ev4u.ch</a
+        >
+      </div>
+
+      <div class="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-5 lg:grid-cols-5">
+        {
+          GROUPS.map((g) => (
+            <div>
+              <div class="mb-3 text-micro font-semibold uppercase tracking-[0.08em] text-on-forest2">{g.title}</div>
+              <ul class="space-y-2">
+                {g.links.map((l) => (
+                  <li>
+                    <a href={l.href} class="text-body text-on-forest transition-colors hover:text-volt">
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="border-t border-white/10">
+    <div class="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-5 text-small text-on-forest2 sm:px-6">
+      <span>© {year} EV4U — entwickelt in der Schweiz</span>
+      <span class="flex flex-wrap gap-x-4 gap-y-1">
+        {LEGAL.map((l) => <a href={l.href} class="hover:text-on-forest">{l.label}</a>)}
+        <a href={to("/rss.xml")} class="hover:text-on-forest">RSS</a>
+      </span>
+      <ThemeToggle client:idle className="font-semibold text-on-forest2 hover:text-on-forest" />
+    </div>
+    <div class="mx-auto max-w-page px-4 pb-6 text-micro text-on-forest2/80 sm:px-6">
+      Quellen: Stromtarife ElCom {TARIFF_META.period} ({fmtCH(TARIFF_META.plzCount)} PLZ) · Ortschaften
+      swisstopo · Treibstoffpreise BFS {FUEL_PRICES_ASOF} · Fahrzeugkatalog Ausgabe {catalogEdition()} ({CATALOG_META.models}
+      Modelle, {CATALOG_META.variants} Varianten)
+    </div>
+  </div>
+</footer>

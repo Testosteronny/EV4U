@@ -1,0 +1,11 @@
+---
+import Base from "../layouts/Base.astro";
+import MerklistePage from "../components/pages/MerklistePage";
+import { fetchBuildListings } from "../lib/buildListings";
+
+const listings = await fetchBuildListings();
+---
+
+<Base title="Merkliste — EV4U" description="Deine gemerkten E-Autos, mit Preisänderungen seit dem Merken." noindex>
+  <MerklistePage client:load initial={listings} />
+</Base>

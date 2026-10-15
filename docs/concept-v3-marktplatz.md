@@ -1,6 +1,8 @@
 # EV4U — Concept v3 «Ladestand»
 
-Status: **Draft, reviewed 2026-10-15** (review log in section 11)
+Status: **Implemented 2026-10-15** (review log in section 11). Not built, by
+decision or for lack of accounts: payments (Boost, Garage-Abo), SMS and automated
+Zefix verification, named partner offers — see the README backlog.
 Replaces as a target state: `docs/ui-revamp-concept.md` («Klartext», implemented 2026-08).
 «Klartext» stays as the record of *why* the current UI looks the way it does.
 

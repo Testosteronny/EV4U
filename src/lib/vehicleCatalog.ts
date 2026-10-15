@@ -90,6 +90,9 @@ export type CatalogVariant = {
   frunk_l: number | null;
   towing_kg: number | null;
   curb_weight_kg: number | null;
+  length_mm: number | null;
+  width_mm: number | null;
+  height_mm: number | null;
   battery_warranty_years: number | null;
   battery_warranty_km: number | null;
   battery_warranty_conditional: boolean;
@@ -255,7 +258,10 @@ export function listingSpecs(
 
 /** Passt der Jahrgang zur Bauzeit des Modells? Ein Hinweis, keine Sperre:
  *  Erstzulassung und Marktstart liegen gern ein Jahr auseinander. */
-export function yearHint(model: CatalogModel | null, year: number): string | null {
+export function yearHint(
+  model: Pick<CatalogModel, "name" | "launch_year" | "end_year"> | null,
+  year: number,
+): string | null {
   if (!model || !Number.isFinite(year) || year < 1990) return null;
   if (model.launch_year && year < model.launch_year - 1) {
     return `Der ${model.name} kam erst ${model.launch_year} auf den Markt — Jahrgang prüfen.`;

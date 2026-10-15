@@ -1,0 +1,33 @@
+---
+import Base from "../../layouts/Base.astro";
+import GarageProfile from "../../components/garage/GarageProfile";
+import { fetchBuildGarages, type GarageInfo } from "../../lib/buildGarages";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { jsonLd } from "../../lib/jsonLd";
+
+export async function getStaticPaths() {
+  const garages = await fetchBuildGarages();
+  return garages.map((g) => ({ params: { slug: g.slug }, props: { garage: g } }));
+}
+
+const { garage } = Astro.props as { garage: GarageInfo };
+const listings = await fetchBuildListings();
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const stock = listings.filter((l) => l.sellerSlug === garage.slug && !l.isDemo);
+const ld = jsonLd({
+  "@context": "https://schema.org",
+  "@type": "AutoDealer",
+  name: garage.name,
+  url: new URL(`${base}/garagen/${garage.slug}`, Astro.site).href,
+  ...(garage.address && { address: garage.address }),
+  ...(garage.phone && { telephone: garage.phone }),
+  ...(garage.website && /^https?:\/\//i.test(garage.website) && { sameAs: [garage.website] }),
+  ...(garage.about && { description: garage.about.slice(0, 300) }),
+});
+const description = `${garage.name}: ${stock.length} gebrauchte E-Autos online${garage.address ? ` · ${garage.address}` : ""}. Öffnungszeiten, Kontakt und alle Inserate auf EV4U.`;
+---
+
+<Base title={`${garage.name} — E-Auto-Occasionen | EV4U`} description={description}>
+  <script is:inline type="application/ld+json" set:html={ld} slot="head" />
+  <GarageProfile client:load slug={garage.slug} garage={garage} initial={listings} />
+</Base>

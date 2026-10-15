@@ -1,13 +1,74 @@
 /* ============================================================================
-   EV4U is a classifieds platform: private second-hand sellers + garages.
-   The Markt-Tafel shows open Inserate (listings); only AKTIV listings are
-   selectable in the Rechenwerk simulation. Specs follow real Swiss-market
-   configurations; production app: listings API / database.
+   EV4U — the listing shape every surface reads, the offline seed, and the
+   few fixed facts the site carries (charging cards, the advisor).
+
+   Live listings come from Supabase (`lib/mappers.ts` turns a row into a
+   `Listing`); the twelve seed cars below are what the site shows when no
+   backend is configured, so every page also works offline.
    ============================================================================ */
 
 export type Segment = "KOMPAKT" | "LIMOUSINE" | "KOMBI" | "SUV";
 
-export type ListingStatus = "AKTIV" | "RESERVIERT";
+/** What a buyer can see. Drafts and paused listings never leave the account. */
+export type ListingStatus = "AKTIV" | "RESERVIERT" | "VERKAUFT";
+
+/** The seller's equipment checklist (sell wizard step 4). Absent = not stated. */
+export type Equipment = {
+  heat_pump?: boolean;
+  tow_hitch?: boolean;
+  winter_tyres?: boolean;
+  cable_type2?: boolean;
+  cable_mode2?: boolean;
+  panorama_roof?: boolean;
+  adaptive_cruise?: boolean;
+  camera_360?: boolean;
+  heated_seats?: boolean;
+  color?: string;
+};
+
+/** Facts of the linked catalog variant — the same for every car of that
+ *  variant, so they come from the catalog and not from the seller. Absent
+ *  for cars entered outside the catalog. */
+export type ListingSpec = {
+  acKw: number;
+  /** System voltage — 800 V and up charges at full DC power on HPC. */
+  voltage: number;
+  chemistry: string;
+  chargePort: string;
+  v2l: boolean;
+  drive: "FWD" | "RWD" | "AWD";
+  powerKw: number | null;
+  powerPs: number | null;
+  accel: number | null;
+  topSpeed: number | null;
+  trunkL: number | null;
+  frunkL: number | null;
+  towingKg: number | null;
+  lengthMm: number | null;
+  widthMm: number | null;
+  heightMm: number | null;
+  batteryGross: number | null;
+};
+
+/** Seller-entered battery warranty (F1). Never computed from the catalog. */
+export type BatteryWarranty = {
+  /** "YYYY-MM" — valid until the end of that month. */
+  until?: string;
+  km?: number;
+  /** Guaranteed minimum capacity, %. */
+  soh?: number;
+};
+
+/** Seller-entered condition (F11). */
+export type Condition = {
+  /** "YYYY-MM" of the last MFK. */
+  mfk?: string;
+  accidentFree?: boolean;
+  owners?: number;
+  serviceBook?: boolean;
+  /** "YYYY-MM" — vehicle (factory or dealer) warranty. */
+  warrantyUntil?: string;
+};
 
 export type Listing = {
   id: string;
@@ -30,6 +91,12 @@ export type Listing = {
   price: number;
   /** Swiss list price when new, CHF — drives the Neupreis-Vergleich. */
   priceNew?: number;
+  /** The previous, higher asking price when it was cut in the last 30 days. */
+  previousPrice?: number;
+  /** Asking prices over time, oldest first (from listing_price_history). */
+  priceHistory?: { price: number; at: string }[];
+  /** «Verhandlungsbasis» */
+  negotiable?: boolean;
   /** WLTP range, km */
   range: number;
   /** Real-mix consumption, kWh / 100 km */
@@ -43,20 +110,33 @@ export type Listing = {
   /** Curb weight, kg — drives the cantonal tax model. Prefilled from the
    *  vehicle catalog when a variant is chosen; fallback REF_WEIGHT_KG. */
   weightKg?: number;
-  /** Battery state of health, % — measured, not claimed */
+  /** Battery state of health, % — the seller's figure. */
   soh: number;
-  /** Bidirectional (V2H/V2L/V2G) capable */
+  /** Can give power back (V2L and up). */
   bidi: boolean;
   /** Number of seats */
   seats: number;
-  /** Days since the ad was posted — drives "NEU" tags and the home teaser */
+  /** Days since the ad was posted — drives «Neu» tags and the home teaser */
   postedDays: number;
+  /** ISO timestamp of publication — sorts «Neueste». */
+  createdAt?: string;
+  /** Inserat-Qualität 0–100 (lib/quality) — ranks same-day listings in «Neueste». */
+  quality?: number;
   seller: string;
   sellerType: "PRIVAT" | "GARAGE";
+  /** Garage profile slug, when the seller has a public garage page. */
+  sellerSlug?: string;
+  /** Garage UID checked by EV4U. */
+  sellerVerified?: boolean;
+  /** «4600 Olten» — the PLZ drives distance and the map. */
   ort: string;
   status: ListingStatus;
-  /** One signature fact for the dossier drawer */
+  /** The seller's description. */
   note: string;
+  warranty?: BatteryWarranty;
+  condition?: Condition;
+  equipment?: Equipment;
+  spec?: ListingSpec;
   /** Database id (uuid) — set when loaded live; used by messaging. */
   uid?: string;
   /** Owning profile (uuid) — null/undefined for platform-seeded listings,
@@ -92,7 +172,7 @@ export const LISTINGS: Listing[] = [
     sellerType: "PRIVAT",
     ort: "4600 Olten",
     status: "AKTIV",
-    note: "Günstigster Einstieg auf der Tafel — ideal als Zweitwagen, frisch ab MFK.",
+    note: "Günstigster Einstieg im Angebot — ideal als Zweitwagen, frisch ab MFK.",
   },
   {
     id: "renault-5",
@@ -117,6 +197,9 @@ export const LISTINGS: Listing[] = [
     ort: "4600 Olten",
     status: "AKTIV",
     note: "Echtes V2G ab Werk — kann Strom zurück ins Netz speisen. Vorführwagen, Werksgarantie bis 2030.",
+    warranty: { until: "2033-03", km: 160000, soh: 70 },
+    equipment: { heat_pump: true, cable_type2: true, adaptive_cruise: true, heated_seats: true, color: "Gelb" },
+    condition: { accidentFree: true, owners: 1, serviceBook: true, warrantyUntil: "2030-03" },
   },
   {
     id: "tesla-m3",
@@ -140,7 +223,10 @@ export const LISTINGS: Listing[] = [
     sellerType: "PRIVAT",
     ort: "8400 Winterthur",
     status: "AKTIV",
-    note: "Highland-Facelift, Effizienz-Referenz der Tafel. Voller Supercharger-Zugang.",
+    note: "Highland-Facelift, Sehr effizient. Voller Supercharger-Zugang.",
+    warranty: { until: "2032-05", km: 192000, soh: 70 },
+    equipment: { heat_pump: true, winter_tyres: true, cable_type2: true, cable_mode2: true, panorama_roof: true, adaptive_cruise: true, heated_seats: true, color: "Grau" },
+    condition: { accidentFree: true, owners: 1, serviceBook: true },
   },
   {
     id: "byd-seal",
@@ -189,6 +275,9 @@ export const LISTINGS: Listing[] = [
     ort: "3011 Bern",
     status: "AKTIV",
     note: "800-V-Architektur: 18 Minuten von 10 auf 80 %. Erstbesitz, Anhängerkupplung.",
+    warranty: { until: "2031-04", km: 160000, soh: 70 },
+    equipment: { heat_pump: true, tow_hitch: true, cable_type2: true, adaptive_cruise: true, heated_seats: true, color: "Blau" },
+    condition: { accidentFree: true, owners: 1, serviceBook: true, mfk: "2026-04" },
   },
   {
     id: "porsche-taycan",
@@ -236,7 +325,7 @@ export const LISTINGS: Listing[] = [
     sellerType: "GARAGE",
     ort: "4500 Solothurn",
     status: "AKTIV",
-    note: "Grösste WLTP-Reichweite der Tafel — Zürich–Milano ohne Stopp. Ex-Geschäftswagen.",
+    note: "Grosse WLTP-Reichweite — Zürich–Milano ohne Stopp. Ex-Geschäftswagen.",
   },
   {
     id: "nio-et5t",
@@ -333,6 +422,9 @@ export const LISTINGS: Listing[] = [
     ort: "1003 Lausanne",
     status: "AKTIV",
     note: "V2L-Steckdose ab Werk: 3.6 kW für Werkzeug, Camping oder Notstrom.",
+    warranty: { until: "2029-06", km: 150000 },
+    equipment: { heat_pump: true, winter_tyres: true, cable_type2: true, adaptive_cruise: true, color: "Weiss" },
+    condition: { accidentFree: true, owners: 2, serviceBook: true },
   },
   {
     id: "audi-q6",
@@ -358,22 +450,6 @@ export const LISTINGS: Listing[] = [
     status: "RESERVIERT",
     note: "PPE-Plattform mit 800 V — Bank-Laden: zwei 400-V-Hälften parallel.",
   },
-];
-
-export const SEGMENTS: ("ALLE" | Segment)[] = [
-  "ALLE",
-  "KOMPAKT",
-  "LIMOUSINE",
-  "KOMBI",
-  "SUV",
-];
-
-export type SortKey = "price" | "km" | "range";
-
-export const SORTS: { key: SortKey; label: string; dir: 1 | -1 }[] = [
-  { key: "price", label: "Günstigste zuerst", dir: 1 },
-  { key: "km", label: "Wenigste km", dir: 1 },
-  { key: "range", label: "Grösste Reichweite", dir: -1 },
 ];
 
 /* ============================================================================
@@ -436,5 +512,4 @@ export const GABRIEL = {
   initials: "G",
   intro:
     "Hoi! Ich bin Gabriel. Ich fahre selbst elektrisch — und sage dir auch, wenn ein Auto nichts für dich ist.",
-  slots: ["Heute 14:15", "Heute 16:45", "Morgen 09:30", "Morgen 13:30"],
 };

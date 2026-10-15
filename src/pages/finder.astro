@@ -1,0 +1,14 @@
+---
+import Base from "../layouts/Base.astro";
+import FinderPage from "../components/pages/FinderPage";
+import { fetchBuildListings } from "../lib/buildListings";
+
+const listings = await fetchBuildListings();
+---
+
+<Base
+  title="E-Auto-Finder: welches Elektroauto passt zu mir? | EV4U"
+  description="Sechs Fragen zu Alltag, Reichweite, Laden und Budget — danach siehst du die passenden E-Auto-Occasionen in der Schweiz."
+>
+  <FinderPage client:load initial={listings} />
+</Base>

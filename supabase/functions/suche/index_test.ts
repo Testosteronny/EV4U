@@ -72,7 +72,7 @@ Deno.test("Reichweite und Ladeleistung rasten auf erlaubte Stufen ein", () => {
 });
 
 Deno.test("Müll in Enum-Feldern wird verworfen, nicht übernommen", () => {
-  const { params, unsupported } = coerce({ seg: "CABRIO", anbieter: "HÄNDLER", sitze: "7" }, D);
+  const { params, unsupported } = coerce({ seg: "CABRIO", anbieter: "HÄNDLER", sitze: "9" }, D);
   assertEquals(params.seg, undefined);
   assertEquals(params.anbieter, undefined);
   assertEquals(params.sitze, undefined);
@@ -80,13 +80,21 @@ Deno.test("Müll in Enum-Feldern wird verworfen, nicht übernommen", () => {
 });
 
 Deno.test("Standardsortierung erzeugt keinen Parameter", () => {
-  assertEquals(coerce({ sort: "price" }, D).params.sort, undefined);
-  assertEquals(coerce({ sort: "range" }, D).params.sort, "range");
+  assertEquals(coerce({ sort: "neu" }, D).params.sort, undefined);
+  assertEquals(coerce({ sort: "reichweite" }, D).params.sort, "reichweite");
+  assertEquals(coerce({ sort: "range" }, D).params.sort, undefined); // alter Schlüssel
 });
 
-Deno.test("v2x nur bei echtem true", () => {
-  assertEquals(coerce({ v2x: true }, D).params.v2x, "1");
-  assertEquals(coerce({ v2x: false }, D).params.v2x, undefined);
+Deno.test("Ja/Nein-Filter nur bei echtem true", () => {
+  assertEquals(coerce({ v2l: true }, D).params.v2l, "1");
+  assertEquals(coerce({ v2l: false }, D).params.v2l, undefined);
+  assertEquals(coerce({ ahk: "true", allrad: true }, D).params, { ahk: "1", allrad: "1" });
+});
+
+Deno.test("Stufenfilter rasten ein, Jahrgang bleibt im Rahmen", () => {
+  const { params } = coerce({ km: 60000, soh: 92, kofferraum: 450, betrieb: 180, jahr: 2021 }, D);
+  assertEquals(params, { km: "50000", soh: "90", kofferraum: "400", betrieb: "200", jahr: "2021" });
+  assertEquals(coerce({ jahr: 1999 }, D).params.jahr, undefined);
 });
 
 Deno.test("leere Modellantwort ergibt leere Filter statt Fehler", () => {

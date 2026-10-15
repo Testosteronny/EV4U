@@ -39,6 +39,9 @@ type CockpitState = {
   setPublicShare: (v: number) => void;
   pv: "ja" | "nein";
   setPv: (v: "ja" | "nein") => void;
+  /** «Laden zuhause», kW — drives the charge times on every listing. */
+  chargeKw: number;
+  setChargeKw: (v: number) => void;
   compareIds: string[];
   setCompareIds: (ids: string[]) => void;
   toggleCompare: (id: string) => void;
@@ -95,6 +98,8 @@ export function useCockpit(): CockpitState {
       setPublicShare: (v) => patchCockpit({ publicShare: v }),
       pv: data.pv,
       setPv: (v) => patchCockpit({ pv: v }),
+      chargeKw: data.chargeKw,
+      setChargeKw: (v) => patchCockpit({ chargeKw: v }),
       compareIds: data.compareIds,
       setCompareIds: (ids) => patchCockpit({ compareIds: ids.slice(0, MAX_COMPARE) }),
       toggleCompare: (id) =>
@@ -133,7 +138,7 @@ async function syncPlace(zip: string): Promise<void> {
   }
 }
 
-/** The listing the standalone engine on /rechenwerk currently simulates —
+/** The listing the cost calculator on /kosten currently simulates —
  *  the stored one, or the cheapest open ad as a sensible starting point. */
 export function useSimulatedListing(initial?: Listing[]): Listing | null {
   const { listingId } = useCockpit();

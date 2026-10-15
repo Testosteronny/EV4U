@@ -3,15 +3,15 @@ import { isFuelType, type FuelType } from "../utils/costModel";
 import type { GemeindeInfo } from "../utils/swiss";
 
 /* ============================================================================
-   Cockpit store — the persisted, cross-island state (was CockpitContext).
-   SAME localStorage key as the SPA version, so returning visitors keep
-   their ZIP, simulation inputs and compare tray. The Merkliste is NOT here:
-   it belongs to the account (stores/favorites.ts, Supabase-backed).
+   Cockpit store — the persisted, cross-island state: the Fahrprofil (PLZ,
+   km, current car, charging) and the compare tray. Same localStorage key as
+   before, so returning visitors keep their values; new fields come in
+   through the defaults. The Merkliste has its own store (merkliste.ts).
    ============================================================================ */
 
-/** Wie viele Autos der Vergleich fasst. Mehr als drei Spalten sind auf einem
- *  Telefon nicht mehr nebeneinander lesbar. */
-export const MAX_COMPARE = 3;
+/** Wie viele Autos der Vergleich fasst. Vier Spalten passen auf den Desktop;
+ *  auf dem Telefon scrollt die Tabelle seitwärts. */
+export const MAX_COMPARE = 4;
 
 /** A resolved postcode, tagged with the ElCom period it was resolved
  *  against — a new tariff year re-resolves it (see useCockpit). */
@@ -33,6 +33,8 @@ export type CockpitData = {
   /** Anteil der Ladung des INSERIERTEN E-Autos, der unterwegs passiert. */
   publicShare: number;
   pv: "ja" | "nein";
+  /** «Laden zuhause»: the home charger, kW (2.3 socket … 22 wallbox). */
+  chargeKw: number;
   compareIds: string[];
 };
 
@@ -47,6 +49,7 @@ export const COCKPIT_DEFAULTS: CockpitData = {
   elecShare: 45,
   publicShare: 15,
   pv: "nein",
+  chargeKw: 11,
   compareIds: [],
 };
 
@@ -69,6 +72,9 @@ export const $cockpit = persistentAtom<CockpitData>(
         // Der Ort ist eine Abkürzung, keine Wahrheit: was nicht wie ein
         // aufgelöster Ort aussieht, wird verworfen und aus der PLZ neu gelöst.
         if (!isStoredPlace(merged.place)) merged.place = null;
+        if (!(merged.chargeKw > 0 && merged.chargeKw <= 22)) merged.chargeKw = COCKPIT_DEFAULTS.chargeKw;
+        if (!Array.isArray(merged.compareIds)) merged.compareIds = [];
+        merged.compareIds = merged.compareIds.slice(0, MAX_COMPARE);
         return merged;
       } catch {
         return COCKPIT_DEFAULTS;

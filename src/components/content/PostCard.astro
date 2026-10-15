@@ -1,0 +1,24 @@
+---
+import { BLOG_CATEGORIES } from "../../content.config";
+import { fmtLongDate, readingMinutes, type Post } from "../../lib/content";
+
+/* A post in a list: category, title, teaser, date and reading time. */
+interface Props {
+  post: Post;
+  large?: boolean;
+}
+const { post, large = false } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<a
+  href={`${base}/blog/${post.id}`}
+  class:list={["card card-hover flex h-full flex-col", large ? "p-6 sm:p-8" : "p-5"]}
+>
+  <span class="eyebrow text-accent">{BLOG_CATEGORIES[post.data.category]}</span>
+  <span class:list={["mt-2 font-bold text-fg", large ? "text-display" : "text-h3"]}>{post.data.title}</span>
+  <span class:list={["mt-2 text-fg2", large ? "text-h3 font-normal" : "line-clamp-3 text-body"]}>{post.data.description}</span>
+  <span class="mt-auto pt-4 text-small text-fg3">
+    {fmtLongDate(post.data.date)} · {readingMinutes(post.body)} Min.
+  </span>
+</a>

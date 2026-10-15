@@ -1,0 +1,107 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { Breadcrumbs } from "../../../components/ui";
+import { fetchBuildCatalog, modelPart, span, type FullBrand } from "../../../lib/buildCatalog";
+import { fetchBuildListings } from "../../../lib/buildListings";
+import { searchHref } from "../../../lib/entries";
+import { MODEL_GROUPS, modelOptionLabel } from "../../../lib/vehicleCatalog";
+import { fold } from "../../../utils/search";
+import { fmtCH } from "../../../utils/swiss";
+
+/* /modelle/[marke] — a brand's models, grouped by availability, each with
+   segment, range span, list-price span and the used offers in stock. */
+export async function getStaticPaths() {
+  const catalog = await fetchBuildCatalog();
+  return catalog.map((brand) => ({ params: { marke: brand.slug }, props: { brand } }));
+}
+
+const { brand } = Astro.props as { brand: FullBrand };
+const listings = (await fetchBuildListings()).filter((l) => fold(l.brand) === fold(brand.name));
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const groups = MODEL_GROUPS.map((g) => ({
+  label: g.label,
+  models: brand.models
+    .filter((m) => g.includes.includes(m.availability))
+    .map((m) => {
+      const offers = listings.filter((l) => l.modelSlug === m.slug);
+      return {
+        m,
+        range: span(m.variants, (v) => v.range_wltp_km),
+        price: span(m.variants, (v) => v.price_new_chf),
+        offers: offers.length,
+        from: offers.length ? Math.min(...offers.map((l) => l.price)) : null,
+      };
+    }),
+})).filter((g) => g.models.length > 0);
+
+const fmtSpan = (s: [number, number] | null, unit: string, prefix = "") =>
+  !s ? null : s[0] === s[1] ? `${prefix}${fmtCH(s[0])} ${unit}` : `${prefix}${fmtCH(s[0])}–${fmtCH(s[1])} ${unit}`;
+const inStock = listings.length;
+---
+
+<Base
+  title={`${brand.name} Elektroautos: alle Modelle und Occasionen | EV4U`}
+  description={`Alle ${brand.models.length} Elektro-Modelle von ${brand.name} mit Reichweite, Batterie und Neupreis${inStock ? ` — ${inStock} Occasionen im Angebot` : ""}.`}
+>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <Breadcrumbs
+      items={[
+        { label: "Start", href: `${base}/` },
+        { label: "Modelle", href: `${base}/modelle` },
+        { label: brand.name },
+      ]}
+    />
+    <div class="mt-3 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-display font-bold text-fg">{brand.name}</h1>
+        <p class="mt-1 text-body text-fg2">
+          {brand.models.length} {brand.models.length === 1 ? "Modell" : "Modelle"} im Katalog
+          {inStock > 0 && ` · ${inStock} ${inStock === 1 ? "Occasion" : "Occasionen"} im Angebot`}
+        </p>
+      </div>
+      {
+        inStock > 0 && (
+          <a href={searchHref({ marke: brand.name })} class="link text-body font-semibold">
+            Alle {brand.name} Occasionen →
+          </a>
+        )
+      }
+    </div>
+
+    {
+      groups.map((g) => (
+        <section class="mt-10">
+          <h2 class="text-h2 font-bold text-fg">{g.label}</h2>
+          <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {g.models.map(({ m, range, price, offers, from }) => (
+              <li>
+                <a href={`${base}/modelle/${brand.slug}/${modelPart(m)}`} class="card card-hover flex h-full flex-col p-4">
+                  <span class="text-h3 font-bold text-fg">
+                    {brand.name} {modelOptionLabel(m)}
+                  </span>
+                  <span class="text-small text-fg2">
+                    {m.segment} · {m.body_type}
+                  </span>
+                  <span class="mt-3 grid gap-0.5 text-small text-fg2">
+                    {fmtSpan(range, "km WLTP") && <span>{fmtSpan(range, "km WLTP")}</span>}
+                    {fmtSpan(price, "", "Neu CHF ") && <span>{fmtSpan(price, "", "Neu CHF ")}</span>}
+                  </span>
+                  <span class="mt-auto pt-3 text-small font-semibold">
+                    {offers > 0 ? (
+                      <span class="text-accent">
+                        {offers} {offers === 1 ? "Occasion" : "Occasionen"} ab CHF {fmtCH(from!)}
+                      </span>
+                    ) : (
+                      <span class="text-fg3">Keine Occasion im Angebot</span>
+                    )}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+</Base>

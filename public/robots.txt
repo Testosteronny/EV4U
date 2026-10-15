@@ -3,5 +3,8 @@
 User-agent: *
 Allow: /
 Disallow: /konto
+Disallow: /admin
+Disallow: /login
+Disallow: /verkaufen/neu
 
 Sitemap: https://testosteronny.github.io/EV4U/sitemap.xml

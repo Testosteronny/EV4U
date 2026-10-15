@@ -5,12 +5,10 @@ import { supabase } from "../lib/supabase";
 /* ============================================================================
    Auth-Session als geteilter Atom.
 
-   Vorher hielt jeder `useSession()`-Aufruf seinen eigenen State, rief
-   `getSession()` selbst auf und meldete eine eigene `onAuthStateChange`-
-   Subscription an. Weil `useFavorites` intern `useSession` benutzt und jede
-   Inseratskarte `useFavorites` benutzt, öffnete eine Katalogseite mit zwölf
-   Karten ein Dutzend Subscriptions und ein Dutzend Netzwerkaufrufe für
-   dieselbe Antwort. Jetzt: ein Aufruf, eine Subscription, ein Wert.
+   Header, Tab-Leiste, Merkliste, Kontaktbox und Kontoseiten fragen alle
+   nach der Session. Ein Aufruf von `getSession()`, eine
+   `onAuthStateChange`-Subscription und ein Wert für die ganze Seite —
+   statt einer Abfrage pro Insel.
    ============================================================================ */
 
 export const $session = atom<Session | null>(null);

@@ -1,0 +1,113 @@
+---
+import Base from "../../layouts/Base.astro";
+import { Breadcrumbs } from "../../components/ui";
+import { fetchBuildGarages } from "../../lib/buildGarages";
+import { fetchBuildListings } from "../../lib/buildListings";
+import { photoUrl } from "../../lib/supabase";
+
+/* /garagen (Konzept §4.9) — for dealers: what a garage account brings, how
+   to start, and the garages already on EV4U with their public pages. */
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const garages = await fetchBuildGarages();
+const listings = await fetchBuildListings();
+const count = (slug: string) => listings.filter((l) => l.sellerSlug === slug).length;
+
+const FEATURES = [
+  {
+    title: "Eigene Garagenseite",
+    text: "Logo, Adresse mit Karte, Öffnungszeiten, «Über uns» und alle deine Autos auf einer Seite — verlinkt von jedem Inserat.",
+  },
+  {
+    title: "Verifizierte Garage",
+    text: "Wir prüfen deine UID im Handelsregister. Danach trägt jedes Inserat das Abzeichen — Käufer sehen sofort, dass sie mit einem Betrieb reden.",
+  },
+  {
+    title: "Zahlen und Leads",
+    text: "Aufrufe, Anfragen und «gemerkt» pro Auto, deine Antwortzeit und alle Anfragen als CSV fürs eigene CRM.",
+  },
+  {
+    title: "Inserate, die E-Auto-Käufer verstehen",
+    text: "Batteriegarantie, SOH, Ladeleistung aus dem Katalog und Betriebskosten für die Gemeinde jeder Käuferin.",
+  },
+];
+---
+
+<Base
+  title="Für Garagen: E-Autos inserieren | EV4U"
+  description="Garagenkonto auf EV4U: eigene Garagenseite, Abzeichen «Verifizierte Garage», Statistiken und Lead-Export — für Händler gebrauchter E-Autos in der Schweiz."
+>
+  <div class="mx-auto max-w-page px-4 py-8 sm:px-6 sm:py-10">
+    <Breadcrumbs items={[{ label: "Start", href: `${base}/` }, { label: "Garagen" }]} />
+
+    <section class="forest mt-6 rounded-card p-6 sm:p-10">
+      <h1 class="max-w-3xl text-display font-bold sm:text-display-lg">Deine E-Auto-Occasionen dort, wo E-Auto-Käufer suchen.</h1>
+      <p class="mt-3 max-w-prose text-h3 font-normal text-on-forest2">
+        Ein Marktplatz nur für Elektroautos — mit den Angaben, nach denen deine Kundschaft fragt, und einer Seite für deinen
+        Betrieb.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href={`${base}/konto/garage`} class="inline-flex h-12 items-center justify-center rounded-control bg-volt px-6 text-body font-semibold text-forest hover:bg-on-forest">
+          Garagenkonto einrichten
+        </a>
+        <a href="mailto:hallo@ev4u.ch?subject=Garagenkonto" class="inline-flex h-12 items-center px-3 text-body font-semibold text-on-forest hover:underline">
+          Konditionen anfragen →
+        </a>
+      </div>
+    </section>
+
+    <section class="mt-14">
+      <h2 class="text-h2 font-bold text-fg">Was ein Garagenkonto bringt</h2>
+      <ul class="mt-5 grid gap-4 md:grid-cols-2">
+        {
+          FEATURES.map((f) => (
+            <li class="card p-5">
+              <h3 class="text-h3 font-bold text-fg">{f.title}</h3>
+              <p class="mt-1 text-body text-fg2">{f.text}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="mt-14 max-w-3xl">
+      <h2 class="text-h2 font-bold text-fg">So startest du</h2>
+      <ol class="mt-4 space-y-3 text-body text-fg2">
+        <li><strong class="text-fg">1. Anmelden</strong> — mit der E-Mail-Adresse des Betriebs, ohne Passwort.</li>
+        <li><strong class="text-fg">2. Garage einrichten</strong> — unter Konto › Garage: Name, UID, Adresse, Öffnungszeiten, Logo und die Adresse deiner Garagenseite.</li>
+        <li><strong class="text-fg">3. Inserieren</strong> — Auto für Auto im Assistenten, mit Variante aus dem Katalog. Die Verifizierung läuft parallel, meist innert zwei Werktagen.</li>
+      </ol>
+      <p class="mt-4 text-small text-fg3">
+        Viele Autos auf einmal, Import aus deinem Lagersystem oder Fragen zu den Konditionen:
+        <a href="mailto:hallo@ev4u.ch?subject=Garagenkonto" class="link">hallo@ev4u.ch</a>.
+      </p>
+    </section>
+
+    {
+      garages.length > 0 && (
+        <section class="mt-14">
+          <h2 class="text-h2 font-bold text-fg">Garagen auf EV4U</h2>
+          <ul class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {garages.map((g) => (
+              <li>
+                <a href={`${base}/garagen/${g.slug}`} class="card card-hover flex items-center gap-4 p-4">
+                  <span class="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-control border border-line bg-surface text-small font-bold text-fg3">
+                    {g.logo_path ? <img src={photoUrl(g.logo_path)} alt="" class="h-full w-full object-contain" loading="lazy" /> : g.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span class="min-w-0">
+                    <span class="block truncate text-body font-semibold text-fg">
+                      {g.name}
+                      {g.verified && <span class="ml-1 text-accent" title="Verifizierte Garage">✓</span>}
+                    </span>
+                    <span class="block truncate text-small text-fg2">
+                      {count(g.slug)} Autos{g.address && ` · ${g.address}`}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</Base>

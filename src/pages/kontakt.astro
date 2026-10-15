@@ -1,0 +1,18 @@
+---
+import Info from "../layouts/Info.astro";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Info title="Kontakt" description="So erreichst du EV4U: E-Mail, Beratung am Telefon, Inserat melden." lead="Wir lesen jede Nachricht — meist antworten wir am selben Werktag.">
+  <h2>E-Mail</h2>
+  <p><a href="mailto:hallo@ev4u.ch">hallo@ev4u.ch</a> — für Fragen zu Inseraten, zum Konto, für Garagen und für Medien.</p>
+
+  <h2>Beratung am Telefon</h2>
+  <p>Unsicher, welches E-Auto passt oder ob ein Inserat ein guter Deal ist? <a href={`${base}/beratung`}>Buch zwanzig Minuten mit Gabriel</a> — kostenlos und ohne Verkaufsgespräch.</p>
+
+  <h2>Ein Inserat melden</h2>
+  <p>Falsche Angaben, Verdacht auf Betrug, ein Auto, das schon weg ist: Unten auf jedem Inserat steht «Inserat melden». So landet die Meldung direkt bei der Moderation, mit dem richtigen Inserat verknüpft.</p>
+
+  <h2>Antworten ohne Wartezeit</h2>
+  <p>Viele Fragen beantwortet die <a href={`${base}/hilfe`}>Hilfe</a>. Wie du Betrug erkennst, steht unter <a href={`${base}/sicherheit`}>Sicher kaufen und verkaufen</a>.</p>
+</Info>

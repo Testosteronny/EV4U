@@ -10,13 +10,16 @@
     "preview": "astro preview",
     "fetch:tariffs": "node scripts/fetch-tariffs.mjs",
     "fetch:fuel": "node scripts/fetch-fuel-prices.mjs",
+    "alerts:plz": "node scripts/build-alert-plz.mjs",
     "catalog:import": "node scripts/import-vehicle-catalog.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "typecheck": "astro check",
     "build:fast": "astro build"
   },
   "dependencies": {
+    "@astrojs/mdx": "^8.0.3",
     "@astrojs/react": "^7.0.1",
+    "@astrojs/rss": "^4.0.19",
     "@nanostores/persistent": "^1.3.5",
     "@nanostores/react": "^2.0.1",
     "@supabase/supabase-js": "^2.117.3",

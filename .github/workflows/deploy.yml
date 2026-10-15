@@ -70,6 +70,8 @@ jobs:
           ASTRO_BASE: /EV4U
           PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # Public address of the R2 video bucket; unset = videos hidden.
+          PUBLIC_VIDEO_BASE_URL: ${{ vars.PUBLIC_VIDEO_BASE_URL }}
         run: npm run build
 
       - uses: actions/configure-pages@v5

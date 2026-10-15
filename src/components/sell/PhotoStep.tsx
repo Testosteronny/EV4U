@@ -6,7 +6,7 @@ import { photoUrl, supabase } from "../../lib/supabase";
 import { resizeImage } from "../../utils/image";
 
 /* ============================================================================
-   Step 5 — Fotos. Up to 20, resized in the browser (1600 px, JPEG ~82 %)
+   Step 5 — Fotos. Up to 12, resized in the browser (1600 px, JPEG ~82 %)
    and stored in the seller's own folder `<uid>/<slug>/…` as the storage
    policy requires. The first photo is the cover; drag (or the arrows) to
    reorder. The shot list says what buyers look for — the cockpit with

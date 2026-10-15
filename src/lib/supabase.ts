@@ -73,6 +73,11 @@ export type ListingRow = {
   warranty_until: string | null;
   equipment: Record<string, unknown> | null;
   hidden_at: string | null;
+  /** Video-Rundgang: key in the R2 bucket (lib/video.ts), its length and a
+   *  poster frame in listing-photos. All null without a video. */
+  video_path: string | null;
+  video_seconds: number | null;
+  video_poster: string | null;
   /* Embedded by LISTING_SELECT; absent in reads that use `*` alone. */
   catalog_model?: { slug: string } | null;
   catalog_variant?: CatalogVariantEmbed | null;

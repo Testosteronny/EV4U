@@ -24,6 +24,7 @@ the readability rules v3 builds on.
 - **Archivo**, one family, four weights. Archivo carries tabular figures
   itself (`.tabular`).
 - **lucide-react** icons. No animation library — CSS transitions only.
+- **Mediabunny** (WebCodecs) — converts walkthrough videos in the browser, loaded only when a seller picks one
 
 ## Getting started
 
@@ -250,11 +251,14 @@ database; the few things a browser must not do run as Edge Functions.
 | `notify-message` | called by a pg_net trigger on message insert; mails the other participant a link into the thread — not when they switched it off, and only once per unread burst (30 min) |
 | `alerts` | **pg_cron every 30 min** (`ev4u-alerts`): new hits for due saved searches (frequency, max 5 per mail; the «Umkreis» filter uses `alerts/plz.json`) and Merkliste changes (price cut, reserved, sold, offline, available again) |
 | `newsletter` | Monatsbrief subscribe → confirmation mail, confirm, unsubscribe; one answer for every case, rate-limited |
-| `delete-account` | removes the caller's photos, then the auth user; everything else cascades |
+| `delete-account` | removes the caller's photos and videos, then the auth user; everything else cascades |
+| `video-upload` | signs a PUT link to R2 for exactly one converted video (type and byte size are part of the signature, max 60 MB, at most one video per listing + 2 per account) and deletes videos — the owner's, or any for admins |
 | `suche` | AI search: a description («familientauglicher Kombi bis 40'000») becomes the same URL filters the sidebar writes. 8 s timeout, falls back to text search; the site works without it |
 
 Secrets: `RESEND_API_KEY`, `MAIL_FROM`, `SITE_URL` (mail functions — without
-the key they log and exit cleanly) and `GEMINI_API_KEY` (`suche`). Deploy with
+the key they log and exit cleanly), `GEMINI_API_KEY` (`suche`) and
+`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+(videos, see below — without them `video-upload` answers 503). Deploy with
 `supabase functions deploy <name> --project-ref <ref> --use-api`.
 
 - **Auth**: passwordless magic links (`signInWithOtp`) on `/login?next=…`.
@@ -264,7 +268,8 @@ the key they log and exit cleanly) and `GEMINI_API_KEY` (`suche`). Deploy with
   required field is valid (`canPersist` — the row has NOT NULL specs and
   price), then to an ENTWURF row on every step; publishing needs a photo. Photos are
   downscaled client-side (max 1600 px, JPEG ~82 % — `src/utils/image.ts`),
-  max 20, reorderable; the first is the cover.
+  max 12 (also a check constraint), reorderable; the first is the cover.
+  Plus an optional Video-Rundgang (below).
 - **Client**: `src/lib/supabase.ts` with `PUBLIC_SUPABASE_URL` +
   `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The publishable key is safe in the
   client; RLS does the guarding.
@@ -273,6 +278,39 @@ the key they log and exit cleanly) and `GEMINI_API_KEY` (`suche`). Deploy with
   enable Point-in-Time Recovery, fill in the operator details on
   `/impressum`, `/datenschutz` and `/agb` (marked as drafts) and have them
   reviewed, **remove the demo listings** (below).
+
+### Video-Rundgang (Cloudflare R2)
+
+One optional walkthrough video per listing, **at most 3 minutes**. The
+browser does the heavy lifting (`src/utils/videoPrepare.ts`, Mediabunny over
+WebCodecs): it checks the length, converts to MP4 (H.264 + AAC, longer
+edge 1280 px, ~2 Mbit/s — about 45 MB for 3 minutes), drops all metadata
+(phone videos carry the GPS position) and grabs a poster frame. The
+`video-upload` function signs a PUT link and the file goes **straight to
+R2** — no video passes through Supabase. The poster lands in
+`listing-photos`; `listings.video_path / video_seconds / video_poster` hold
+the rest, with checks that both paths sit in the owner's folder.
+
+R2's free tier (10 GB per Cloudflare account, no egress fees) holds about
+220 three-minute videos; beyond that $0.015 per GB-month. Replaced or
+removed videos are deleted, so storage follows the live listings.
+
+The whole feature stays hidden until `PUBLIC_VIDEO_BASE_URL` is set. Setup:
+
+1. Cloudflare → R2 → create bucket `ev4u-videos`, location **Western
+   Europe**. Settings → *Public Development URL* → enable (later: a custom
+   domain such as `video.ev4u.ch` — the r2.dev URL is rate-limited).
+2. Same page → *CORS policy*:
+   ```json
+   [{ "AllowedOrigins": ["http://localhost:4321", "https://testosteronny.github.io", "https://ev4u.ch"],
+      "AllowedMethods": ["PUT", "GET", "HEAD"], "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 3600 }]
+   ```
+3. R2 → *Manage API tokens* → *Object Read & Write*, only `ev4u-videos`.
+   Then `supabase secrets set R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=…
+   R2_SECRET_ACCESS_KEY=… R2_BUCKET=ev4u-videos --project-ref <ref>`.
+4. The public URL from step 1 as GitHub repository variable
+   `PUBLIC_VIDEO_BASE_URL` (Settings → Secrets and variables → Actions →
+   Variables) and in your local `.env`.
 
 ### Demo listings
 

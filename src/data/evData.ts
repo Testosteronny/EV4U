@@ -147,6 +147,9 @@ export type Listing = {
   isDemo?: boolean;
   /** Photo paths in the listing-photos bucket. */
   photos?: string[];
+  /** Video-Rundgang: R2 key, length in seconds, poster in listing-photos.
+   *  Only set while videos are enabled (lib/video.ts). */
+  video?: { path: string; seconds: number; poster?: string };
 };
 
 export const LISTINGS: Listing[] = [

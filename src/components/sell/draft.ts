@@ -49,6 +49,9 @@ export function catalogWarranty(v: WarrantyCols | null | undefined): CatalogWarr
   };
 }
 
+/** The uploaded walkthrough: R2 key, length, poster in listing-photos. */
+export type DraftVideo = { path: string; seconds: number; poster: string | null };
+
 /** Text fields as typed; converted on save. Months are "YYYY-MM". */
 export type Draft = {
   id: string | null;
@@ -73,6 +76,7 @@ export type Draft = {
   bwSoh: string;
   equipment: Equipment;
   photos: string[];
+  video: DraftVideo | null;
   price: string;
   negotiable: boolean;
   note: string;
@@ -101,12 +105,13 @@ export const EMPTY_DRAFT: Draft = {
   bwSoh: "",
   equipment: {},
   photos: [],
+  video: null,
   price: "",
   negotiable: false,
   note: "",
 };
 
-export const MAX_PHOTOS = 20;
+export const MAX_PHOTOS = 12;
 export const NOTE_MAX = 2000;
 
 /* ---------- Local autosave ------------------------------------------------- */
@@ -224,7 +229,10 @@ export function draftToRow(d: Draft): Partial<ListingRow> {
     battery_warranty_km: optInt(d.bwKm),
     battery_warranty_soh_pct: optInt(d.bwSoh),
     equipment,
-    photos: d.photos,
+    photos: d.photos.slice(0, MAX_PHOTOS),
+    video_path: d.video?.path ?? null,
+    video_seconds: d.video ? Math.max(1, Math.round(d.video.seconds)) : null,
+    video_poster: d.video?.poster ?? null,
     price: int(d.price),
     negotiable: d.negotiable,
     note: d.note.trim().slice(0, NOTE_MAX),
@@ -282,6 +290,7 @@ export function rowToDraft(r: FullRow): Draft {
     bwSoh: r.battery_warranty_soh_pct === null ? "" : String(r.battery_warranty_soh_pct),
     equipment: (r.equipment ?? {}) as Equipment,
     photos: r.photos ?? [],
+    video: r.video_path && r.video_seconds ? { path: r.video_path, seconds: r.video_seconds, poster: r.video_poster } : null,
     price: String(r.price),
     negotiable: r.negotiable,
     note: r.note ?? "",

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, CheckCircle2, Cloud, CloudOff, LogIn, Tag } from "lucide-react";
 import PhotoStep from "./PhotoStep";
+import VideoStep from "./VideoStep";
 import VehiclePicker from "./VehiclePicker";
 import {
   EMPTY_DRAFT,
@@ -18,6 +19,7 @@ import {
   saveLocal,
   valid,
   type Draft,
+  type DraftVideo,
   type FullRow,
   type Vehicle,
 } from "./draft";
@@ -48,6 +50,7 @@ import { PRICE_METHOD, estimatePrice } from "../../lib/priceCheck";
 import { listingQuality } from "../../lib/quality";
 import { supabase, type ListingRow, type ListingRowStatus } from "../../lib/supabase";
 import { href } from "../../lib/url";
+import { VIDEOS_ENABLED, deleteVideo } from "../../lib/video";
 import { listingSpecs, yearHint, type ListingSpecs } from "../../lib/vehicleCatalog";
 import { refreshListings } from "../../stores/listings";
 import { SEGMENT_LABEL, STATUS_LABEL } from "../../utils/format";
@@ -65,7 +68,7 @@ import type { Segment } from "../../data/evData";
    opens an existing listing — this wizard is also the editor.
    ============================================================================ */
 
-const STEPS = ["Fahrzeug", "Zustand", "Batterie", "Ausstattung", "Fotos", "Preis", "Vorschau"];
+const STEPS = ["Fahrzeug", "Zustand", "Batterie", "Ausstattung", VIDEOS_ENABLED ? "Fotos & Video" : "Fotos", "Preis", "Vorschau"];
 
 const EDIT_SELECT =
   "*,catalog_model:vehicle_models!listings_model_id_fkey(slug,launch_year,end_year)," +
@@ -240,6 +243,20 @@ function Wizard({ userId, email, profile }: { userId: string; email: string; pro
     if (ref.current.id) void persist();
   };
 
+  // Same for the video. A replaced or removed file goes once nothing saved
+  // points at it any more.
+  const setVideo = (video: DraftVideo | null) => {
+    const old = ref.current.video;
+    ref.current = { ...ref.current, video };
+    setDraft(ref.current);
+    void (async () => {
+      const saved = ref.current.id ? await persist() : true;
+      if (!saved || !old || old.path === video?.path) return;
+      void deleteVideo(old.path);
+      if (old.poster) void supabase?.storage.from("listing-photos").remove([old.poster]);
+    })();
+  };
+
   const publish = async () => {
     const live = draft.status === "AKTIV" || draft.status === "RESERVIERT";
     const ok = await persist(live ? undefined : "AKTIV");
@@ -313,7 +330,10 @@ function Wizard({ userId, email, profile }: { userId: string; email: string; pro
             {step === 2 && <BatteryStep draft={draft} patch={patch} />}
             {step === 3 && <EquipmentStep draft={draft} patch={patch} />}
             {step === 4 && draft.slug && (
-              <PhotoStep userId={userId} slug={draft.slug} photos={draft.photos} onChange={setPhotos} />
+              <>
+                <PhotoStep userId={userId} slug={draft.slug} photos={draft.photos} onChange={setPhotos} />
+                {VIDEOS_ENABLED && <VideoStep userId={userId} slug={draft.slug} video={draft.video} onChange={setVideo} />}
+              </>
             )}
             {step === 5 && <PriceStep draft={draft} patch={patch} />}
             {step === 6 && <PreviewStep draft={draft} userId={userId} profile={profile} email={email} />}

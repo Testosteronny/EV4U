@@ -2,13 +2,15 @@
    Edge Function `delete-account` — «Konto löschen» (/konto/einstellungen).
 
    Needs the caller's JWT (verify_jwt). Removes the caller's photos from the
-   `listing-photos` bucket (folder `<user id>/<listing slug>/…`), then
-   deletes the auth user; everything else cascades in the database
+   `listing-photos` bucket (folder `<user id>/<listing slug>/…`) and their
+   walkthrough videos from R2 (same folder layout), then deletes the auth
+   user; everything else cascades in the database
    (profile, listings, conversations, messages, saved searches, favorites,
    account settings). The service role key never leaves this function.
    ============================================================================ */
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { deleteKey, listKeys, r2 } from "../_shared/r2.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +43,17 @@ Deno.serve(async (req) => {
     const { data: files } = await storage.list(prefix, { limit: 1000 });
     const paths = (files ?? []).map((f) => `${prefix}/${f.name}`);
     if (paths.length) await storage.remove(paths);
+  }
+
+  // Videos: R2, same folder layout. A failure here must not keep the
+  // account alive — the keys are logged for a manual sweep.
+  const videos = r2();
+  if (videos) {
+    try {
+      for (const key of await listKeys(videos, `${userId}/`)) await deleteKey(videos, key);
+    } catch (e) {
+      console.error("[delete-account] video cleanup failed for", userId, e);
+    }
   }
 
   const { error } = await admin.auth.admin.deleteUser(userId);

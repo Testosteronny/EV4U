@@ -6,6 +6,7 @@ import { REPORT_REASONS, type ReportReason } from "../listing/ReportSheet";
 import { Badge, Button, EmptyState, Notice, Segmented, Select, Toggle } from "../ui";
 import { supabase, type ListingRowStatus } from "../../lib/supabase";
 import { href } from "../../lib/url";
+import { deleteVideo } from "../../lib/video";
 import { refreshListings } from "../../stores/listings";
 import { LISTING_STATI, STATUS_LABEL, daysAgo, fmtDate, vehicleTitle, type ListingStatusFull } from "../../utils/format";
 import { fmtCH } from "../../utils/swiss";
@@ -35,6 +36,7 @@ type AdminListing = {
   hidden_at: string | null;
   created_at: string;
   is_demo: boolean;
+  video_path?: string | null;
 };
 
 const REASON_LABEL = Object.fromEntries(REPORT_REASONS.map((r) => [r.key, r.label])) as Record<ReportReason, string>;
@@ -324,7 +326,7 @@ function Listings({ userId }: { userId: string }) {
     if (!supabase) return;
     const { data, error: err } = await supabase
       .from("listings")
-      .select("id,slug,brand,model,price,status,seller_name,hidden_at,created_at,is_demo,owner")
+      .select("id,slug,brand,model,price,status,seller_name,hidden_at,created_at,is_demo,owner,video_path")
       .order("created_at", { ascending: false })
       .limit(500);
     if (err) setError(err.message);
@@ -357,13 +359,16 @@ function Listings({ userId }: { userId: string }) {
     });
 
   // Photos stay in the owner's folder (storage policies are owner-only);
-  // they go with the account or by hand in the dashboard.
+  // they go with the account or by hand in the dashboard. The video goes
+  // now — the video-upload function lets admins delete any video.
   const remove = (l: AdminListing) =>
     window.confirm(`«${vehicleTitle(l)}» endgültig löschen?`) &&
     act(async () => {
       if (!supabase) return null;
       const { error: err } = await supabase.from("listings").delete().eq("id", l.id);
-      return err?.message ?? null;
+      if (err) return err.message;
+      if (l.video_path) await deleteVideo(l.video_path);
+      return null;
     });
 
   return (

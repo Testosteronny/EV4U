@@ -20,6 +20,7 @@ import {
   type Filters,
 } from "../../lib/filters";
 import { href } from "../../lib/url";
+import { VIDEOS_ENABLED } from "../../lib/video";
 import { SEGMENT_LABEL } from "../../utils/format";
 import { fmtCH } from "../../utils/swiss";
 
@@ -46,7 +47,7 @@ type Props = {
 const GROUPS: { title: string; keys: FilterKey[] }[] = [
   { title: "Fahrzeug", keys: ["marke", "modell", "variante", "seg", "sitze"] },
   { title: "Preis & Kosten", keys: ["preis", "preisvon", "betrieb"] },
-  { title: "Zustand", keys: ["jahr", "km", "unfallfrei"] },
+  { title: "Zustand", keys: ["jahr", "km", "unfallfrei", "video"] },
   { title: "Batterie & Reichweite", keys: ["reichweite", "soh", "garantie"] },
   { title: "Laden", keys: ["laden", "v800", "ac22", "v2l"] },
   { title: "Alltag", keys: ["ahk", "allrad", "waermepumpe", "kofferraum"] },
@@ -276,6 +277,7 @@ export default function FilterSidebar({ f, set, count, stockBrands, origin, setO
                   <StepSelect label="km bis" k="km" steps={KM_STEPS} format={(n) => fmtCH(n)} f={f} set={set} count={count} />
                 </div>
                 <Check k="unfallfrei" label="Unfallfrei" f={f} set={set} count={count} />
+                {VIDEOS_ENABLED && <Check k="video" label="Mit Video-Rundgang" f={f} set={set} count={count} />}
               </>
             )}
 

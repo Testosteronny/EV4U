@@ -82,6 +82,7 @@ type Row = {
   battery_warranty_km: number | null;
   accident_free: boolean | null;
   equipment: Record<string, unknown> | null;
+  video_path: string | null;
   created_at: string;
   catalog_model: { slug: string } | null;
   catalog_variant: { slug: string; system_voltage_v: number; ac_max_kw: number | string; drive: string; trunk_l: number | null } | null;
@@ -89,7 +90,7 @@ type Row = {
 
 const ROW_SELECT =
   "slug,brand,model,variant,segment,year,km,price,range_km,soh,dc_kw,bidi,seats,ort,seller_name,seller_type," +
-  "battery_warranty_until,battery_warranty_km,accident_free,equipment,created_at," +
+  "battery_warranty_until,battery_warranty_km,accident_free,equipment,video_path,created_at," +
   "catalog_model:vehicle_models!listings_model_id_fkey(slug)," +
   "catalog_variant:vehicle_variants!listings_variant_id_fkey(slug,system_voltage_v,ac_max_kw,drive,trunk_l)";
 
@@ -147,6 +148,7 @@ function matcher(params: string, homePlz: string | null): (r: Row) => boolean {
     if (on("waermepumpe") && r.equipment?.heat_pump !== true) return false;
     if (kofferraum && (v?.trunk_l ?? 0) < kofferraum) return false;
     if (on("unfallfrei") && r.accident_free !== true) return false;
+    if (on("video") && !r.video_path) return false;
     if (anbieter && r.seller_type !== anbieter) return false;
     if (umkreis) {
       const p = COORDS[/^\d{4}/.exec(r.ort.trim())?.[0] ?? ""];

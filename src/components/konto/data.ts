@@ -1,4 +1,5 @@
 import { supabase, type ListingRow } from "../../lib/supabase";
+import { deleteVideo } from "../../lib/video";
 import type { ListingStatusFull } from "../../utils/format";
 
 /* ============================================================================
@@ -8,7 +9,7 @@ import type { ListingStatusFull } from "../../utils/format";
    ============================================================================ */
 
 export const MY_LISTING_COLUMNS =
-  "id,slug,brand,model,variant,year,km,price,status,photos,created_at,hidden_at,ort,note," +
+  "id,slug,brand,model,variant,year,km,price,status,photos,video_path,video_poster,created_at,hidden_at,ort,note," +
   "variant_id,battery_warranty_until,battery_warranty_km,mfk_date,accident_free,owners,service_book,equipment";
 
 export type MyListing = Pick<
@@ -22,6 +23,8 @@ export type MyListing = Pick<
   | "km"
   | "price"
   | "photos"
+  | "video_path"
+  | "video_poster"
   | "created_at"
   | "hidden_at"
   | "ort"
@@ -77,14 +80,18 @@ export function sumEvents(totals: Iterable<EventTotals>): EventTotals {
   return sum;
 }
 
-/** Deletes a listing and its photos (the row cascades to price history,
- *  events, conversations and reports). */
-export async function deleteListing(l: Pick<MyListing, "id" | "photos">): Promise<string | null> {
+/** Deletes a listing with its photos and video (the row cascades to price
+ *  history, events, conversations and reports). */
+export async function deleteListing(
+  l: Pick<MyListing, "id" | "photos" | "video_path" | "video_poster">,
+): Promise<string | null> {
   if (!supabase) return "Nicht verbunden.";
-  const photos = l.photos ?? [];
-  if (photos.length) await supabase.storage.from("listing-photos").remove(photos);
+  const images = [...(l.photos ?? []), ...(l.video_poster ? [l.video_poster] : [])];
+  if (images.length) await supabase.storage.from("listing-photos").remove(images);
   const { error } = await supabase.from("listings").delete().eq("id", l.id);
-  return error ? error.message : null;
+  if (error) return error.message;
+  if (l.video_path) await deleteVideo(l.video_path);
+  return null;
 }
 
 /** Days since an ISO timestamp, for daysAgo(). */

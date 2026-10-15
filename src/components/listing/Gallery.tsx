@@ -1,24 +1,40 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Expand, Play, X } from "lucide-react";
 import CarGraphic from "./CarGraphic";
 import { listingBadges } from "./ListingCard";
 import { Badge, Portal, useModal } from "../ui";
 import { photoUrl } from "../../lib/supabase";
+import { fmtVideoLength, videoUrl } from "../../lib/video";
 import { vehicleTitle } from "../../utils/format";
 import type { Listing } from "../../data/evData";
 
 /* ============================================================================
    Galerie (Konzept §4.3) — large photo, thumbnails, «1/8», and a full-screen
    lightbox with arrow keys and swipe. Without photos: the body-type drawing
-   and an honest sentence instead of an empty grey box.
+   and an honest sentence instead of an empty grey box. A Video-Rundgang
+   gets its own button on the main image and plays full-screen.
    ============================================================================ */
 
 export default function Gallery({ listing }: { listing: Listing }) {
   const photos = listing.photos ?? [];
   const [active, setActive] = useState(0);
   const [lightbox, setLightbox] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const title = vehicleTitle(listing);
   const badges = listingBadges(listing);
+  const video = listing.video;
+
+  const videoButton = video && (
+    <button
+      type="button"
+      onClick={() => setPlaying(true)}
+      className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-small font-semibold text-white transition-colors hover:bg-black/90"
+    >
+      <Play size={13} aria-hidden fill="currentColor" /> Video-Rundgang
+      <span className="tabular text-white/80">{fmtVideoLength(video.seconds)}</span>
+    </button>
+  );
+  const player = video && playing && <VideoPlayer video={video} title={title} onClose={() => setPlaying(false)} />;
 
   if (photos.length === 0) {
     return (
@@ -30,6 +46,8 @@ export default function Gallery({ listing }: { listing: Listing }) {
           </p>
         </div>
         <Badges badges={badges} />
+        {videoButton}
+        {player}
       </div>
     );
   }
@@ -39,26 +57,29 @@ export default function Gallery({ listing }: { listing: Listing }) {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setLightbox(true)}
-        className="group relative block aspect-16/10 w-full overflow-hidden rounded-card bg-surface2"
-        aria-label={`Foto ${active + 1} von ${photos.length} gross anzeigen`}
-      >
-        <img
-          src={photoUrl(photos[active])}
-          alt={`${title} — Foto ${active + 1} von ${photos.length}`}
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          className="h-full w-full object-cover"
-        />
-        <Badges badges={badges} />
-        <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1 text-small font-semibold text-white">
-          <Expand size={13} aria-hidden />
-          {active + 1}/{photos.length}
-        </span>
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setLightbox(true)}
+          className="group relative block aspect-16/10 w-full overflow-hidden rounded-card bg-surface2"
+          aria-label={`Foto ${active + 1} von ${photos.length} gross anzeigen`}
+        >
+          <img
+            src={photoUrl(photos[active])}
+            alt={`${title} — Foto ${active + 1} von ${photos.length}`}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+          <Badges badges={badges} />
+          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1 text-small font-semibold text-white">
+            <Expand size={13} aria-hidden />
+            {active + 1}/{photos.length}
+          </span>
+        </button>
+        {videoButton}
+      </div>
       {photos.length > 1 && (
         <div className="mt-2 grid grid-cols-5 gap-2">
           {photos.slice(0, 5).map((p, i) => {
@@ -88,7 +109,58 @@ export default function Gallery({ listing }: { listing: Listing }) {
       {lightbox && (
         <Lightbox photos={photos} index={active} title={title} onIndex={setActive} onStep={go} onClose={() => setLightbox(false)} />
       )}
+      {player}
     </div>
+  );
+}
+
+function VideoPlayer({
+  video,
+  title,
+  onClose,
+}: {
+  video: NonNullable<Listing["video"]>;
+  title: string;
+  onClose: () => void;
+}) {
+  const [panel, setPanel] = useState<HTMLDivElement | null>(null);
+  useModal(onClose, panel);
+  return (
+    <Portal>
+      <div
+        ref={setPanel}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Video-Rundgang: ${title}`}
+        tabIndex={-1}
+        className="fixed inset-0 z-90 flex flex-col bg-black/95 text-white outline-hidden"
+      >
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-small font-semibold">
+            Video-Rundgang · <span className="tabular">{fmtVideoLength(video.seconds)}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Schliessen"
+            className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
+          >
+            <X size={20} aria-hidden />
+          </button>
+        </div>
+        <div className="flex min-h-0 flex-1 items-center justify-center px-2 pb-4">
+          <video
+            src={videoUrl(video.path)}
+            poster={video.poster ? photoUrl(video.poster) : undefined}
+            controls
+            autoPlay
+            playsInline
+            preload="metadata"
+            className="max-h-full max-w-full"
+          />
+        </div>
+      </div>
+    </Portal>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { Equipment, Listing, ListingSpec, ListingStatus } from "../data/evData";
 import { listingQuality } from "./quality";
+import { VIDEOS_ENABLED } from "./video";
 import type { CatalogVariantEmbed, ListingRow } from "./supabase";
 
 /* ============================================================================
@@ -134,5 +135,9 @@ export function rowToListing(r: ListingRow): Listing {
     owner: r.owner,
     isDemo: r.is_demo,
     photos: r.photos ?? [],
+    video:
+      VIDEOS_ENABLED && r.video_path && r.video_seconds
+        ? { path: r.video_path, seconds: r.video_seconds, poster: r.video_poster ?? undefined }
+        : undefined,
   };
 }

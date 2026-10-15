@@ -20,6 +20,8 @@
   from a postcode; sort by lowest monthly cost or nearest.
 - Price context: the Swiss list price when new, price cuts and price
   history, and a free valuation (Preis-Check) from comparable listings.
+- Up to 12 photos and an optional video walkthrough (max. 3 minutes) per
+  listing.
 - Saved cars (Merkliste) without login; e-mail alerts for saved searches and
   for price cuts or sales of saved cars.
 - A model guide built from a catalog of 87 brands, 357 models and 743

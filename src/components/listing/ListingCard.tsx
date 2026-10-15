@@ -1,10 +1,11 @@
-import { BatteryCharging, Camera, MapPin, Timer, Zap } from "lucide-react";
+import { BatteryCharging, Camera, MapPin, Play, Timer, Zap } from "lucide-react";
 import CarGraphic from "./CarGraphic";
 import ListingActions from "./ListingActions";
 import { Badge, ChargeBar } from "../ui";
 import { isFresh, isHighVoltage, placeOf, warrantyBadge } from "../../lib/listingFacts";
 import { photoUrl } from "../../lib/supabase";
 import { href } from "../../lib/url";
+import { fmtVideoLength } from "../../lib/video";
 import { SELLER_LABEL, vehicleTitle } from "../../utils/format";
 import { fmtCH } from "../../utils/swiss";
 import type { Listing } from "../../data/evData";
@@ -75,12 +76,21 @@ export function ListingPhoto({
           </Badge>
         ))}
       </span>
-      {(l.photos?.length ?? 0) > 1 && (
-        <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-micro font-semibold text-white">
-          <Camera size={12} aria-hidden />
-          {l.photos!.length}
-        </span>
-      )}
+      <span className="absolute bottom-2.5 right-2.5 flex gap-1">
+        {l.video && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-micro font-semibold text-white tabular">
+            <Play size={11} aria-hidden fill="currentColor" />
+            <span className="sr-only">Video-Rundgang, </span>
+            {fmtVideoLength(l.video.seconds)}
+          </span>
+        )}
+        {(l.photos?.length ?? 0) > 1 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-micro font-semibold text-white">
+            <Camera size={12} aria-hidden />
+            {l.photos!.length}
+          </span>
+        )}
+      </span>
     </div>
   );
 }

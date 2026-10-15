@@ -69,6 +69,8 @@ export type Filters = {
   /** Sitze ab */
   sitze: number;
   unfallfrei: boolean;
+  /** Nur Inserate mit Video-Rundgang. */
+  video: boolean;
   anbieter: Anbieter;
   /** Umkreis in km um die PLZ (`plz` in der URL, sonst die des Fahrprofils). */
   umkreis: number;
@@ -98,6 +100,7 @@ export const DEFAULT_FILTERS: Filters = {
   kofferraum: 0,
   sitze: 0,
   unfallfrei: false,
+  video: false,
   anbieter: "",
   umkreis: 0,
 };
@@ -147,6 +150,7 @@ export const PREDICATES: Record<FilterKey, Predicate> = {
   kofferraum: (l, f) => !f.kofferraum || (l.spec?.trunkL ?? 0) >= f.kofferraum,
   sitze: (l, f) => l.seats >= f.sitze,
   unfallfrei: (l, f) => !f.unfallfrei || l.condition?.accidentFree === true,
+  video: (l, f) => !f.video || Boolean(l.video),
   anbieter: (l, f) => !f.anbieter || l.sellerType === f.anbieter,
   umkreis: (l, f, ctx) => !f.umkreis || (ctx.distance(l) ?? Infinity) <= f.umkreis,
 };
@@ -289,6 +293,7 @@ export function filterChips(f: Filters, names: FilterNames = {}): { key: FilterK
     kofferraum: () => `Kofferraum ab ${f.kofferraum} l`,
     sitze: () => `ab ${f.sitze} Sitze`,
     unfallfrei: () => "Unfallfrei",
+    video: () => "Mit Video",
     anbieter: () => (f.anbieter === "GARAGE" ? "Garage" : "Privat"),
     umkreis: () => `${f.umkreis} km Umkreis`,
   };

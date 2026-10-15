@@ -170,8 +170,8 @@ export default function InseratDetailPage({
     ["WLTP-Reichweite", `${listing.range} km`],
     ["Verbrauch", `${listing.consumption.toFixed(1)} kWh/100 km`],
     ["Batterie netto", `${listing.battery} kWh`],
-    ["Laden 10–80 %", `${listing.chargeMin} min`],
-    ["DC-Spitze", `${listing.dcKw} kW`],
+    ["Laden 10–80 %", listing.chargeMin !== null ? `${listing.chargeMin} min` : "—"],
+    ["DC-Spitze", listing.dcKw !== null ? `${listing.dcKw} kW` : "—"],
     ["Sitze", String(listing.seats)],
   ];
 
@@ -193,6 +193,7 @@ export default function InseratDetailPage({
         )}
       </div>
       <p className="mt-1 text-body text-fg2">
+        {listing.variant && <>{listing.variant} · </>}
         {SEGMENT_LABEL[listing.segment]} · {SELLER_LABEL[listing.sellerType]} ·{" "}
         {listing.ort} · eingestellt vor {listing.postedDays}{" "}
         {listing.postedDays === 1 ? "Tag" : "Tagen"}

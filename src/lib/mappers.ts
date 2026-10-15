@@ -8,6 +8,7 @@ export function rowToListing(r: ListingRow): Listing {
     id: r.slug,
     brand: r.brand,
     model: r.model,
+    variant: r.variant ?? undefined,
     segment: r.segment,
     year: r.year,
     km: r.km,

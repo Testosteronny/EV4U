@@ -48,7 +48,8 @@ export const PREDICATES: Record<keyof Filters, Predicate> = {
   sitze: (l, f) => f.sitze === "ALLE" || l.seats === Number(f.sitze),
   preis: (l, f) => l.price <= f.preis,
   reichweite: (l, f) => l.range >= f.reichweite,
-  laden: (l, f) => l.dcKw >= f.laden,
+  // Ohne DC-Wert zählt ein Inserat nur, solange kein Mindestwert gesetzt ist.
+  laden: (l, f) => (l.dcKw ?? 0) >= f.laden,
   v2x: (l, f) => !f.v2x || l.bidi,
   fav: (l, f, favorites) => !f.fav || favorites.includes(l.id),
 };

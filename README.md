@@ -62,15 +62,18 @@ src/
     ListingCard/Board.tsx    ← grid and list view of the catalogue
     ListingActions.tsx       ← the Merken/Vergleichen pair, used by both
     ListingEditor.tsx        ← edit an own listing (sheet on /konto)
+    VehiclePicker.tsx        ← Marke → Modell → Variante (/verkaufen)
     ui.tsx                   ← Button · Badge · Sheet · Popover · Slider …
   hooks/
     useCockpit.ts            ← the persisted visitor context
     useCosts.ts              ← context + listing → the numbers
     useListings/Session/…    ← store-backed reads
+    useVehicleCatalog.ts     ← catalog reads + the resolved picker choice
   stores/                    ← nanostores: cockpit · listings · favorites ·
-                               session · ui
+                               session · ui · vehicleCatalog
   lib/
     filters.ts               ← what a catalogue URL parameter means
+    vehicleCatalog.ts        ← catalog types, labels, catalog → listing specs
     costModel.ts → utils/    ← see below
   utils/
     costModel.ts             ← THE calculation (computeCosts)
@@ -190,8 +193,7 @@ Security** in the database:
 | `favorites` | the Merkliste — owner-only, which is why a heart click needs a login |
 | `saved_searches` | the filter URL stored as-is, owner-only |
 | `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed |
-| `vehicle_models` | the Swiss EV catalog — 279 models / 78 brands. Drives the /verkaufen picker & prefill |
-| `vehicle_variants` | trim-level specs — schema ready, enrichment pending (see below) |
+| `vehicle_brands` / `vehicle_models` / `vehicle_variants` | **reference data**, the EV catalog (see below): public read, no client write. Drives the /verkaufen picker & prefill |
 | `user_roles` | **admin flag**; `is_admin()` (security definer) backs the admin RLS policies. The UI only decides what to *show* |
 | storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder |
 
@@ -275,25 +277,63 @@ Input is PLZ-level, so residents of a small municipality sharing its PLZ with
 a larger neighbour get the neighbour's tariff — the trade-off every PLZ-based
 lookup makes (ElCom's own site asks for the municipality).
 
-## Vehicle-model data — catalog live, variant enrichment pending
+## Vehicle catalog — Marke → Modell → Variante
 
-The **model level is done**: `vehicle_models` holds all 279 Swiss-market EVs
-and /verkaufen picks & prefills from it. What's missing is **variant depth** —
-`vehicle_variants` is schema-ready but empty: ~280 models × 2–8 trims ≈ 1'000+
-rows × ~25 fields, which needs a data source, not typing. Options ranked:
+Sellers pick their car instead of typing it. The catalog is normalised in
+three levels — **87 brands · 357 models · 743 variants** (Stand 23.09.2026) —
+from the EV4U workbook *Elektroauto-Varianten Europa*: sheet «Modelle &
+Varianten» (on sale) plus «Auslauf & Occasion» (run-out and used-only cars).
 
-1. **Chargetrip Vehicle Database** *(recommended start)* — 1'800+ EV models
-   via GraphQL incl. weights, batteries, efficiency, pricing; **free
-   developer tier**. Bake into a table (same pattern as the ElCom tariffs).
-2. **EV Database (ev-database.org) licensing** — the quality benchmark: real
-   world range and charge curves, EU-focused. Paid, contact-based.
-3. **Open EV Data JSON (frozen)** — free bootstrap seed, unmaintained.
-4. **Vehicle Databases / One Auto API** — US/Canada-centric trims; weak fit.
-5. **Eurotax (Autovista) / auto-i-dat** — Swiss Typenschein-level data *plus*
-   market valuations; expensive B2B. Relevant for a future Preis-Check.
+| Table | Holds |
+|-------|-------|
+| `vehicle_brands` | name |
+| `vehicle_models` | segment, body type, availability (`LIEFERBAR` · `IMPORT` · `ANGEKUENDIGT` · `AUSLAUF` · `OCCASION`), market launch → `launch_year` / `end_year`, remark |
+| `vehicle_variants` | ~30 fields per drivetrain/battery: power, gross/net battery, WLTP range and consumption, DC peak and 10–80 % time, AC, V2L, dimensions, curb weight, battery warranty, Swiss list price |
 
-Until then, new listings start at `weight_kg = 1900` (`REF_WEIGHT_KG`) and
-the seller corrects it in the listing editor; seeds carry real curb weights.
+Every row carries a stable `slug` derived from the workbook ID
+(`brand_model_variant`). Re-imports upsert on it, so uuids — and the listings
+linking to them — survive an update.
+
+**Listings snapshot, then link.** A listing keeps brand, model, `variant` and
+all specs in its own columns (the seller can still correct them) and links
+`model_id` / `variant_id` to the catalog with `on delete set null`; a
+composite FK guarantees the variant belongs to the model. Dropping a car from
+the catalog never changes a published listing.
+
+**Picker** (`VehiclePicker.tsx`, state shared via `stores/vehicleCatalog.ts`):
+native selects for brand and model — models grouped into current, no longer
+sold new and announced — and the variant as radio cards with battery, power,
+drive, range and list price. A model with one variant preselects it. Every
+level can be typed in when the car is missing; «Weiss ich nicht genau» keeps
+the model link without guessing specs. Brands + models arrive in one embedded
+select, variants per model on demand.
+
+**Nothing is invented.** Values the catalog lacks stay empty (no DC on a
+microcar, unknown curb weight — the tax then uses `REF_WEIGHT_KG`). Only the
+four NOT NULL specs start at neutral `SPEC_PLACEHOLDERS` when no variant is
+known; the listing is a private draft until the seller corrects them.
+
+### Updating the catalog
+
+```
+npm run catalog:import -- path/to/EV4U_Elektroauto_Varianten_Europa_<edition>.xlsx
+```
+
+[`scripts/import-vehicle-catalog.mjs`](scripts/import-vehicle-catalog.mjs)
+(Node 18+, zero deps) reads both sheets and validates every cell — types,
+ranges, enums, net ≤ gross battery, unique IDs, model-level fields identical
+across a model's variants — and cross-checks the totals on the «Übersicht»
+sheet. Any error aborts with *Nothing written*. Otherwise it writes:
+
+- `supabase/seed/vehicle_catalog.sql` — one transaction: upsert brands →
+  models → variants, delete what the workbook no longer lists, then a count
+  gate that rolls everything back if the totals don't match.
+- `src/data/vehicleCatalogMeta.json` — counts and edition for the picker's
+  footnote.
+
+Apply the seed with `psql "$DATABASE_URL" -f supabase/seed/vehicle_catalog.sql`
+or paste it into the Supabase SQL editor. The schema is
+`supabase/migrations/*vehicle_catalog_v2.sql`.
 
 ## Backlog (deliberately not built yet)
 

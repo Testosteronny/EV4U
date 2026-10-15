@@ -10,6 +10,7 @@
     "preview": "astro preview",
     "fetch:tariffs": "node scripts/fetch-tariffs.mjs",
     "fetch:fuel": "node scripts/fetch-fuel-prices.mjs",
+    "catalog:import": "node scripts/import-vehicle-catalog.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "typecheck": "astro check",
     "build:fast": "astro build"

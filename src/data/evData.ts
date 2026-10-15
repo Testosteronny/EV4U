@@ -13,6 +13,9 @@ export type Listing = {
   id: string;
   brand: string;
   model: string;
+  /** Catalog variant name, e.g. «Long Range AWD» — shown below the title,
+   *  never glued into it (it often repeats the model name). */
+  variant?: string;
   segment: Segment;
   /** First registration year */
   year: number;
@@ -26,14 +29,14 @@ export type Listing = {
   range: number;
   /** Real-mix consumption, kWh / 100 km */
   consumption: number;
-  /** DC charge 10→80 %, minutes */
-  chargeMin: number;
-  /** Peak DC power, kW */
-  dcKw: number;
+  /** DC charge 10→80 %, minutes — null: no DC charging or not known. */
+  chargeMin: number | null;
+  /** Peak DC power, kW — null: no DC charging (light vehicles) or not known. */
+  dcKw: number | null;
   /** Usable battery, kWh */
   battery: number;
-  /** Curb weight, kg — drives the cantonal tax model. Filled by the
-   *  vehicle-model API once selected (see README); fallback REF_WEIGHT_KG. */
+  /** Curb weight, kg — drives the cantonal tax model. Prefilled from the
+   *  vehicle catalog when a variant is chosen; fallback REF_WEIGHT_KG. */
   weightKg?: number;
   /** Battery state of health, % — measured, not claimed */
   soh: number;

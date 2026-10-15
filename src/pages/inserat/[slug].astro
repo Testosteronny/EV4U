@@ -29,7 +29,7 @@ const canonical = new URL(`${base}/inserat/${listing.id}`, Astro.site).href;
 const name = vehicleTitle(listing);
 const title = `${name} — CHF ${fmtCH(listing.price)} | EV4U`;
 const description =
-  `${name}, ${listing.year}, ${fmtCH(listing.km)} km · ${listing.range} km WLTP · SOH ${listing.soh} % · ` +
+  `${name}${listing.variant ? ` (${listing.variant})` : ""}, ${listing.year}, ${fmtCH(listing.km)} km · ${listing.range} km WLTP · SOH ${listing.soh} % · ` +
   `${SELLER_LABEL[listing.sellerType]} in ${listing.ort}. ${listing.note}`.slice(0, 300);
 const images = (listing.photos ?? []).map(photoUrl).filter(Boolean);
 
@@ -42,6 +42,7 @@ const carLd = jsonLd({
   ...(images.length > 0 && { image: images }),
   brand: { "@type": "Brand", name: brandName(listing.brand) },
   model: modelName(listing.model),
+  ...(listing.variant && { vehicleConfiguration: listing.variant }),
   vehicleModelDate: String(listing.year),
   mileageFromOdometer: { "@type": "QuantitativeValue", value: listing.km, unitCode: "KMT" },
   fuelType: "Electric",

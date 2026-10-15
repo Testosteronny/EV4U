@@ -54,8 +54,9 @@ const ROWS: Row[] = [
   },
   {
     label: "Laden 10–80 %",
-    value: (l) => `${l.chargeMin} min`,
-    num: (l) => l.chargeMin,
+    value: (l) => (l.chargeMin !== null ? `${l.chargeMin} min` : "—"),
+    // Ohne Wert gewinnt ein Auto die Zeile nie.
+    num: (l) => l.chargeMin ?? Infinity,
     best: "min",
   },
   { label: "Batterie", value: (l) => `${l.battery} kWh`, num: (l) => l.battery },

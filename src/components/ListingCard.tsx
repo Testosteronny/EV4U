@@ -72,6 +72,7 @@ export default function ListingCard({
         <div className="flex flex-1 flex-col justify-between gap-3 p-4">
           <div>
             <h3 className="truncate text-h3 font-semibold text-fg">{title}</h3>
+            {l.variant && <p className="truncate text-small text-fg2">{l.variant}</p>}
             <p className="mt-1 text-small text-fg2">
               {l.year} · <span className="tabular">{fmtCH(l.km)}</span> km ·{" "}
               <span className="tabular">{l.range}</span> km Reichweite ·{" "}

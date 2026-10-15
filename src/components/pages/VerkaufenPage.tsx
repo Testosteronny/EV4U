@@ -1,17 +1,14 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Camera, Check, HeartPulse, Radio } from "lucide-react";
 import CarGraphic from "../CarGraphic";
+import VehiclePicker from "../VehiclePicker";
 import { Badge, Button, EmptyState, Field, LinkButton, PageHeader } from "../ui";
 import { useProfile } from "../../hooks/useProfile";
 import { useSession } from "../../hooks/useSession";
-import {
-  toListingSegment,
-  useVehicleModels,
-  type VehicleModel,
-} from "../../hooks/useVehicleModels";
+import { EMPTY_CHOICE, useVehiclePick, type VehicleChoice } from "../../hooks/useVehicleCatalog";
+import { listingSpecs, yearHint, type CatalogVariant } from "../../lib/vehicleCatalog";
 import { supabase } from "../../lib/supabase";
 import { href } from "../../lib/url";
-import { REF_WEIGHT_KG } from "../../utils/costModel";
 import { SEGMENT_LABEL, SELLER_LABEL } from "../../utils/format";
 import { fmtCH, resolveZip } from "../../utils/swiss";
 import { usePlzResolver } from "../../hooks/usePlzResolver";
@@ -28,7 +25,7 @@ const STEPS = [
   {
     icon: Camera,
     title: "Erfassen",
-    text: "Marke, Modell, Bilder, Preis. Reichweite und Ladezeit füllt EV4U aus der Modell-Datenbank vor.",
+    text: "Marke, Modell, Variante, Preis. Reichweite, Batterie, Ladezeit und Gewicht füllt EV4U aus dem Fahrzeugkatalog vor.",
   },
   {
     icon: HeartPulse,
@@ -65,37 +62,42 @@ const PRICING = [
   },
 ];
 
-/** Sentinel: «meine Marke steht nicht im Katalog». */
-const MANUAL = "__manual__";
-
 const WIZARD = ["Fahrzeug", "Eckdaten", "Prüfen"] as const;
+
+/** Die Kurzfakten, die aus der gewählten Variante ins Inserat übernommen
+ *  werden — genau das, nicht mehr. */
+function prefilledFacts(v: CatalogVariant): string[] {
+  return [
+    v.range_wltp_km !== null && `${fmtCH(v.range_wltp_km)} km WLTP`,
+    v.consumption_kwh_100km !== null && `${v.consumption_kwh_100km} kWh/100 km`,
+    v.battery_net_kwh !== null && `${v.battery_net_kwh} kWh netto`,
+    v.dc_max_kw !== null
+      ? `DC ${fmtCH(v.dc_max_kw)} kW${v.dc_10_80_min !== null ? ` · 10–80 % in ${v.dc_10_80_min} min` : ""}`
+      : (v.charge_port === "Schuko" || v.charge_port === "Typ 2") && "nur AC-Laden",
+    `${v.seats} ${v.seats === 1 ? "Sitz" : "Sitze"}`,
+    v.curb_weight_kg !== null && `${fmtCH(v.curb_weight_kg)} kg`,
+    v.v2l && "V2L",
+    v.price_new_chf !== null && `Neupreis ab CHF ${fmtCH(v.price_new_chf)}`,
+  ].filter((x): x is string => Boolean(x));
+}
 
 export default function VerkaufenPage() {
   const { session } = useSession();
   const { profile } = useProfile(session?.user.id);
-  const models = useVehicleModels();
 
   const [step, setStep] = useState(0);
-  const [brand, setBrand] = useState("");
-  const [modelId, setModelId] = useState("");
+  const [choice, setChoice] = useState<VehicleChoice>(EMPTY_CHOICE);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const brands = useMemo(() => [...new Set(models.map((m) => m.brand))], [models]);
-  const brandModels = useMemo(
-    () => models.filter((m) => m.brand === brand),
-    [models, brand],
-  );
-  const manual = brand === MANUAL || models.length === 0;
-  const selected: VehicleModel | null =
-    (!manual && models.find((m) => m.id === modelId)) || null;
-
-  const brandName = manual ? (form.MARKE ?? "") : brand;
-  const modelName = manual ? (form.MODELL ?? "") : (selected?.model ?? "");
-  const vehicleDone = brandName.trim() !== "" && modelName.trim() !== "";
-  const segment = selected ? toListingSegment(selected.segment) : "LIMOUSINE";
+  const pick = useVehiclePick(choice);
+  const specs = listingSpecs(pick.catalogModel, pick.catalogVariant);
+  const variant = pick.catalogVariant;
+  const vehicleDone = pick.complete;
+  const segment = specs.segment;
+  const yearWarning = yearHint(pick.catalogModel, Number(form.JAHRGANG));
   // The PLZ map loads once the seller starts typing a postcode.
   const resolvePlz = usePlzResolver((form.PLZ ?? "") !== "");
   const plzHit =
@@ -116,7 +118,7 @@ export default function VerkaufenPage() {
     setError(null);
     if (!supabase || !session || !vehicleDone) return;
     setBusy(true);
-    const slugBase = `${brandName}-${modelName}`
+    const slugBase = `${pick.brand}-${pick.model}`
       .toLowerCase()
       .normalize("NFD")
       .replace(/[̀-ͯ]/g, "")
@@ -135,29 +137,26 @@ export default function VerkaufenPage() {
       // Keine Versalien mehr: der Katalog setzt Fahrzeugnamen gemischt, und
       // ein `.toUpperCase()` beim Speichern hätte diese Information für
       // immer weggeworfen.
-      brand: brandName.trim(),
-      model: modelName.trim(),
-      segment,
+      brand: pick.brand,
+      model: pick.model,
+      variant: pick.variant || null,
       year: Number(form.JAHRGANG) || new Date().getFullYear(),
       km: Number(form.KM) || 0,
       price: Number(form.PREIS) || 1,
-      // Aus dem Katalog vorbefüllt, wo vorhanden — sonst der Referenzwert.
-      // Alles davon ist auf /konto bearbeitbar, bevor publiziert wird.
-      range_km: selected?.range_km_max ?? 400,
-      consumption: selected?.consumption_min ?? 16.8,
-      charge_min: 30,
-      dc_kw: 150,
-      battery_kwh: 60,
-      weight_kg: REF_WEIGHT_KG,
+      // Aus der gewählten Variante vorbefüllt; was der Katalog nicht kennt,
+      // bleibt leer oder steht als Platzhalter (listingSpecs). Alles davon
+      // ist auf /konto bearbeitbar, bevor publiziert wird.
+      ...specs,
       soh: Number(form.SOH) || 100,
-      seats: selected?.seats_max ?? 5,
       seller_name: profile?.name || session.user.email?.split("@")[0] || "Privat",
       seller_type: profile?.type ?? "PRIVAT",
       ort,
       status: "ENTWURF",
       note: form.BESCHREIBUNG?.trim() || "",
-      price_new: selected?.price_from_chf ?? null,
-      model_id: selected?.id ?? null,
+      // Die Verknüpfung bleibt, auch wenn der Verkäufer die Werte später
+      // korrigiert — sie sagt, WELCHES Auto es ist, nicht was es kann.
+      model_id: pick.catalogModel?.id ?? null,
+      variant_id: variant?.id ?? null,
     });
     setBusy(false);
     if (err) setError(err.message);
@@ -224,8 +223,7 @@ export default function VerkaufenPage() {
                   setSaved(false);
                   setStep(0);
                   setForm({});
-                  setBrand("");
-                  setModelId("");
+                  setChoice(EMPTY_CHOICE);
                 }}
                 variant="secondary"
                 size="sm"
@@ -272,91 +270,27 @@ export default function VerkaufenPage() {
 
               <div className="mt-5">
                 {step === 0 && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {models.length > 0 && (
-                      <>
-                        <Field label="Marke">
-                          <select
-                            value={brand}
-                            onChange={(e) => {
-                              setBrand(e.target.value);
-                              setModelId("");
-                            }}
-                            className="field"
-                          >
-                            <option value="">Bitte wählen</option>
-                            {brands.map((b) => (
-                              <option key={b} value={b}>
-                                {b}
-                              </option>
-                            ))}
-                            <option value={MANUAL}>Andere Marke (nicht im Katalog)</option>
-                          </select>
-                        </Field>
-                        {!manual && (
-                          <Field label={`Modell (${brandModels.length})`}>
-                            <select
-                              value={modelId}
-                              onChange={(e) => setModelId(e.target.value)}
-                              disabled={!brand}
-                              className="field"
-                            >
-                              <option value="">Bitte wählen</option>
-                              {brandModels.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                  {m.model}
-                                  {m.status === "AUSLAUF" ? " · Auslauf" : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </Field>
-                        )}
-                      </>
-                    )}
-                    {manual && (
-                      <>
-                        <Field
-                          label="Marke eintippen"
-                          hint="So, wie sie der Hersteller schreibt — «Polestar», nicht «POLESTAR»."
-                        >
-                          <input
-                            value={form.MARKE ?? ""}
-                            onChange={(e) => set("MARKE", e.target.value)}
-                            maxLength={40}
-                            className="field"
-                          />
-                        </Field>
-                        <Field label="Modell eintippen">
-                          <input
-                            value={form.MODELL ?? ""}
-                            onChange={(e) => set("MODELL", e.target.value)}
-                            maxLength={60}
-                            className="field"
-                          />
-                        </Field>
-                      </>
-                    )}
+                  <div className="space-y-5">
+                    <VehiclePicker value={choice} onChange={setChoice} />
 
-                    {selected && (
-                      <div className="sm:col-span-2">
+                    {variant && (
+                      <div>
                         <div className="eyebrow mb-2">Aus dem Katalog vorbefüllt</div>
                         <div className="flex flex-wrap gap-1.5">
-                          {[
-                            selected.range_km_max && `${selected.range_km_max} km WLTP`,
-                            selected.consumption_min &&
-                              `${selected.consumption_min} kWh/100 km`,
-                            selected.seats_max && `${selected.seats_max} Sitze`,
-                            selected.price_from_chf &&
-                              `Neupreis ab CHF ${fmtCH(selected.price_from_chf)}`,
-                            SEGMENT_LABEL[toListingSegment(selected.segment)],
-                          ]
-                            .filter(Boolean)
-                            .map((c) => (
-                              <Badge key={String(c)} tone="positive">
-                                {c}
-                              </Badge>
-                            ))}
+                          {[...prefilledFacts(variant), SEGMENT_LABEL[segment]].map((c) => (
+                            <Badge key={c} tone="positive">
+                              {c}
+                            </Badge>
+                          ))}
                         </div>
+                        {(variant.range_wltp_km === null ||
+                          variant.consumption_kwh_100km === null ||
+                          variant.battery_net_kwh === null) && (
+                          <p className="mt-2 text-small text-fg3">
+                            Der Hersteller hat noch nicht alle Werte publiziert — die
+                            fehlenden ergänzt du im Konto.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -364,17 +298,25 @@ export default function VerkaufenPage() {
 
                 {step === 1 && (
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Jahrgang">
-                      <input
-                        value={form.JAHRGANG ?? ""}
-                        onChange={(e) =>
-                          set("JAHRGANG", e.target.value.replace(/\D/g, "").slice(0, 4))
-                        }
-                        inputMode="numeric"
-                        placeholder="2023"
-                        className="field tabular"
-                      />
-                    </Field>
+                    <div>
+                      <Field label="Jahrgang">
+                        <input
+                          value={form.JAHRGANG ?? ""}
+                          onChange={(e) =>
+                            set("JAHRGANG", e.target.value.replace(/\D/g, "").slice(0, 4))
+                          }
+                          inputMode="numeric"
+                          placeholder="2023"
+                          aria-describedby={yearWarning ? "jahrgang-hinweis" : undefined}
+                          className="field tabular"
+                        />
+                      </Field>
+                      {yearWarning && (
+                        <p id="jahrgang-hinweis" className="mt-1 text-small text-caution">
+                          {yearWarning}
+                        </p>
+                      )}
+                    </div>
                     <Field label="Kilometerstand">
                       <input
                         value={form.KM ?? ""}
@@ -446,8 +388,8 @@ export default function VerkaufenPage() {
                 {step === 2 && (
                   <div>
                     <p className="max-w-prose text-body text-fg2">
-                      Das speichern wir als privaten Entwurf. Fotos und die
-                      technischen Daten ergänzt du auf deinem Konto —
+                      Das speichern wir als privaten Entwurf. Fotos ergänzt du
+                      auf deinem Konto, die technischen Daten prüfst du dort —
                       publiziert wird erst, wenn du es auslöst.
                     </p>
                     {!supabase ? (
@@ -516,16 +458,19 @@ export default function VerkaufenPage() {
                 </div>
                 <div className="p-4">
                   <h3 className="truncate text-h3 font-semibold text-fg">
-                    {brandName || "Marke"} {modelName || "Modell"}
+                    {pick.brand || "Marke"} {pick.model || "Modell"}
                   </h3>
+                  {pick.variant && (
+                    <p className="truncate text-small text-fg2">{pick.variant}</p>
+                  )}
                   <p className="mt-1 text-small text-fg2">
                     {form.JAHRGANG || "Jahr"} ·{" "}
                     <span className="tabular">
                       {form.KM ? fmtCH(Number(form.KM)) : "—"}
                     </span>{" "}
                     km ·{" "}
-                    {selected?.range_km_max
-                      ? `${selected.range_km_max} km Reichweite`
+                    {variant?.range_wltp_km
+                      ? `${fmtCH(variant.range_wltp_km)} km Reichweite`
                       : "Reichweite"}{" "}
                     · {SELLER_LABEL[profile?.type ?? "PRIVAT"]}
                   </p>

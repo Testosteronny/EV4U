@@ -128,7 +128,7 @@ function matches(l: Listing, p: FinderParams): boolean {
     (!p.seg || l.segment === p.seg) &&
     (!p.sitze || l.seats === Number(p.sitze)) &&
     l.range >= Number(p.reichweite ?? 0) &&
-    l.dcKw >= Number(p.laden ?? 0) &&
+    (l.dcKw ?? 0) >= Number(p.laden ?? 0) &&
     l.price <= Number(p.preis ?? PRICE_MAX) &&
     (p.v2x !== "1" || l.bidi)
   );

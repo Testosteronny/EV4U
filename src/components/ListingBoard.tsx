@@ -76,6 +76,7 @@ export default function ListingBoard({
                     )}
                   </span>
                   <span className="block truncate text-small text-fg2">
+                    {l.variant && <>{l.variant} · </>}
                     {SEGMENT_LABEL[l.segment]} · {SELLER_LABEL[l.sellerType]} · {l.ort}
                     <span className="md:hidden">
                       {" "}

@@ -30,6 +30,8 @@ export type ListingRow = {
   slug: string;
   brand: string;
   model: string;
+  /** Snapshot of the catalog variant name; null when unknown or typed in without one. */
+  variant: string | null;
   segment: "KOMPAKT" | "LIMOUSINE" | "KOMBI" | "SUV";
   year: number;
   km: number;
@@ -37,10 +39,13 @@ export type ListingRow = {
   price_new: number | null;
   range_km: number;
   consumption: number;
-  charge_min: number;
-  dc_kw: number;
+  charge_min: number | null;
+  dc_kw: number | null;
   battery_kwh: number;
   weight_kg: number | null;
+  /** Links into the vehicle catalog (vehicle_models / vehicle_variants). */
+  model_id: string | null;
+  variant_id: string | null;
   soh: number;
   bidi: boolean;
   seats: number;

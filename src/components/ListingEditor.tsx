@@ -54,11 +54,15 @@ type NumField = {
   unit?: string;
   min: number;
   max: number;
+  /** Darf leer bleiben — gespeichert wird dann NULL. */
+  optional?: boolean;
   hint?: string;
 };
 
+// Die Bereiche decken den ganzen Fahrzeugkatalog ab — vom Leichtfahrzeug mit
+// 5,5 kWh und einem Sitz bis zum Hypercar über 2 Mio. Franken.
 const CORE: NumField[] = [
-  { key: "price", label: "Preis", unit: "CHF", min: 1, max: 500000 },
+  { key: "price", label: "Preis", unit: "CHF", min: 1, max: 3000000 },
   { key: "year", label: "Jahrgang", min: 2010, max: new Date().getFullYear() + 1 },
   { key: "km", label: "Kilometerstand", unit: "km", min: 0, max: 500000 },
   {
@@ -66,24 +70,34 @@ const CORE: NumField[] = [
     label: "Neupreis",
     unit: "CHF",
     min: 0,
-    max: 500000,
+    max: 3000000,
+    optional: true,
     hint: "Optional — daraus entsteht der «günstiger als neu»-Hinweis.",
   },
 ];
 
 const SPECS: NumField[] = [
   { key: "range_km", label: "WLTP-Reichweite", unit: "km", min: 50, max: 1200 },
-  { key: "consumption", label: "Verbrauch", unit: "kWh/100 km", min: 8, max: 40 },
-  { key: "battery_kwh", label: "Batterie netto", unit: "kWh", min: 10, max: 250 },
-  { key: "dc_kw", label: "DC-Spitzenleistung", unit: "kW", min: 10, max: 500 },
-  { key: "charge_min", label: "Laden 10–80 %", unit: "min", min: 5, max: 180 },
-  { key: "seats", label: "Sitze", min: 2, max: 9 },
+  { key: "consumption", label: "Verbrauch", unit: "kWh/100 km", min: 4, max: 40 },
+  { key: "battery_kwh", label: "Batterie netto", unit: "kWh", min: 4, max: 250 },
+  {
+    key: "dc_kw",
+    label: "DC-Spitzenleistung",
+    unit: "kW",
+    min: 10,
+    max: 1500,
+    optional: true,
+    hint: "Leer lassen, wenn das Auto nicht schnellladen kann.",
+  },
+  { key: "charge_min", label: "Laden 10–80 %", unit: "min", min: 5, max: 180, optional: true },
+  { key: "seats", label: "Sitze", min: 1, max: 9 },
   {
     key: "weight_kg",
     label: "Leergewicht",
     unit: "kg",
-    min: 800,
-    max: 3500,
+    min: 300,
+    max: 4000,
+    optional: true,
     hint: `Bestimmt die kantonale Verkehrssteuer. Ohne Angabe rechnen wir mit ${fmtCH(REF_WEIGHT_KG)} kg.`,
   },
 ];
@@ -113,7 +127,7 @@ export default function ListingEditor({
   const num = (key: string) => Number(String(form[key] ?? "").replace(",", "."));
   const invalid = (f: NumField) => {
     const raw = String(form[f.key] ?? "").trim();
-    if (raw === "") return f.key === "price_new" || f.key === "weight_kg" ? false : true;
+    if (raw === "") return !f.optional;
     const v = num(f.key as string);
     return !Number.isFinite(v) || v < f.min || v > f.max;
   };
@@ -146,8 +160,8 @@ export default function ListingEditor({
         range_km: num("range_km"),
         consumption: num("consumption"),
         battery_kwh: num("battery_kwh"),
-        dc_kw: num("dc_kw"),
-        charge_min: num("charge_min"),
+        dc_kw: optional("dc_kw"),
+        charge_min: optional("charge_min"),
         seats: num("seats"),
         weight_kg: optional("weight_kg"),
         soh: sohNum,

@@ -23,7 +23,7 @@ export function matchesQuery(l: Listing, query: string): boolean {
   const q = fold(query.trim());
   if (!q) return true;
   const hay = fold(
-    `${l.brand} ${l.model} ${SEGMENT_LABEL[l.segment]} ${SELLER_LABEL[l.sellerType]} ${l.seller} ${l.ort} ${l.year}`,
+    `${l.brand} ${l.model} ${l.variant ?? ""} ${SEGMENT_LABEL[l.segment]} ${SELLER_LABEL[l.sellerType]} ${l.seller} ${l.ort} ${l.year}`,
   );
   return q.split(/\s+/).every((word) => hay.includes(word));
 }

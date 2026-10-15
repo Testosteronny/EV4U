@@ -29,7 +29,7 @@ select vault.create_secret('github_pat_XXXX', 'github_deploy_pat');
 SQL editor:
 
 ```sql
-create extension if not exists pg_net;
+create extension if not exists pg_net with schema extensions;
 
 create or replace function public.notify_deploy()
 returns trigger

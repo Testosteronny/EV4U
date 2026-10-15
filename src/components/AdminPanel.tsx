@@ -14,8 +14,8 @@ import { fmtCH } from "../utils/swiss";
 
 /* ============================================================================
    Moderation — nur für Konten mit ADMIN-Rolle. Die Oberfläche ist bloss ein
-   Fenster: Lesen aller Inserate, Status überschreiben und Löschen sind
-   jeweils eigene RLS-Policies via is_admin(). Ohne Rolle liefern die
+   Fenster: Lesen aller Inserate, Status überschreiben und Löschen erlaubt
+   der Admin-Zweig der Listings-RLS-Policies via private.is_admin(). Ohne Rolle liefern die
    Abfragen nichts und die Mutationen werden von der Datenbank abgelehnt.
    ============================================================================ */
 

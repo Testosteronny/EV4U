@@ -194,7 +194,7 @@ Security** in the database:
 | `saved_searches` | the filter URL stored as-is, owner-only |
 | `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed |
 | `vehicle_brands` / `vehicle_models` / `vehicle_variants` | **reference data**, the EV catalog (see below): public read, no client write. Drives the /verkaufen picker & prefill |
-| `user_roles` | **admin flag**; `is_admin()` (security definer) backs the admin RLS policies. The UI only decides what to *show* |
+| `user_roles` | **admin flag**; `private.is_admin()` (security definer, in a schema the API doesn't expose) backs the admin branch of the listings RLS policies. The UI only decides what to *show* |
 | storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder |
 
 - **Auth**: passwordless magic links (`signInWithOtp`). One session fetch and

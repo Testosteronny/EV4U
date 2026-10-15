@@ -142,4 +142,108 @@ begin
   end if;
 end $$;
 
+-- What a seller adds in the v3 sell form: condition, equipment and the
+-- battery warranty. On a real listing the seller types the warranty in;
+-- here the demo «seller» copies the manufacturer's terms from the catalog,
+-- counted from the month of first registration. A few leave it empty, as
+-- real sellers do.
+update public.listings l set
+  battery_warranty_until = case when d.battery_warranty and v.battery_warranty_years is not null
+    then make_date(l.year + v.battery_warranty_years, d.reg_month, 1) end,
+  battery_warranty_km = case when d.battery_warranty then v.battery_warranty_km end,
+  battery_warranty_soh_pct = case when d.battery_warranty then v.battery_warranty_soh_pct end,
+  mfk_date = d.mfk::date,
+  accident_free = d.accident_free,
+  owners = d.owners,
+  service_book = d.service_book,
+  warranty_until = d.warranty_until::date,
+  negotiable = d.negotiable,
+  equipment = d.equipment::jsonb
+from (values
+  -- listing slug, reg. month, battery warranty?, MFK, accident-free, owners, service book, vehicle warranty, VB, equipment
+  ('demo-tesla-model-3-long-range', 3, true, '2025-11-01', true, 1, true, null, true,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Weiss"}'),
+  ('demo-tesla-model-y-long-range', 6, true, null, true, 1, true, '2027-06-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Grau"}'),
+  ('demo-vw-id-3-pro', 9, true, '2026-09-01', true, 2, true, null, true,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":false,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Blau"}'),
+  ('demo-vw-id-4-pro', 4, true, null, true, 1, true, null, true,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Grau"}'),
+  ('demo-vw-id-buzz-lang', 2, true, null, true, 1, true, '2028-02-01', false,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":false,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Gelb/Weiss"}'),
+  ('demo-skoda-enyaq-85', 5, true, null, true, 1, true, '2028-05-01', false,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Grün"}'),
+  ('demo-hyundai-ioniq-5-awd', 7, true, null, true, 1, true, '2028-07-01', true,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":false,"panorama_roof":true,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Mattgrau"}'),
+  ('demo-kia-ev6-long-range', 4, true, '2026-04-01', true, 1, true, '2029-04-01', true,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Schwarz"}'),
+  ('demo-kia-niro-ev', 3, true, null, true, 1, true, '2030-03-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Weiss"}'),
+  ('demo-renault-zoe-r135', 10, false, '2025-06-01', true, 2, true, null, true,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":false,"panorama_roof":false,"adaptive_cruise":false,"camera_360":false,"heated_seats":false,"color":"Rot"}'),
+  ('demo-renault-5-comfort-range', 9, true, null, true, 1, true, '2030-09-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":false,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Gelb"}'),
+  ('demo-bmw-i3s', 5, true, '2025-03-01', true, 2, true, null, true,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":false,"camera_360":false,"heated_seats":true,"color":"Grau/Blau"}'),
+  ('demo-bmw-ix1-xdrive30', 1, true, null, true, 1, true, '2027-01-01', false,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Schwarz"}'),
+  ('demo-bmw-i4-edrive40', 6, true, null, true, 1, true, '2026-12-01', true,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Blau"}'),
+  ('demo-polestar-2-dual-motor', 8, true, '2026-08-01', true, 1, true, null, true,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":false,"cable_type2":true,"cable_mode2":false,"panorama_roof":true,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Schwarz"}'),
+  ('demo-volvo-ex30-extended', 4, true, null, true, 1, true, '2029-04-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":false,"panorama_roof":true,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Grau"}'),
+  ('demo-mg4-comfort', 11, true, null, true, 1, true, '2030-11-01', false,
+   '{"heat_pump":false,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":false,"panorama_roof":false,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Rot"}'),
+  ('demo-byd-atto-3-design', 3, true, null, true, 1, true, '2030-03-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Grau"}'),
+  ('demo-fiat-500e-la-prima', 6, false, null, true, 1, true, null, true,
+   '{"heat_pump":false,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":false,"panorama_roof":true,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Mint"}'),
+  ('demo-nissan-leaf-40', 4, false, '2024-10-01', false, 2, false, null, true,
+   '{"heat_pump":false,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":false,"camera_360":true,"heated_seats":true,"color":"Weiss"}'),
+  ('demo-mercedes-eqa-250', 9, true, '2026-09-01', true, 1, true, null, false,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Silber"}'),
+  ('demo-audi-q4-e-tron', 2, true, null, true, 1, true, '2026-02-01', true,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Grau"}'),
+  ('demo-porsche-taycan-4s', 5, true, null, true, 1, true, '2027-05-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Weiss"}'),
+  ('demo-dacia-spring-65', 7, true, null, true, 1, true, null, true,
+   '{"heat_pump":false,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":true,"panorama_roof":false,"adaptive_cruise":false,"camera_360":false,"heated_seats":false,"color":"Weiss"}'),
+  ('demo-microlino-dolce', 5, false, null, true, 1, true, null, false,
+   '{"heat_pump":false,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":false,"camera_360":false,"heated_seats":false,"color":"Türkis"}'),
+  ('demo-kia-ev9-long-range', 3, true, null, true, 1, true, '2031-03-01', false,
+   '{"heat_pump":true,"tow_hitch":true,"winter_tyres":false,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Grün"}'),
+  ('demo-cupra-born-58', 10, true, '2025-10-01', true, 2, true, null, true,
+   '{"heat_pump":false,"tow_hitch":false,"winter_tyres":true,"cable_type2":true,"cable_mode2":false,"panorama_roof":false,"adaptive_cruise":true,"camera_360":false,"heated_seats":true,"color":"Grau"}'),
+  ('demo-smart-1-premium', 8, true, null, true, 1, true, '2026-08-01', false,
+   '{"heat_pump":true,"tow_hitch":false,"winter_tyres":false,"cable_type2":true,"cable_mode2":true,"panorama_roof":true,"adaptive_cruise":true,"camera_360":true,"heated_seats":true,"color":"Weiss/Schwarz"}')
+) as d (slug, reg_month, battery_warranty, mfk, accident_free, owners, service_book, warranty_until, negotiable, equipment)
+join public.vehicle_variants v on true
+where l.slug = d.slug and l.is_demo and v.id = l.variant_id;
+
+-- The insert trigger logged each price at load time; date it to the listing.
+update public.listing_price_history h set changed_at = l.created_at
+from public.listings l
+where h.listing_id = l.id and l.is_demo;
+
+-- Price drops: a higher asking price at first, cut three days ago (or a day
+-- after going online). Drives «Preis gesenkt» on cards and the Merkliste.
+with drops (slug, drop_from) as (values
+  ('demo-tesla-model-3-long-range', 28400), ('demo-vw-id-3-pro', 19900),
+  ('demo-skoda-enyaq-85', 39900), ('demo-renault-zoe-r135', 12900),
+  ('demo-bmw-i4-edrive40', 43900), ('demo-mg4-comfort', 20900),
+  ('demo-nissan-leaf-40', 10900), ('demo-porsche-taycan-4s', 98500),
+  ('demo-cupra-born-58', 23900)
+),
+cut as (
+  update public.listing_price_history h
+  set changed_at = greatest(l.created_at + interval '1 day', now() - interval '3 days')
+  from drops d join public.listings l on l.slug = d.slug and l.is_demo
+  where h.listing_id = l.id
+  returning h.listing_id
+)
+insert into public.listing_price_history (listing_id, price, changed_at)
+select l.id, d.drop_from, l.created_at
+from drops d join public.listings l on l.slug = d.slug and l.is_demo;
+
 commit;

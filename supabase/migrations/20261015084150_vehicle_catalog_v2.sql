@@ -17,6 +17,10 @@
 -- so ids stay stable across re-imports and listings keep their links.
 -- ============================================================================
 
+-- This alters the live listings table: give up quickly instead of queueing
+-- behind — and then blocking — site traffic if a lock is held.
+set local lock_timeout = '5s';
+
 -- The old catalog is replaced wholesale. That is only safe while nothing
 -- points into it — refuse instead of silently cutting links.
 do $$
@@ -30,6 +34,10 @@ alter table public.listings drop constraint if exists listings_model_id_fkey;
 alter table public.listings drop constraint if exists listings_variant_id_fkey;
 drop table if exists public.vehicle_variants;
 drop table if exists public.vehicle_models;
+
+-- uuid keys, like the rest of the schema and the existing listings.model_id /
+-- variant_id columns. Random-uuid index fragmentation does not matter for
+-- reference tables of ~1'000 rows that change once per catalog edition.
 
 -- ---------------------------------------------------------------------------
 -- Brands
@@ -157,8 +165,13 @@ create policy vehicle_brands_public_read   on public.vehicle_brands   for select
 create policy vehicle_models_public_read   on public.vehicle_models   for select to anon, authenticated using (true);
 create policy vehicle_variants_public_read on public.vehicle_variants for select to anon, authenticated using (true);
 
-revoke insert, update, delete, truncate on public.vehicle_brands, public.vehicle_models, public.vehicle_variants
+-- Explicit both ways: the project's default privileges hand new tables to
+-- anon/authenticated with every right, and the Data API may not expose new
+-- tables at all. Neither should decide what the catalog allows.
+revoke all on public.vehicle_brands, public.vehicle_models, public.vehicle_variants
   from anon, authenticated;
+grant select on public.vehicle_brands, public.vehicle_models, public.vehicle_variants
+  to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Listings ↔ catalog

@@ -26,7 +26,8 @@ const dotenv = existsSync(resolve(ROOT, ".env"))
 const env = (key) => process.env[key] ?? dotenv[key];
 
 const res = await fetch(
-  `${env("PUBLIC_SUPABASE_URL")}/rest/v1/listings?select=slug,updated_at&status=in.(AKTIV,RESERVIERT)`,
+  // Demo listings are noindex — keep them out of the sitemap (and IndexNow).
+  `${env("PUBLIC_SUPABASE_URL")}/rest/v1/listings?select=slug,updated_at&status=in.(AKTIV,RESERVIERT)&is_demo=is.false`,
   { headers: { apikey: env("PUBLIC_SUPABASE_PUBLISHABLE_KEY") } },
 );
 if (!res.ok) throw new Error(`listings fetch failed: ${res.status}`);

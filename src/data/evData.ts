@@ -62,6 +62,9 @@ export type Listing = {
   /** Owning profile (uuid) — null/undefined for platform-seeded listings,
    *  which are therefore not messageable. */
   owner?: string | null;
+  /** Demo car (supabase/seed/demo_listings.sql) — badged, not for sale,
+   *  kept out of search engines. */
+  isDemo?: boolean;
   /** Photo paths in the listing-photos bucket. */
   photos?: string[];
 };

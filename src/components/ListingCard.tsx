@@ -52,21 +52,24 @@ export default function ListingCard({
               <CarGraphic segment={l.segment} className="h-3/5 w-3/5 text-fg3" />
             </div>
           )}
-          {reserved ? (
-            <span className="absolute left-3 top-3">
+          <span className="absolute left-3 top-3 flex gap-1.5">
+            {l.isDemo && (
+              <Badge tone="neutral" className="bg-canvas/90">
+                Demo
+              </Badge>
+            )}
+            {reserved ? (
               <Badge tone="caution" className="bg-canvas/90">
                 Reserviert
               </Badge>
-            </span>
-          ) : (
-            l.postedDays <= 3 && (
-              <span className="absolute left-3 top-3">
+            ) : (
+              l.postedDays <= 3 && (
                 <Badge tone="positive" className="bg-canvas/90">
                   Neu
                 </Badge>
-              </span>
-            )
-          )}
+              )
+            )}
+          </span>
         </div>
 
         <div className="flex flex-1 flex-col justify-between gap-3 p-4">

@@ -117,6 +117,11 @@ export default function ContactSeller({ listing }: { listing: Listing }) {
             </a>
             .
           </p>
+        ) : listing.isDemo ? (
+          <p className="text-body text-fg2">
+            Demo-Inserat — hinter diesem Auto steht kein Anbieter. Echte
+            Inserate schreibst du hier direkt an.
+          </p>
         ) : !messageable ? (
           <p className="text-body text-fg2">
             Dieses Inserat wird von EV4U selbst geführt — schreib uns an{" "}

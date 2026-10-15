@@ -69,6 +69,7 @@ export default function ListingBoard({
                     <span className="truncate text-body font-medium text-fg">
                       {vehicleTitle(l)}
                     </span>
+                    {l.isDemo && <Badge tone="neutral">Demo</Badge>}
                     {reserved ? (
                       <Badge tone="caution">Reserviert</Badge>
                     ) : (

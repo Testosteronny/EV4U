@@ -10,12 +10,14 @@ import { vehicleTitle } from "../utils/format";
 const listings = await fetchBuildListings();
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Demo cars aren't for sale — they stay out of the structured data.
+const forSale = listings.filter((l) => !l.isDemo);
 const itemListLd = jsonLd({
   "@context": "https://schema.org",
   "@type": "ItemList",
   name: "E-Auto-Inserate Schweiz — EV4U",
-  numberOfItems: listings.length,
-  itemListElement: listings.map((l, i) => ({
+  numberOfItems: forSale.length,
+  itemListElement: forSale.map((l, i) => ({
     "@type": "ListItem",
     position: i + 1,
     name: `${vehicleTitle(l)} (${l.year})`,

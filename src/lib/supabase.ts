@@ -27,6 +27,8 @@ export function photoUrl(path: string): string {
 export type ListingRow = {
   id: string;
   owner: string | null;
+  /** Demo car for checking the site before launch — platform-owned, never for sale. */
+  is_demo: boolean;
   slug: string;
   brand: string;
   model: string;

@@ -34,6 +34,7 @@ export function rowToListing(r: ListingRow): Listing {
     note: r.note,
     uid: r.id,
     owner: r.owner,
+    isDemo: r.is_demo,
     photos: r.photos ?? [],
     priceNew: r.price_new ?? undefined,
     weightKg: r.weight_kg ?? undefined,

@@ -221,7 +221,39 @@ Security** in the database:
   `PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The publishable key is safe in the
   client; RLS does the guarding.
 - **Production checklist**: set the Auth *Site URL* + redirect allow-list to
-  your domain, configure custom SMTP, enable Point-in-Time Recovery.
+  your domain, configure custom SMTP, enable Point-in-Time Recovery,
+  **remove the demo listings** (below).
+
+### Demo listings
+
+Until real sellers arrive, the live database holds 28 demo cars so every
+page can be checked with realistic data. They live in the production table
+but are fenced off by a flag, not a naming convention:
+
+- `listings.is_demo` (migration `*_listings_demo_flag.sql`). A check
+  constraint allows it only on platform rows (`owner is null`) — sellers
+  always insert with their own `owner` (RLS), so a real listing can never be
+  marked demo, nor swept away by the cleanup.
+- Each car is a catalog variant: brand, model, variant and all specs come
+  from `vehicle_variants`, exactly as if a seller had picked it in the sell
+  form, so the Marke → Modell → Variante filter works on them. Only year,
+  km, price, SOH, seller and place are made up.
+- Shown with a «Demo» badge and a note on the detail page; no contact form
+  (there is no seller). `noindex`, no Car/Offer JSON-LD, left out of the
+  `/inserate` ItemList and the sitemap.
+
+```
+supabase db query --linked -f supabase/seed/demo_listings.sql   # load / reset (idempotent)
+```
+
+Before launch, in the SQL editor (photos: none, the demo cars use the car
+graphic):
+
+```sql
+delete from public.listings where is_demo;
+```
+
+The `is_demo` column can stay; once no row carries it, it changes nothing.
 
 ## SEO & GEO
 

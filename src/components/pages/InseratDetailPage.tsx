@@ -186,6 +186,7 @@ export default function InseratDetailPage({
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-display font-semibold text-fg">{title}</h1>
+        {listing.isDemo && <Badge tone="neutral">Demo</Badge>}
         {reserved ? (
           <Badge tone="caution">Reserviert</Badge>
         ) : (
@@ -198,6 +199,13 @@ export default function InseratDetailPage({
         {listing.ort} · eingestellt vor {listing.postedDays}{" "}
         {listing.postedDays === 1 ? "Tag" : "Tagen"}
       </p>
+      {listing.isDemo && (
+        <p className="mt-3 max-w-prose rounded-chip bg-surface2 px-3 py-2 text-small text-fg2">
+          Demo-Inserat: Dieses Auto zeigt, wie EV4U funktioniert. Es steht
+          nicht zum Verkauf — Preis, Anbieter und Ort sind erfunden, die
+          technischen Daten stammen aus dem Fahrzeugkatalog.
+        </p>
+      )}
 
       {/* Galerie + Seitenleiste. Die Leiste bleibt beim Scrollen stehen, so
           lange die linke Spalte läuft — Preis und Kontakt sind immer da. */}

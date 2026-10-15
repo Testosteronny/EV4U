@@ -87,8 +87,15 @@ const breadcrumbLd = jsonLd({
 ---
 
 <Base title={title} description={description} image={images[0]}>
-  <script is:inline type="application/ld+json" set:html={carLd} slot="head" />
-  <script is:inline type="application/ld+json" set:html={breadcrumbLd} slot="head" />
+  <Fragment slot="head">
+    {/* Demo cars aren't for sale: no index entry, no Offer markup. */}
+    {listing.isDemo ? (
+      <meta name="robots" content="noindex,follow" />
+    ) : (
+      <script is:inline type="application/ld+json" set:html={carLd} />
+    )}
+    <script is:inline type="application/ld+json" set:html={breadcrumbLd} />
+  </Fragment>
   <InseratDetailPage
     client:load
     slug={listing.id}

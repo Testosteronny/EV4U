@@ -5,6 +5,8 @@
    what was mailed is recorded (saved_searches.last_notified_at,
    favorites.notified_price / notified_status), so an extra call sends
    nothing twice — which is why the public anon JWT is enough to call it.
+   A lease (job_runs) lets one run start per 20 minutes: calls in between,
+   or in parallel, return at once instead of racing the markers.
 
    · Suchabos: SOFORT on every run, TAEGLICH after 23 h, WOECHENTLICH after
      6 days 23 h. New = went online since the last mail. The matching mirrors
@@ -28,6 +30,8 @@ const FROM = Deno.env.get("MAIL_FROM") ?? "EV4U <noreply@ev4u.ch>";
 const HOUR = 3_600_000;
 const DUE_AFTER: Record<string, number> = { SOFORT: 0, TAEGLICH: 23 * HOUR, WOECHENTLICH: (6 * 24 + 23) * HOUR };
 const MAX_WINDOW = 8 * 24 * HOUR;
+/** Shorter than the cron interval, so every scheduled call still runs. */
+const LEASE_MS = 20 * 60_000;
 const COORDS = PLZ as unknown as Record<string, [number, number]>;
 
 const json = (body: unknown, status = 200) =>
@@ -324,9 +328,17 @@ async function runMerkliste(settings: Map<string, Settings>): Promise<number> {
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   try {
+    const now = Date.now();
+    const { data: lease } = await admin
+      .from("job_runs")
+      .update({ started_at: new Date(now).toISOString() })
+      .eq("name", "alerts")
+      .lt("started_at", new Date(now - LEASE_MS).toISOString())
+      .select("name");
+    if (!lease?.length) return json({ skipped: "ran recently" });
+
     const { data } = await admin.from("account_settings").select("user_id,notify_alerts,plz");
     const settings = new Map(((data as Settings[]) ?? []).map((s) => [s.user_id, s]));
-    const now = Date.now();
     const searchMails = await runSearches(now, settings);
     const merklisteMails = await runMerkliste(settings);
     return json({ searchMails, merklisteMails, resend: Boolean(RESEND) });

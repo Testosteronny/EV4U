@@ -13,9 +13,18 @@ import { href } from "../../lib/url";
    ============================================================================ */
 
 function safeNext(raw: string | null): string {
-  const base = href("/");
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return href("/konto");
-  return raw.startsWith(base.replace(/\/$/, "") || "/") ? raw : href("/konto");
+  const fallback = href("/konto");
+  // Browsers read «/\evil.com» as «//evil.com», so resolve the URL instead
+  // of trusting a prefix check.
+  if (!raw?.startsWith("/") || raw.includes("\\")) return fallback;
+  try {
+    const url = new URL(raw, location.origin);
+    const base = href("/").replace(/\/$/, "");
+    if (url.origin !== location.origin || !`${url.pathname}/`.startsWith(`${base}/`)) return fallback;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return fallback;
+  }
 }
 
 export default function LoginPage() {

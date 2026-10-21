@@ -4,7 +4,10 @@
    Called by the pg_net trigger messages_notify on every insert into
    messages. Looks the message up server-side (a forged payload does
    nothing), finds the OTHER participant and mails them a link straight
-   into the thread (/konto/nachrichten?c=…). Quiet when
+   into the thread (/konto/nachrichten?c=…). Each message is claimed once
+   (messages.notified_at) and only while it is fresh — the anon key that
+   opens this function is public, and a replayed call must not mail the
+   other participant again. Quiet when
    · the recipient switched message mails off (account_settings),
    · the sender already wrote in the last 30 minutes and the recipient has
      not read it yet — one mail per burst, not one per line.
@@ -21,6 +24,8 @@ const SITE = (Deno.env.get("SITE_URL") ?? "https://testosteronny.github.io/EV4U"
 const RESEND = Deno.env.get("RESEND_API_KEY");
 const FROM = Deno.env.get("MAIL_FROM") ?? "EV4U <noreply@ev4u.ch>";
 const BURST_MS = 30 * 60_000;
+/** pg_net calls within seconds; anything older is a replay. */
+const FRESH_MS = 10 * 60_000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -42,13 +47,17 @@ Deno.serve(async (req) => {
     const { message_id } = await req.json();
     if (typeof message_id !== "string") return json({ error: "bad request" }, 400);
 
+    // Claim: only the first call for a fresh message gets the row back.
     const { data } = await admin
       .from("messages")
-      .select("id,sender,body,created_at,conversation_id,conversation:conversations(buyer,listing:listings(slug,brand,model,owner))")
+      .update({ notified_at: new Date().toISOString() })
       .eq("id", message_id)
+      .is("notified_at", null)
+      .gte("created_at", new Date(Date.now() - FRESH_MS).toISOString())
+      .select("id,sender,body,created_at,conversation_id,conversation:conversations(buyer,listing:listings(slug,brand,model,owner))")
       .maybeSingle();
     const msg = data as unknown as Msg | null;
-    if (!msg?.conversation) return json({ error: "unknown message" }, 404);
+    if (!msg?.conversation) return json({ skipped: "unknown or already notified" });
 
     const conv = msg.conversation;
     const recipient = msg.sender === conv.buyer ? conv.listing?.owner : conv.buyer;

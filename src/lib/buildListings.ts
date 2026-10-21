@@ -1,6 +1,7 @@
 import { LISTINGS, type Listing } from "../data/evData";
 import { rowToListing } from "./mappers";
 import { LISTING_SELECT, type ListingRow } from "./supabase";
+import { SAFE_SLUG } from "./url";
 
 /* ============================================================================
    Build-time listings snapshot — one fetch per `astro build`, shared by
@@ -23,7 +24,7 @@ export async function fetchBuildListings(): Promise<Listing[]> {
         { headers: { apikey: key } },
       );
       if (res.ok) {
-        cache = ((await res.json()) as ListingRow[]).map(rowToListing);
+        cache = ((await res.json()) as ListingRow[]).filter((r) => SAFE_SLUG.test(r.slug)).map(rowToListing);
         return cache;
       }
     } catch {

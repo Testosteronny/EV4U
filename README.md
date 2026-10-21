@@ -21,8 +21,9 @@ the readability rules v3 builds on.
 - **MDX content collections** for the blog and the Ratgeber
 - **nanostores** (`persistent`) — cross-island, cross-page state
 - **Tailwind CSS 4** (Vite plugin, no JS config) — `@theme` token set in `src/index.css`
-- **Archivo**, one family, four weights. Archivo carries tabular figures
-  itself (`.tabular`).
+- **Archivo**, one family, four weights, self-hosted through Astro's Fonts
+  API (downloaded at build time — no request to Google per visit). Archivo
+  carries tabular figures itself (`.tabular`).
 - **lucide-react** icons. No animation library — CSS transitions only.
 - **Mediabunny** (WebCodecs) — converts walkthrough videos in the browser, loaded only when a seller picks one
 
@@ -232,7 +233,7 @@ database; the few things a browser must not do run as Edge Functions.
 
 | Table | Policies |
 |-------|----------|
-| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable`, at most 12 `photos`, one video (`video_path / _seconds / _poster`, files in the owner's folder) |
+| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. `hidden_at`, `created_at` and the `slug` (once set) are admin/platform-only (trigger); the slug must look like `tesla-model-y-k3f9` — it becomes a path at build time. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable`, at most 12 `photos`, one video (`video_path / _seconds / _poster`, files in the owner's folder) |
 | `listing_price_history` | every price, logged by trigger — «Preis gesenkt», Merkliste changes, the price chart |
 | `listing_events` | views / contacts / saves per day; written only through `track_listing_event()`, read by owner and admins (account stats). `listing_save_count()` is the one public number |
 | `reports` | «Inserat melden»: anyone may insert, only admins read. Three distinct logged-in reporters set `hidden_at` (trigger) until an admin looks |
@@ -241,19 +242,20 @@ database; the few things a browser must not do run as Edge Functions.
 | `favorites` | the synced Merkliste: note, `saved_price`, and what the last alert reported |
 | `saved_searches` | the filter URL as-is, plus alert `frequency` (SOFORT · TAEGLICH · WOECHENTLICH · AUS) and `last_notified_at` / `last_opened_at` |
 | `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed. `seller_response_minutes()` gives the «antwortet meist innert …» badge |
-| `newsletter_subscribers` | the Monatsbrief, double opt-in; RLS without policies — only the `newsletter` function touches it |
+| `newsletter_subscribers` | the Monatsbrief, double opt-in; RLS without policies and no API grants — only the `newsletter` function touches it |
+| `job_runs` | leases for scheduled functions (`alerts`: one run per 20 min); service role only |
 | `bookings` | Beratung call-backs: **write-only**, validated anonymous insert |
 | `canton_taxes` | **operator config**, weight-based: `rate_per_100kg` + `ev_discount_pct` + `tax_year`. Public read, no client write; bundled fallback when offline |
 | `vehicle_brands` / `vehicle_models` / `vehicle_variants` | **reference data**, the EV catalog (see below): public read, no client write |
 | `user_roles` | **admin flag**; `private.is_admin()` (security definer, in a schema the API doesn't expose) backs the admin branches of the RLS policies. The UI only decides what to *show* |
-| storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder (listing photos, garage logo) |
+| storage `listing-photos` | public object URLs; uploads/deletes only into the user's own `uid/` folder (listing photos, garage logo); JPEG only, max 5 MB |
 
 **Edge Functions** (`supabase/functions/`, all behind the JWT gateway):
 
 | Function | Job |
 |----------|-----|
-| `notify-message` | called by a pg_net trigger on message insert; mails the other participant a link into the thread — not when they switched it off, and only once per unread burst (30 min) |
-| `alerts` | **pg_cron every 30 min** (`ev4u-alerts`): new hits for due saved searches (frequency, max 5 per mail; the «Umkreis» filter uses `alerts/plz.json`) and Merkliste changes (price cut, reserved, sold, offline, available again) |
+| `notify-message` | called by a pg_net trigger on message insert; mails the other participant a link into the thread — not when they switched it off, and only once per unread burst (30 min). Each message is claimed once (`messages.notified_at`), so replayed calls mail nothing |
+| `alerts` | **pg_cron every 30 min** (`ev4u-alerts`, lease in `job_runs`): new hits for due saved searches (frequency, max 5 per mail; the «Umkreis» filter uses `alerts/plz.json`) and Merkliste changes (price cut, reserved, sold, offline, available again) |
 | `newsletter` | Monatsbrief subscribe → confirmation mail, confirm, unsubscribe; one answer for every case, rate-limited |
 | `delete-account` | removes the caller's photos and videos, then the auth user; everything else cascades |
 | `video-upload` | signs a PUT link to R2 for exactly one converted video (type and byte size are part of the signature, max 60 MB, at most one video per listing + 2 per account) and deletes videos — the owner's, or any for admins |

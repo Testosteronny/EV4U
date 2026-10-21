@@ -1,4 +1,4 @@
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
 import mdx from "@astrojs/mdx";
 import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
@@ -18,6 +18,21 @@ export default defineConfig({
   // elements in .astro templates ("a <b>b</b>" → "a<b>b</b>"). The templates
   // were written against the old collapsing behaviour — keep it.
   compressHTML: true,
+  // Archivo is downloaded at build time and served from this site: no
+  // request to Google per visit (and no IP address handed over), no
+  // render-blocking cross-origin stylesheet, metric-matched fallbacks.
+  fonts: [
+    {
+      provider: fontProviders.google(),
+      name: "Archivo",
+      cssVariable: "--font-archivo",
+      weights: [400, 500, 600, 700],
+      styles: ["normal"],
+      // latin-ext only loads for names like «Škoda» (unicode-range).
+      subsets: ["latin", "latin-ext"],
+      fallbacks: ["system-ui", "sans-serif"],
+    },
+  ],
   vite: {
     // index.css carries `@import "tailwindcss"`, the @theme tokens and the
     // design system.

@@ -1,5 +1,6 @@
 ---
 import "../index.css";
+import { Font } from "astro:assets";
 import { getCollection } from "astro:content";
 import { BLOG_CATEGORIES } from "../content.config";
 import Header, { Wordmark } from "../components/layout/Header";
@@ -72,13 +73,8 @@ const posts = (await getCollection("blog"))
     <meta property="og:url" content={canonical} />
     {image && <meta property="og:image" content={image} />}
     <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} crossorigin />}
-    <link
-      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <Font cssVariable="--font-archivo" preload={[{ subset: "latin", weight: 400 }]} />
     <title>{title}</title>
     <slot name="head" />
   </head>

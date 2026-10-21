@@ -883,6 +883,9 @@ export function Sheet({
   const [panel, setPanel] = useState<HTMLDivElement | null>(null);
   const titleId = useId();
   useModal(onClose, panel);
+  // A click lands on the backdrop when a text selection starts in the
+  // panel and ends outside — only a press that also began there closes.
+  const pressedBackdrop = useRef(false);
 
   return (
     <Portal>
@@ -890,7 +893,12 @@ export function Sheet({
         className={`fixed inset-0 z-80 flex bg-black/40 backdrop-blur-[2px] ${
           side ? "justify-end" : "items-end justify-center p-0 sm:items-center sm:p-6"
         }`}
-        onClick={onClose}
+        onPointerDown={(e) => {
+          pressedBackdrop.current = e.target === e.currentTarget;
+        }}
+        onClick={(e) => {
+          if (pressedBackdrop.current && e.target === e.currentTarget) onClose();
+        }}
       >
         <div
           ref={setPanel}

@@ -30,7 +30,9 @@ export default function ReportSheet({ listing, onClose }: { listing: Listing; on
     const { error } = await supabase
       .from("reports")
       .insert({ listing_id: listing.uid, reason, detail: detail.trim().slice(0, 1000) });
-    setState(error ? "error" : "sent");
+    // 23505: this account reported the listing before — it is in the queue,
+    // «nochmals versuchen» would only fail again.
+    setState(error && error.code !== "23505" ? "error" : "sent");
   };
 
   return (

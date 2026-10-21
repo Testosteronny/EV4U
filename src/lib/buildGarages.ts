@@ -5,6 +5,8 @@
    are served by the 404 fallback, which loads the same profile live.
    ============================================================================ */
 
+import { SAFE_SLUG } from "./url";
+
 export type GarageInfo = {
   id: string;
   name: string;
@@ -33,7 +35,7 @@ export async function fetchBuildGarages(): Promise<GarageInfo[]> {
         `${url}/rest/v1/profiles?select=${GARAGE_COLUMNS}&type=eq.GARAGE&slug=not.is.null&order=verified.desc,name.asc`,
         { headers: { apikey: key } },
       );
-      if (res.ok) cache = (await res.json()) as GarageInfo[];
+      if (res.ok) cache = ((await res.json()) as GarageInfo[]).filter((g) => SAFE_SLUG.test(g.slug));
     } catch {
       /* offline build → no garage pages */
     }

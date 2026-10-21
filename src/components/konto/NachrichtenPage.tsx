@@ -104,12 +104,14 @@ function Inbox({ userId }: { userId: string }) {
             .from("messages")
             .select("id,conversation_id,sender,body,created_at,read_at")
             .in("conversation_id", ids)
-            .order("created_at", { ascending: true })
+            // The newest 2000 — oldest first would drop today's messages
+            // once an inbox outgrows the limit.
+            .order("created_at", { ascending: false })
             .limit(2000)
         : Promise.resolve({ data: [] }),
       buyers.length ? supabase.from("profiles").select("id,name").in("id", buyers) : Promise.resolve({ data: [] }),
     ]);
-    setMsgs((m as Msg[]) ?? []);
+    setMsgs(((m as Msg[]) ?? []).reverse());
     setNames(new Map(((p as { id: string; name: string }[]) ?? []).map((r) => [r.id, r.name])));
     setConvs(list);
   }, [userId]);
@@ -132,7 +134,11 @@ function Inbox({ userId }: { userId: string }) {
 
   const byConv = useMemo(() => {
     const m = new Map<string, Msg[]>();
-    for (const msg of msgs) m.set(msg.conversation_id, [...(m.get(msg.conversation_id) ?? []), msg]);
+    for (const msg of msgs) {
+      const list = m.get(msg.conversation_id);
+      if (list) list.push(msg);
+      else m.set(msg.conversation_id, [msg]);
+    }
     return m;
   }, [msgs]);
 

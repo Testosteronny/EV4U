@@ -37,6 +37,25 @@ const COORDS = PLZ as unknown as Record<string, [number, number]>;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
+/** The API hands out at most 1000 rows per request. */
+const PAGE = 1000;
+
+/** Every row of a query, page by page (the query must order by a unique
+ *  key). A failed page throws: a missing account_settings row would read
+ *  as «mails on». */
+async function allRows<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data as T[] | null) ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
+}
+
 async function sendMail(to: string, subject: string, text: string): Promise<boolean> {
   if (!RESEND) {
     console.log(`[alerts] RESEND_API_KEY not set — would mail ${to}: ${subject}`);
@@ -176,11 +195,15 @@ type Search = {
 type Settings = { user_id: string; notify_alerts: boolean; plz: string | null };
 
 async function runSearches(now: number, settings: Map<string, Settings>): Promise<number> {
-  const { data } = await admin
-    .from("saved_searches")
-    .select("id,user_id,label,params,frequency,created_at,last_notified_at")
-    .neq("frequency", "AUS");
-  const due = ((data as Search[]) ?? []).filter((s) => {
+  const searches = await allRows<Search>((from, to) =>
+    admin
+      .from("saved_searches")
+      .select("id,user_id,label,params,frequency,created_at,last_notified_at")
+      .neq("frequency", "AUS")
+      .order("id")
+      .range(from, to),
+  );
+  const due = searches.filter((s) => {
     if (settings.get(s.user_id)?.notify_alerts === false) return false;
     return !s.last_notified_at || now - Date.parse(s.last_notified_at) >= (DUE_AFTER[s.frequency] ?? Infinity);
   });
@@ -247,11 +270,14 @@ type FavListing = { slug: string; brand: string; model: string; price: number; s
 const OFFLINE = "OFFLINE";
 
 async function runMerkliste(settings: Map<string, Settings>): Promise<number> {
-  const { data } = await admin
-    .from("favorites")
-    .select("user_id,listing_slug,saved_price,notified_price,notified_status")
-    .limit(10_000);
-  const favs = (data as Fav[]) ?? [];
+  const favs = await allRows<Fav>((from, to) =>
+    admin
+      .from("favorites")
+      .select("user_id,listing_slug,saved_price,notified_price,notified_status")
+      .order("user_id")
+      .order("listing_slug")
+      .range(from, to),
+  );
   if (!favs.length) return 0;
 
   const slugs = [...new Set(favs.map((f) => f.listing_slug))];
@@ -337,8 +363,10 @@ Deno.serve(async (req) => {
       .select("name");
     if (!lease?.length) return json({ skipped: "ran recently" });
 
-    const { data } = await admin.from("account_settings").select("user_id,notify_alerts,plz");
-    const settings = new Map(((data as Settings[]) ?? []).map((s) => [s.user_id, s]));
+    const rows = await allRows<Settings>((from, to) =>
+      admin.from("account_settings").select("user_id,notify_alerts,plz").order("user_id").range(from, to),
+    );
+    const settings = new Map(rows.map((s) => [s.user_id, s]));
     const searchMails = await runSearches(now, settings);
     const merklisteMails = await runMerkliste(settings);
     return json({ searchMails, merklisteMails, resend: Boolean(RESEND) });

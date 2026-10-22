@@ -53,7 +53,7 @@ import { href } from "../../lib/url";
 import { VIDEOS_ENABLED, deleteVideo } from "../../lib/video";
 import { listingSpecs, yearHint, type ListingSpecs } from "../../lib/vehicleCatalog";
 import { refreshListings } from "../../stores/listings";
-import { SEGMENT_LABEL, STATUS_LABEL } from "../../utils/format";
+import { SEGMENT_LABEL, STATUS_LABEL, sellerName } from "../../utils/format";
 import { REF_WEIGHT_KG } from "../../utils/costModel";
 import { fmtCH } from "../../utils/swiss";
 import type { Segment } from "../../data/evData";
@@ -186,11 +186,8 @@ function Wizard({ userId, email, profile }: { userId: string; email: string; pro
       const d = ref.current;
       if (!supabase || !canPersist(d)) return true;
       setSave({ state: "saving" });
-      const seller = {
-        seller_name: profile?.name?.trim() || email.split("@")[0] || "Privat",
-        seller_type: profile?.type ?? "PRIVAT",
-      };
-      const row = { ...draftToRow(d), ...seller, ...(status ? { status } : {}) };
+      // Seller name and type: the database takes them from the profile.
+      const row = { ...draftToRow(d), ...(status ? { status } : {}) };
       if (d.id) {
         const { error } = await supabase.from("listings").update(row).eq("id", d.id);
         if (error) {
@@ -218,7 +215,7 @@ function Wizard({ userId, email, profile }: { userId: string; email: string; pro
       setSave({ state: "saved", at: new Date() });
       return true;
     },
-    [userId, email, profile],
+    [userId],
   );
 
   const go = async (to: number) => {
@@ -923,7 +920,7 @@ function PreviewStep({ draft, userId, profile, email }: { draft: Draft; userId: 
       is_demo: false,
       slug: draft.slug ?? "vorschau",
       status: "AKTIV",
-      seller_name: profile?.name?.trim() || email.split("@")[0],
+      seller_name: sellerName(profile?.name, profile?.type ?? "PRIVAT"),
       seller_type: profile?.type ?? "PRIVAT",
       created_at: draft.createdAt ?? new Date().toISOString(),
       hidden_at: null,
@@ -933,7 +930,7 @@ function PreviewStep({ draft, userId, profile, email }: { draft: Draft; userId: 
       seller_profile: { slug: profile?.slug ?? null, verified: profile?.verified ?? false },
     } as ListingRow;
     return rowToListing(row);
-  }, [draft, userId, profile, email]);
+  }, [draft, userId, profile]);
 
   const missing = [
     !valid.vehicle(draft) && "Fahrzeug",

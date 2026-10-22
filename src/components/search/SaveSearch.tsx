@@ -57,7 +57,7 @@ export default function SaveSearch({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(label);
   const [frequency, setFrequency] = useState<Frequency>("TAEGLICH");
-  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error" | "full">("idle");
   const [next, setNext] = useState("");
 
   useEffect(() => setName(label), [label]);
@@ -82,7 +82,8 @@ export default function SaveSearch({
       params: params.slice(0, 500),
       frequency,
     });
-    setState(error ? "error" : "saved");
+    // 25 Suchabos per account (database cap).
+    setState(error ? (error.hint === "limit" ? "full" : "error") : "saved");
   };
 
   const icon = state === "saved" ? <BellRing size={16} aria-hidden /> : <Bell size={16} aria-hidden />;
@@ -164,6 +165,15 @@ export default function SaveSearch({
                 <p className="mt-1.5 text-small text-fg3">{FREQUENCIES.find((f) => f.key === frequency)?.hint}</p>
               </div>
               {state === "error" && <Notice tone="danger">Speichern hat nicht geklappt. Bitte nochmals versuchen.</Notice>}
+              {state === "full" && (
+                <Notice tone="danger">
+                  Du hast schon 25 Suchabos.{" "}
+                  <a href={href("/konto/suchabos")} className="font-semibold underline">
+                    Lösch eines, das du nicht mehr brauchst
+                  </a>
+                  .
+                </Notice>
+              )}
             </div>
           )}
         </Sheet>

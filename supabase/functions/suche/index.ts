@@ -102,6 +102,30 @@ async function inventoryDigest(): Promise<Digest> {
   }
 }
 
+/* ---- Tagesbudget -------------------------------------------------------
+   Jeder Aufruf kostet, und der Schlüssel, der die Funktion öffnet, ist
+   öffentlich. Ein Zähler pro Tag (public.take_api_quota, nur Service-Role)
+   setzt die Obergrenze; darüber antwortet die Funktion 429 und die Seite
+   sucht lokal weiter. Ohne Zähler kein Aufruf — lieber keine KI als eine
+   offene Rechnung. */
+const DAILY_BUDGET = Number(Deno.env.get("SUCHE_DAILY_BUDGET") ?? 3000);
+
+async function withinBudget(): Promise<boolean> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return false;
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/take_api_quota`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_name: "suche", p_limit: DAILY_BUDGET }),
+    });
+    return res.ok && (await res.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
 /* ---- Antwortschema -----------------------------------------------------
    Lowercase JSON-Schema-Dialekt; `enum` gilt für string, number und integer.
    Nur `reply` und `unsupported` sind Pflicht — alles andere lässt das Modell
@@ -312,6 +336,7 @@ export const handler = async (req: Request): Promise<Response> => {
     return json({ error: "bad_request" }, 400);
   }
   if (query.length < 2) return json({ error: "bad_request" }, 400);
+  if (!(await withinBudget())) return json({ error: "quota" }, 429);
 
   const digest = await inventoryDigest();
 

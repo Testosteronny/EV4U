@@ -285,7 +285,7 @@ function Thread({
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const asBuyer = conv.buyer === userId;
   const l = conv.listing;
@@ -300,12 +300,17 @@ function Thread({
     const body = draft.trim();
     if (!supabase || !body) return;
     setBusy(true);
-    setError(false);
+    setError(null);
     const { error: err } = await supabase
       .from("messages")
       .insert({ conversation_id: conv.id, sender: userId, body: body.slice(0, 2000) });
-    if (err) setError(true);
-    else {
+    if (err) {
+      setError(
+        err.hint === "rate_limit"
+          ? "Du hast in kurzer Zeit sehr viele Nachrichten geschickt. Bitte warte ein paar Minuten."
+          : "Senden hat nicht geklappt. Bitte nochmals versuchen.",
+      );
+    } else {
       setDraft("");
       await onSent();
     }
@@ -429,7 +434,7 @@ function Thread({
                 <span className="hidden sm:inline">Senden</span>
               </Button>
             </form>
-            {error && <p className="mt-2 text-small text-danger">Senden hat nicht geklappt. Bitte nochmals versuchen.</p>}
+            {error && <p className="mt-2 text-small text-danger">{error}</p>}
             <p className="mt-2 text-micro text-fg3">Tipp: Probefahrt vor Ort, bezahlt wird erst bei der Übergabe.</p>
           </>
         )}

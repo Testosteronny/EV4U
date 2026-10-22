@@ -300,7 +300,11 @@ function GarageProfileForm({
           </a>
         )}
       </div>
-      {!profile.verified && (
+      {profile.verified ? (
+        <p className="mt-4 text-small text-fg3">
+          Verifiziert sind Name und UID. Änderst du eines davon, prüfen wir die Garage neu — bis dahin ohne Abzeichen.
+        </p>
+      ) : (
         <Notice className="mt-4">
           Mit UID prüfen wir deine Garage von Hand im Handelsregister (Zefix), meist innert zwei Werktagen. Danach trägt
           jedes Inserat das Abzeichen «Verifizierte Garage».

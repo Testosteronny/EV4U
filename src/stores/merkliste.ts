@@ -53,9 +53,20 @@ export const $merkliste = persistentAtom<SavedCar[]>("ev4u.merkliste.v1", [], {
 /** The account the list is currently mirrored to (null = local only). */
 let accountId: string | null = null;
 
-/** Count a save for the listing's public «× gemerkt» and the seller's stats. */
+const COUNTED_KEY = "ev4u.saves.counted";
+
+/** Count a save for the listing's public «× gemerkt» and the seller's stats —
+ *  once per listing and browser, so un- and re-saving doesn't inflate it. */
 function trackSave(uid: string | undefined): void {
   if (!supabase || !uid) return;
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(COUNTED_KEY) ?? "[]");
+    const counted = Array.isArray(stored) ? stored : [];
+    if (counted.includes(uid)) return;
+    localStorage.setItem(COUNTED_KEY, JSON.stringify([uid, ...counted].slice(0, 300)));
+  } catch {
+    /* storage blocked: count it anyway */
+  }
   void supabase.rpc("track_listing_event", { p_listing: uid, p_kind: "SAVE" });
 }
 

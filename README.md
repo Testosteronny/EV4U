@@ -233,17 +233,18 @@ database; the few things a browser must not do run as Edge Functions.
 
 | Table | Policies |
 |-------|----------|
-| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. `hidden_at`, `created_at` and the `slug` (once set) are admin/platform-only (trigger); the slug must look like `tesla-model-y-k3f9` — it becomes a path at build time. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable`, at most 12 `photos`, one video (`video_path / _seconds / _poster`, files in the owner's folder) |
+| `listings` | AKTIV/RESERVIERT/VERKAUFT public unless `hidden_at` is set; ENTWURF and PAUSIERT owner-only; writes restricted to `owner = auth.uid()`. `hidden_at`, `created_at` and the `slug` (once set) are admin/platform-only (trigger); `created_at` is «online since» — publishing a draft sets it, and a published listing can't become a draft again. `seller_name` / `seller_type` come from the owner's profile (trigger, follows renames; never the e-mail address). The slug must look like `tesla-model-y-k3f9` — it becomes a path at build time. Seller-entered battery warranty (`battery_warranty_until/_km/_soh_pct` — never computed), condition, `equipment` jsonb, `negotiable`, at most 12 `photos` and one video (`video_path / _seconds / _poster`) — every file path in the owner's own folder (check constraints) |
 | `listing_price_history` | every price, logged by trigger — «Preis gesenkt», Merkliste changes, the price chart |
-| `listing_events` | views / contacts / saves per day; written only through `track_listing_event()`, read by owner and admins (account stats). `listing_save_count()` is the one public number |
+| `listing_events` | views / contacts / saves per day; written only through `track_listing_event()` (the owner's own clicks don't count; a save once per browser), read by owner and admins (account stats). `listing_save_count()` is the one public number |
 | `reports` | «Inserat melden»: anyone may insert, only admins read. Three distinct logged-in reporters set `hidden_at` (trigger) until an admin looks |
-| `profiles` | public read (seller name, garage page: slug, address, hours, logo, …); `verified` is admin-only (trigger); auto-created on signup |
+| `profiles` | public read (seller name, garage page: slug, address, hours, logo, …); `verified` is admin-only and drops when name, UID or type change (trigger); auto-created on signup |
 | `account_settings` | private, owner-only: the Fahrprofil and the notification switches (`notify_messages`, `notify_alerts`) |
-| `favorites` | the synced Merkliste: note, `saved_price`, and what the last alert reported |
-| `saved_searches` | the filter URL as-is, plus alert `frequency` (SOFORT · TAEGLICH · WOECHENTLICH · AUS) and `last_notified_at` / `last_opened_at` |
-| `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed. `seller_response_minutes()` gives the «antwortet meist innert …» badge |
+| `favorites` | the synced Merkliste: note, `saved_price`, and what the last alert reported; at most 200 per account |
+| `saved_searches` | the filter URL as-is, plus alert `frequency` (SOFORT · TAEGLICH · WOECHENTLICH · AUS) and `last_notified_at` / `last_opened_at`; at most 25 per account |
+| `conversations` / `messages` | buyer ↔ seller messaging: visible **only** to the two participants; senders can't be spoofed, timestamps and read/notified markers are the server's. Spam limits (trigger): 20 new conversations a day, 30 messages per 10 minutes. `seller_response_minutes()` gives the «antwortet meist innert …» badge |
 | `newsletter_subscribers` | the Monatsbrief, double opt-in; RLS without policies and no API grants — only the `newsletter` function touches it |
 | `job_runs` | leases for scheduled functions (`alerts`: one run per 20 min); service role only |
+| `api_quota` | daily call budgets (`suche`, via `take_api_quota()`); service role only |
 | `bookings` | Beratung call-backs: **write-only**, validated anonymous insert |
 | `canton_taxes` | **operator config**, weight-based: `rate_per_100kg` + `ev_discount_pct` + `tax_year`. Public read, no client write; bundled fallback when offline |
 | `vehicle_brands` / `vehicle_models` / `vehicle_variants` | **reference data**, the EV catalog (see below): public read, no client write |
@@ -259,7 +260,7 @@ database; the few things a browser must not do run as Edge Functions.
 | `newsletter` | Monatsbrief subscribe → confirmation mail, confirm, unsubscribe; one answer for every case, rate-limited |
 | `delete-account` | removes the caller's photos and videos, then the auth user; everything else cascades |
 | `video-upload` | signs a PUT link to R2 for exactly one converted video (type and byte size are part of the signature, max 60 MB, at most one video per listing + 2 per account) and deletes videos — the owner's, or any for admins |
-| `suche` | AI search: a description («familientauglicher Kombi bis 40'000») becomes the same URL filters the sidebar writes. 8 s timeout, falls back to text search; the site works without it |
+| `suche` | AI search: a description («familientauglicher Kombi bis 40'000») becomes the same URL filters the sidebar writes. 8 s timeout, falls back to text search; the site works without it. A daily budget (`SUCHE_DAILY_BUDGET`, default 3000 calls) caps the bill — the key that opens it is public. The explanation reaches `/inserate` through sessionStorage, never the URL (a shared link can't put words in EV4U's mouth) |
 
 Secrets: `RESEND_API_KEY`, `MAIL_FROM`, `SITE_URL` (mail functions — without
 the key they log and exit cleanly), `GEMINI_API_KEY` (`suche`) and

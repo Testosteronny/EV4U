@@ -42,6 +42,8 @@ async function doRefresh(): Promise<void> {
     .from("listings")
     .select(LISTING_SELECT)
     .in("status", ["AKTIV", "RESERVIERT"])
+    // RLS shows owners and admins their hidden listings too — not in search.
+    .is("hidden_at", null)
     .order("created_at", { ascending: false });
   if (error) {
     console.warn("[ev4u] listings fetch failed — using bundled seed:", error.message);

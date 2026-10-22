@@ -112,6 +112,13 @@ export const SELLER_LABEL: Record<Listing["sellerType"], string> = {
   GARAGE: "Garage",
 };
 
+/** Der Anbietername auf dem Inserat. Die Datenbank setzt ihn selbst aus dem
+ *  Profil (private.seller_label) — das hier ist dieselbe Regel für die
+ *  Vorschau. Nie aus der E-Mail-Adresse: die bleibt privat. */
+export function sellerName(name: string | null | undefined, type: Listing["sellerType"]): string {
+  return name?.trim() || (type === "GARAGE" ? "Garage" : "Privatperson");
+}
+
 /** Alle Zustände, die ein Inserat in der Datenbank annehmen kann. */
 export const LISTING_STATI = ["ENTWURF", "AKTIV", "RESERVIERT", "PAUSIERT", "VERKAUFT"] as const;
 export type ListingStatusFull = (typeof LISTING_STATI)[number];

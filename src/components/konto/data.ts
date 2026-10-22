@@ -81,16 +81,19 @@ export function sumEvents(totals: Iterable<EventTotals>): EventTotals {
 }
 
 /** Deletes a listing with its photos and video (the row cascades to price
- *  history, events, conversations and reports). */
+ *  history, events, conversations and reports). The row goes first: if
+ *  that fails, the listing keeps its pictures. */
 export async function deleteListing(
   l: Pick<MyListing, "id" | "photos" | "video_path" | "video_poster">,
 ): Promise<string | null> {
   if (!supabase) return "Nicht verbunden.";
-  const images = [...(l.photos ?? []), ...(l.video_poster ? [l.video_poster] : [])];
-  if (images.length) await supabase.storage.from("listing-photos").remove(images);
   const { error } = await supabase.from("listings").delete().eq("id", l.id);
   if (error) return error.message;
-  if (l.video_path) await deleteVideo(l.video_path);
+  const images = [...(l.photos ?? []), ...(l.video_poster ? [l.video_poster] : [])];
+  await Promise.all([
+    images.length ? supabase.storage.from("listing-photos").remove(images) : null,
+    l.video_path ? deleteVideo(l.video_path) : null,
+  ]);
   return null;
 }
 

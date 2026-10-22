@@ -320,7 +320,9 @@ export function newSlug(brand: string, model: string): string {
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
+    .slice(0, 60)
+    // After the cut: a trailing «-» would make «…--k3f9», which the slug
+    // check in the database refuses.
+    .replace(/^-+|-+$/g, "");
   return `${base || "e-auto"}-${Math.random().toString(36).slice(2, 6)}`;
 }

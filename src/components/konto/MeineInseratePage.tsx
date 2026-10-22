@@ -185,16 +185,24 @@ function ListingAdminRow({
                 erfasst {daysAgo(ageDays(l.created_at))}
               </p>
             </div>
-            <label className="w-40 shrink-0">
-              <span className="sr-only">Status von {title}</span>
-              <Select value={l.status} onChange={(e) => onStatus(e.target.value as ListingStatusFull)} className="h-9">
-                {LISTING_STATI.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            {/* A draft goes online through the wizard (photo, preview,
+                terms); once online it never turns back into a draft. */}
+            {l.status === "ENTWURF" ? (
+              <LinkButton href={editHref} size="sm" variant="primary" className="shrink-0">
+                Fertigstellen
+              </LinkButton>
+            ) : (
+              <label className="w-40 shrink-0">
+                <span className="sr-only">Status von {title}</span>
+                <Select value={l.status} onChange={(e) => onStatus(e.target.value as ListingStatusFull)} className="h-9">
+                  {LISTING_STATI.filter((s) => s !== "ENTWURF").map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_LABEL[s]}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            )}
           </div>
           <p className="mt-1 text-small text-fg3">{STATUS_HINT[l.status]}</p>
           {l.hidden_at && (

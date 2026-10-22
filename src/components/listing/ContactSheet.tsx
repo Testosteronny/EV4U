@@ -68,7 +68,7 @@ export default function ContactSheet({
   const { session, ready } = useSession();
   const [chosen, setChosen] = useState<Intent | null>(intent ?? null);
   const [body, setBody] = useState(intent ? INTENTS.find((i) => i.key === intent)!.text(listing) : "");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error" | "limit">("idle");
   const [convId, setConvId] = useState<string | null>(null);
   const [next, setNext] = useState("");
 
@@ -110,8 +110,9 @@ export default function ContactSheet({
       void supabase.rpc("track_listing_event", { p_listing: listing.uid, p_kind: "CONTACT" });
       setConvId(id);
       setState("sent");
-    } catch {
-      setState("error");
+    } catch (e) {
+      // The database's spam limits: new conversations per day, messages per 10 minutes.
+      setState((e as { hint?: string }).hint === "rate_limit" ? "limit" : "error");
     }
   };
 
@@ -176,6 +177,12 @@ export default function ContactSheet({
             />
           </label>
           {state === "error" && <Notice tone="danger">Senden hat nicht geklappt. Bitte nochmals versuchen.</Notice>}
+          {state === "limit" && (
+            <Notice tone="danger">
+              Du hast heute schon sehr viele Anbieter angeschrieben oder in kurzer Zeit viele Nachrichten geschickt.
+              Bitte versuch es später nochmals.
+            </Notice>
+          )}
           <p className="flex items-start gap-2 text-small text-fg2">
             <ShieldAlert size={15} aria-hidden className="mt-0.5 shrink-0 text-fg3" />
             <span>

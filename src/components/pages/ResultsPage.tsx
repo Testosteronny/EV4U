@@ -30,6 +30,7 @@ import {
   type Filters,
   type SortKey,
 } from "../../lib/filters";
+import { takeAiNote, type AiNote } from "../../lib/aiSearch";
 import { href } from "../../lib/url";
 import { fmtCH } from "../../utils/swiss";
 import type { Listing } from "../../data/evData";
@@ -56,7 +57,7 @@ export default function ResultsPage({ initial }: { initial?: Listing[] }) {
   const { gemeinde, hydrated } = useCockpit();
 
   const [sp, setSpState] = useState(() => new URLSearchParams());
-  const [aiNote, setAiNote] = useState<{ reply: string; unsupported: string[] } | null>(null);
+  const [aiNote, setAiNote] = useState<AiNote | null>(null);
   const [shown, setShown] = useState(PAGE);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -69,11 +70,7 @@ export default function ResultsPage({ initial }: { initial?: Listing[] }) {
       window.location.replace(href("/merkliste"));
       return;
     }
-    if (fromUrl.get("ai") === "1") {
-      const reply = fromUrl.get("airx") ?? "";
-      const unsupported = (fromUrl.get("aino") ?? "").split("|").filter(Boolean);
-      if (reply || unsupported.length) setAiNote({ reply, unsupported });
-    }
+    if (fromUrl.get("ai") === "1") setAiNote(takeAiNote());
     AI_KEYS.forEach((k) => fromUrl.delete(k));
     fromUrl.delete("abo");
     setSpState(fromUrl);

@@ -112,7 +112,11 @@ function AccountCard({
         </div>
         <Field
           label={type === "GARAGE" ? "Name der Garage" : "Anzeigename"}
-          hint="Steht als Anbieter auf deinen Inseraten und in Nachrichten."
+          hint={
+            profile?.verified
+              ? "Steht auf deinen Inseraten. Änderst du Name oder Kontotyp, prüfen wir die Garage neu."
+              : "Steht als Anbieter auf deinen Inseraten und in Nachrichten."
+          }
         >
           <input
             value={name}

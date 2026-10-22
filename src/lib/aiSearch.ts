@@ -54,15 +54,39 @@ export async function aiSearch(query: string): Promise<AiSearchResult | null> {
   }
 }
 
+const NOTE_KEY = "ev4u.ai.note";
+
+export type AiNote = Pick<AiSearchResult, "reply" | "unsupported">;
+
 /** Zielt auf /inserate mit den gefundenen Filtern. `ai=1` markiert die
- *  Herkunft, damit die Seite die Antwort einmalig einblenden kann. */
+ *  Herkunft, damit die Seite die Antwort einmalig einblenden kann. Der
+ *  Erklärtext reist im sessionStorage, nicht in der URL — ein geteilter
+ *  Link darf EV4U keine Worte in den Mund legen. */
 export function aiSearchUrl(result: AiSearchResult, query: string): string {
   const sp = new URLSearchParams(result.params);
   sp.set("ai", "1");
-  if (result.reply) sp.set("airx", result.reply.slice(0, 200));
-  if (result.unsupported.length) sp.set("aino", result.unsupported.join("|").slice(0, 200));
   if (!sp.get("q") && !hasRealFilter(result.params)) sp.set("q", query.trim());
+  try {
+    const note: AiNote = { reply: result.reply.slice(0, 200), unsupported: result.unsupported.slice(0, 6) };
+    sessionStorage.setItem(NOTE_KEY, JSON.stringify(note));
+  } catch {
+    /* kein Speicher: dann ohne Erklärtext */
+  }
   return `${href("/inserate")}?${sp.toString()}`;
+}
+
+/** Der Erklärtext der Suche, die hierher geführt hat — genau einmal. */
+export function takeAiNote(): AiNote | null {
+  try {
+    const raw = sessionStorage.getItem(NOTE_KEY);
+    sessionStorage.removeItem(NOTE_KEY);
+    const v = raw ? (JSON.parse(raw) as Partial<AiNote>) : null;
+    const reply = typeof v?.reply === "string" ? v.reply : "";
+    const unsupported = Array.isArray(v?.unsupported) ? v.unsupported.filter((x) => typeof x === "string") : [];
+    return reply || unsupported.length ? { reply, unsupported } : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Hat die KI überhaupt etwas gesetzt? Wenn nicht, ist der Freitext das
